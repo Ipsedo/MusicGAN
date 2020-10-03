@@ -1,74 +1,92 @@
 import torch as th
 import torch.nn as nn
 
+from utils import SAMPLE_RATE, N_FFT, N_SEC
+
 
 class Generator(nn.Module):
     def __init__(self, in_channels: int):
         super().__init__()
 
         self.__tr_cnn = nn.Sequential(
-            nn.ConvTranspose1d(
-                in_channels,
-                int(in_channels * 1.2 ** 2),
-                kernel_size=3,
-                stride=1,
-                padding=1),
-            nn.CELU(),
-            nn.ConvTranspose1d(
-                int(in_channels * 1.2 ** 2),
-                int(in_channels * 1.2 ** 6),
-                kernel_size=3,
-                stride=1,
-                padding=1),
-            nn.CELU(),
-            nn.ConvTranspose1d(
-                int(in_channels * 1.2 ** 6),
-                int(in_channels * 1.2 ** 9),
-                kernel_size=3,
-                stride=1,
-                padding=1),
-            nn.CELU()
+            nn.ConvTranspose2d(
+                in_channels=in_channels, kernel_size=(5, 5),
+                out_channels=int(in_channels / 2), padding=2),
+            nn.LeakyReLU(negative_slope=1e-2),
+            nn.ConvTranspose2d(
+                in_channels=int(in_channels / 2), kernel_size=(3, 3),
+                out_channels=int(in_channels / 2 ** 2), padding=1),
+            nn.LeakyReLU(negative_slope=1e-2),
+            nn.ConvTranspose2d(
+                in_channels=int(in_channels / 2 ** 2), kernel_size=(3, 3),
+                out_channels=int(in_channels / 2 ** 3), padding=1),
+            nn.ReLU()
         )
 
     def forward(self, x: th.Tensor) -> th.Tensor:
         return self.__tr_cnn(x)
 
 
-class FFTMaker(nn.Module):
-    def __init__(self, tr_cnn_in_channels: int, n_fft: int):
+class Discriminator(nn.Module):
+    def __init__(self, in_channel: int):
         super().__init__()
 
-        self.__maker = nn.Sequential(
-            nn.Linear(
-                int(tr_cnn_in_channels * 1.2 ** 9),
-                int(tr_cnn_in_channels * 1.2 ** 10)),
+        self.__cnn = nn.Sequential(
+            nn.Conv2d(
+                in_channel, in_channel * 2,
+                kernel_size=(3, 3),
+                padding=(1, 1)),
+            nn.MaxPool2d(2, 2),
             nn.ReLU(),
-            nn.Linear(
-                int(tr_cnn_in_channels * 1.2 ** 10),
-                n_fft)
+            nn.Conv2d(
+                in_channel * 2, in_channel * 2 ** 2,
+                kernel_size=(3, 3),
+                padding=(1, 1)),
+            nn.MaxPool2d(3, 3),
+            nn.ReLU(),
+            nn.Conv2d(
+                in_channel * 2 ** 2, in_channel * 2 ** 3,
+                kernel_size=(5, 5),
+                padding=(2, 2)
+            ),
+            nn.MaxPool2d(5, 5),
+            nn.ReLU()
+        )
+
+        self.__out_size = ((N_SEC * SAMPLE_RATE // N_FFT) // 2 // 3 // 5) ** 2
+
+        self.__lin = nn.Sequential(
+            nn.Linear(self.__out_size * (in_channel * 2 ** 3), 3584),
+            nn.BatchNorm1d(3584),
+            nn.Linear(3584, 1),
+            nn.Sigmoid()
         )
 
     def forward(self, x: th.Tensor) -> th.Tensor:
-        return self.__maker(x)
+        out = self.__cnn(x)
+        out = out.flatten(1, -1)
+        out = self.__lin(out)
+        return out
+
+
+def discriminator_loss(y_real: th.Tensor, y_fake: th.Tensor) -> th.Tensor:
+    return -th.mean(th.log2(y_real) + th.log2(1. - y_fake), dim=0)
+
+
+def generator_loss(y_fake: th.Tensor) -> th.Tensor:
+    return -th.mean(th.log2(y_fake), dim=0)
 
 
 if __name__ == '__main__':
-    gen = Generator(128)
-    rl_maker = FFTMaker(128, 525)
-    im_maker = FFTMaker(128, 525)
+    gen = Generator(16)
+    disc = Discriminator(2)
 
-    data = th.rand(1, 128, 84)
+    data = th.rand(3, 16, 420, 420)
 
     print(data.size())
 
-    out = gen(data)
+    out_gen = gen(data)
+    print(out_gen.size())
 
-    print(out.size())
-
-    out = out.permute(0, 2, 1)
-
-    real = rl_maker(out)
-    imag = im_maker(out)
-
-    print(real.size())
-    print(imag.size())
+    out_disc = disc(out_gen)
+    print(out_disc.size())

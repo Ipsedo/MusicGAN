@@ -1,7 +1,10 @@
 from typing import NamedTuple
 
-import numpy as np
 import torch as th
+
+SAMPLE_RATE: int = 44100
+N_FFT: int = 210
+N_SEC: int = 1
 
 WavInfo = NamedTuple(
     "WavInfo",
@@ -16,8 +19,7 @@ WavInfo = NamedTuple(
 FFTAudio = NamedTuple(
     "FFTAudio",
     [
-        ("real_part", th.Tensor),
-        ("imag_part", th.Tensor),
+        ("complex_data", th.Tensor),
         ("n_fft", int)
     ]
 )
