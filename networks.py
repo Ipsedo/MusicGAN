@@ -10,17 +10,12 @@ class Generator(nn.Module):
 
         self.__tr_cnn = nn.Sequential(
             nn.ConvTranspose2d(
-                in_channels=in_channels, kernel_size=(5, 5),
-                out_channels=int(in_channels / 2), padding=2),
-            nn.LeakyReLU(negative_slope=1e-2),
+                in_channels=in_channels, kernel_size=(3, 3),
+                out_channels=int(in_channels / 2), padding=1),
+            nn.ReLU(),
             nn.ConvTranspose2d(
                 in_channels=int(in_channels / 2), kernel_size=(3, 3),
-                out_channels=int(in_channels / 2 ** 2), padding=1),
-            nn.LeakyReLU(negative_slope=1e-2),
-            nn.ConvTranspose2d(
-                in_channels=int(in_channels / 2 ** 2), kernel_size=(3, 3),
-                out_channels=int(in_channels / 2 ** 3), padding=1),
-            nn.ReLU()
+                out_channels=int(in_channels / 2 ** 2), padding=1)
         )
 
     def forward(self, x: th.Tensor) -> th.Tensor:
@@ -39,13 +34,13 @@ class Discriminator(nn.Module):
             nn.MaxPool2d(2, 2),
             nn.ReLU(),
             nn.Conv2d(
-                in_channel * 2, in_channel * 2 ** 2,
+                in_channel * 2, int(in_channel * 2 ** 1.5),
                 kernel_size=(3, 3),
                 padding=(1, 1)),
             nn.MaxPool2d(3, 3),
             nn.ReLU(),
             nn.Conv2d(
-                in_channel * 2 ** 2, in_channel * 2 ** 3,
+                int(in_channel * 2 ** 1.5), int(in_channel * 2 ** 2),
                 kernel_size=(5, 5),
                 padding=(2, 2)
             ),
@@ -56,9 +51,9 @@ class Discriminator(nn.Module):
         self.__out_size = ((N_SEC * SAMPLE_RATE // N_FFT) // 2 // 3 // 5) ** 2
 
         self.__lin = nn.Sequential(
-            nn.Linear(self.__out_size * (in_channel * 2 ** 3), 3584),
-            nn.BatchNorm1d(3584),
-            nn.Linear(3584, 1),
+            nn.Linear(self.__out_size * (in_channel * 2 ** 2), 2048),
+            nn.ReLU(),
+            nn.Linear(2048, 1),
             nn.Sigmoid()
         )
 

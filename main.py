@@ -19,7 +19,7 @@ def main() -> None:
 
     data = read_audio.to_tensor(wavs_path, utils.N_FFT, utils.N_SEC)
 
-    hidden_channel = 16
+    hidden_channel = 8
 
     gen = networks.Generator(hidden_channel)
     disc = networks.Discriminator(2)
@@ -36,8 +36,8 @@ def main() -> None:
 
     nb_batch = math.ceil(data.size(0) / batch_size)
 
-    disc_optimizer = th.optim.Adam(disc.parameters(), lr=0.)
-    gen_optimizer = th.optim.Adam(gen.parameters(), lr=5e-4)
+    disc_optimizer = th.optim.Adam(disc.parameters(), lr=1e-6)
+    gen_optimizer = th.optim.Adam(gen.parameters(), lr=1e-5)
 
     for e in range(nb_epoch):
         disc_loss_sum = 0.
@@ -52,21 +52,6 @@ def main() -> None:
 
             x_real = data[i_min:i_max, :, :, :].cuda()
 
-            # Train generator
-            h_fake = th.randn(
-                i_max - i_min, hidden_channel,
-                utils.N_FFT, utils.N_FFT).cuda()
-            x_fake = gen(h_fake)
-            out_fake = disc(x_fake)
-
-            gen_loss = networks.generator_loss(out_fake)
-
-            gen_optimizer.zero_grad()
-            gen_loss.backward()
-            gen_optimizer.step()
-
-            gen_loss_sum += gen_loss.item()
-
             # Train discriminator
             h_fake = th.randn(
                 i_max - i_min, hidden_channel,
@@ -78,15 +63,37 @@ def main() -> None:
 
             disc_loss = networks.discriminator_loss(out_real, out_fake)
 
+            gen_optimizer.zero_grad()
             disc_optimizer.zero_grad()
             disc_loss.backward()
             disc_optimizer.step()
 
             disc_loss_sum += disc_loss.item()
 
+            # Train generator
+            h_fake = th.randn(
+                i_max - i_min, hidden_channel,
+                utils.N_FFT, utils.N_FFT).cuda()
+            x_fake = gen(h_fake)
+            out_fake = disc(x_fake)
+
+            gen_loss = networks.generator_loss(out_fake)
+
+            disc_optimizer.zero_grad()
+            gen_optimizer.zero_grad()
+            gen_loss.backward()
+            gen_optimizer.step()
+
+            gen_loss_sum += gen_loss.item()
+
             tqdm_bar.set_description(
                 f"Epoch {e} : disc_loss = {disc_loss_sum / (b_idx + 1):.6f}, "
                 f"gen_loss = {gen_loss_sum / (b_idx + 1):.6f}")
+
+        read_audio.to_wav(
+            gen(th.randn(1, hidden_channel, 10 * utils.N_FFT,
+                         utils.N_FFT).cuda()).detach().cpu(),
+            f"out_train_epoch_{e}.wav")
 
 
 if __name__ == '__main__':
