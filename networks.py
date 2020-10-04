@@ -10,16 +10,66 @@ class Generator(nn.Module):
 
         self.__tr_cnn = nn.Sequential(
             nn.ConvTranspose2d(
-                in_channels=in_channels, kernel_size=(3, 3),
-                out_channels=int(in_channels / 2), padding=1),
-            nn.ReLU(),
+                in_channels=in_channels,
+                kernel_size=(5, 5),
+                out_channels=int(in_channels / 2),
+                padding=2),
+            nn.CELU(),
             nn.ConvTranspose2d(
-                in_channels=int(in_channels / 2), kernel_size=(3, 3),
-                out_channels=int(in_channels / 2 ** 2), padding=1)
+                in_channels=int(in_channels / 2),
+                kernel_size=(3, 3),
+                out_channels=int(in_channels / 2 ** 1.5),
+                padding=1),
+            nn.CELU(),
+            nn.ConvTranspose2d(
+                in_channels=int(in_channels / 2 ** 1.5),
+                kernel_size=(3, 3),
+                out_channels=int(in_channels / 2 ** 2),
+                padding=1)
         )
 
     def forward(self, x: th.Tensor) -> th.Tensor:
-        return self.__tr_cnn(x)
+        out = self.__tr_cnn(x)
+        return out
+
+
+class Generator2(nn.Module):
+    def __init__(self, in_channels: int):
+        super().__init__()
+
+        self.__cnn = nn.Sequential(
+            nn.Conv2d(
+                in_channels=in_channels,
+                kernel_size=(3, 3),
+                out_channels=int(in_channels * 2),
+                padding=1),
+            nn.ReLU(),
+            nn.Conv2d(
+                in_channels=int(in_channels * 2),
+                kernel_size=(3, 3),
+                out_channels=int(in_channels * 2 ** 1.5),
+                padding=1),
+            nn.ReLU(),
+            nn.Conv2d(
+                in_channels=int(in_channels * 2 ** 1.5),
+                kernel_size=(5, 5),
+                out_channels=int(in_channels * 2 ** 2),
+                padding=2),
+            nn.ReLU()
+        )
+
+        self.__lin = nn.Sequential(
+            nn.Linear(int(in_channels * 2 ** 2), int(in_channels * 2 ** 2.5)),
+            nn.ReLU(),
+            nn.Linear(int(in_channels * 2 ** 2.5), 2)
+        )
+
+    def forward(self, x: th.Tensor) -> th.Tensor:
+        out = self.__cnn(x)
+        out = out.permute(0, 2, 3, 1)
+        out = self.__lin(out)
+        out = out.permute(0, 3, 1, 2)
+        return out
 
 
 class Discriminator(nn.Module):
@@ -37,23 +87,27 @@ class Discriminator(nn.Module):
                 in_channel * 2, int(in_channel * 2 ** 1.5),
                 kernel_size=(3, 3),
                 padding=(1, 1)),
-            nn.MaxPool2d(3, 3),
+            nn.MaxPool2d(2, 2),
             nn.ReLU(),
             nn.Conv2d(
                 int(in_channel * 2 ** 1.5), int(in_channel * 2 ** 2),
                 kernel_size=(5, 5),
                 padding=(2, 2)
             ),
-            nn.MaxPool2d(5, 5),
+            nn.MaxPool2d(3, 3),
             nn.ReLU()
         )
 
-        self.__out_size = ((N_SEC * SAMPLE_RATE // N_FFT) // 2 // 3 // 5) ** 2
+        height = N_FFT // 2
+        width = N_SEC * SAMPLE_RATE // height
+
+        div_factor = 2 * 2 * 3
 
         self.__lin = nn.Sequential(
-            nn.Linear(self.__out_size * (in_channel * 2 ** 2), 2048),
+            nn.Linear(((width // div_factor) * (height // div_factor)) * (
+                        in_channel * 2 ** 2), 4864),
             nn.ReLU(),
-            nn.Linear(2048, 1),
+            nn.Linear(4864, 1),
             nn.Sigmoid()
         )
 

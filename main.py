@@ -3,6 +3,7 @@ import read_audio
 import utils
 
 import torch as th
+from torch.distributions.multivariate_normal import MultivariateNormal
 
 import sys
 
@@ -20,14 +21,16 @@ def main() -> None:
     data = read_audio.to_tensor(wavs_path, utils.N_FFT, utils.N_SEC)
 
     hidden_channel = 8
+    fft_vec_size = utils.N_FFT // 2
+    batch_vec_nb = utils.N_SEC * utils.SAMPLE_RATE // fft_vec_size
 
     gen = networks.Generator(hidden_channel)
     disc = networks.Discriminator(2)
     disc.cuda()
     gen.cuda()
 
-    nb_epoch = 10
-    batch_size = 16
+    nb_epoch = 30
+    batch_size = 8
 
     for i in tqdm(range(data.size(0) - 1)):
         j = i + random.randint(0, sys.maxsize) // (
@@ -36,8 +39,37 @@ def main() -> None:
 
     nb_batch = math.ceil(data.size(0) / batch_size)
 
-    disc_optimizer = th.optim.Adam(disc.parameters(), lr=1e-6)
-    gen_optimizer = th.optim.Adam(gen.parameters(), lr=1e-5)
+    disc_optimizer = th.optim.Adam(disc.parameters(), lr=5e-5)
+    gen_optimizer = th.optim.Adam(gen.parameters(), lr=1e-4)
+
+    # hidden distribution
+    hidden_dist = MultivariateNormal(
+        th.zeros(hidden_channel),
+        th.eye(hidden_channel))
+
+    # vector distribution
+    vec_dist = MultivariateNormal(
+        th.zeros(fft_vec_size),
+        th.eye(fft_vec_size))
+
+    # time distribution
+    time_dist = MultivariateNormal(
+        th.zeros(batch_vec_nb),
+        th.eye(batch_vec_nb))
+
+    def _gen_rand(curr_batch_size: int) -> th.Tensor:
+        cpx_vec = hidden_dist.sample(
+            (curr_batch_size, batch_vec_nb, fft_vec_size)).cuda()
+
+        vec_proj = vec_dist.sample(
+            (curr_batch_size, batch_vec_nb)
+        ).unsqueeze(-1).cuda()
+
+        time_proj = time_dist.sample(
+            (curr_batch_size,)
+        ).unsqueeze(-1).unsqueeze(-1).cuda()
+
+        return (time_proj * vec_proj * cpx_vec).permute(0, 3, 1, 2)
 
     for e in range(nb_epoch):
         disc_loss_sum = 0.
@@ -53,9 +85,7 @@ def main() -> None:
             x_real = data[i_min:i_max, :, :, :].cuda()
 
             # Train discriminator
-            h_fake = th.randn(
-                i_max - i_min, hidden_channel,
-                utils.N_FFT, utils.N_FFT).cuda()
+            h_fake = _gen_rand(i_max - i_min)
 
             x_fake = gen(h_fake)
             out_real = disc(x_real)
@@ -65,15 +95,15 @@ def main() -> None:
 
             gen_optimizer.zero_grad()
             disc_optimizer.zero_grad()
+
             disc_loss.backward()
             disc_optimizer.step()
 
             disc_loss_sum += disc_loss.item()
 
             # Train generator
-            h_fake = th.randn(
-                i_max - i_min, hidden_channel,
-                utils.N_FFT, utils.N_FFT).cuda()
+            h_fake = _gen_rand(i_max - i_min)
+
             x_fake = gen(h_fake)
             out_fake = disc(x_fake)
 
@@ -81,6 +111,7 @@ def main() -> None:
 
             disc_optimizer.zero_grad()
             gen_optimizer.zero_grad()
+
             gen_loss.backward()
             gen_optimizer.step()
 
@@ -91,8 +122,9 @@ def main() -> None:
                 f"gen_loss = {gen_loss_sum / (b_idx + 1):.6f}")
 
         read_audio.to_wav(
-            gen(th.randn(1, hidden_channel, 10 * utils.N_FFT,
-                         utils.N_FFT).cuda()).detach().cpu(),
+            gen(hidden_dist.sample(
+                (batch_size, utils.N_FFT, utils.N_FFT))
+                .permute(0, 3, 1, 2).cuda()).detach().cpu(),
             f"out_train_epoch_{e}.wav")
 
 
