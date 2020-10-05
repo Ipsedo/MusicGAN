@@ -17,15 +17,16 @@ class Generator(nn.Module):
             nn.CELU(),
             nn.ConvTranspose2d(
                 in_channels=int(in_channels / 2),
-                kernel_size=(3, 3),
+                kernel_size=(5, 5),
                 out_channels=int(in_channels / 2 ** 1.5),
-                padding=1),
+                padding=2),
             nn.CELU(),
             nn.ConvTranspose2d(
                 in_channels=int(in_channels / 2 ** 1.5),
                 kernel_size=(3, 3),
                 out_channels=int(in_channels / 2 ** 2),
-                padding=1)
+                padding=1),
+            nn.Tanh()
         )
 
     def forward(self, x: th.Tensor) -> th.Tensor:
@@ -105,9 +106,9 @@ class Discriminator(nn.Module):
 
         self.__lin = nn.Sequential(
             nn.Linear(((width // div_factor) * (height // div_factor)) * (
-                        in_channel * 2 ** 2), 4864),
+                        in_channel * 2 ** 2), 2048),
             nn.ReLU(),
-            nn.Linear(4864, 1),
+            nn.Linear(2048, 1),
             nn.Sigmoid()
         )
 

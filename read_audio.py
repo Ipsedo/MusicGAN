@@ -1,6 +1,7 @@
 from utils import WavInfo, FFTAudio, SAMPLE_RATE, N_FFT, N_SEC
 
 import scipy.io.wavfile
+import soundfile as sf
 import numpy as np
 import torch as th
 
@@ -19,7 +20,8 @@ def to_tensor(wav_paths: List[str], n_fft: int, n_sec: int) -> th.Tensor:
 
     nb_batch = 0
     for wav_p in tqdm(wav_paths):
-        sample_rate, raw_audio = scipy.io.wavfile.read(wav_p)
+        #sample_rate, raw_audio = scipy.io.wavfile.read(wav_p)
+        raw_audio, sample_rate = sf.read(wav_p)
 
         assert sample_rate == SAMPLE_RATE, "Only 44100Hz is supported"
 
@@ -33,10 +35,10 @@ def to_tensor(wav_paths: List[str], n_fft: int, n_sec: int) -> th.Tensor:
     b_idx = 0
 
     for wav_p in tqdm(wav_paths):
-        sample_rate, raw_audio = scipy.io.wavfile.read(wav_p)
+        #sample_rate, raw_audio = scipy.io.wavfile.read(wav_p)
+        raw_audio, sample_rate = sf.read(wav_p)
 
-        peak = np.iinfo(raw_audio.dtype).max
-        data_th = th.from_numpy(raw_audio.astype(np.float) / peak)
+        data_th = th.from_numpy(raw_audio)
 
         to_keep = data_th.size(0) - data_th.size(0) % (n_fft - 1)
         data_th = data_th[:to_keep, :].mean(dim=-1)
@@ -65,7 +67,7 @@ def to_wav(data: th.Tensor, wav_path: str) -> None:
 
 
 if __name__ == '__main__':
-    w_p = "/home/samuel/Documents/MusicAutoEncoder/res/rammstein/(2) Links 234.mp3.wav"
+    w_p = "/home/samuel/Documents/MusicGAN/res/piano/14 satie - quatre petites melodies - elegie.flac"
     w_p = glob.glob(w_p)
 
     out_data = to_tensor(w_p, N_FFT, N_SEC)
