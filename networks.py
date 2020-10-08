@@ -80,14 +80,14 @@ class Discriminator(nn.Module):
         self.__cnn = nn.Sequential(
             nn.Conv2d(
                 in_channel, in_channel * 2,
-                kernel_size=(5, 3),
-                padding=(2, 1),
+                kernel_size=(3, 3),
+                padding=(1, 1),
                 stride=(2, 2)),
             nn.LeakyReLU(),
             nn.Conv2d(
                 in_channel * 2, int(in_channel * 2 ** 1.5),
-                kernel_size=(5, 3),
-                padding=(2, 2),
+                kernel_size=(3, 3),
+                padding=(1, 2),
                 stride=(2, 2)),
             nn.LeakyReLU(),
             nn.Conv2d(

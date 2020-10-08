@@ -50,7 +50,7 @@ def main() -> None:
 
     nb_batch = math.ceil(data.size(0) / batch_size)
 
-    disc_optimizer = th.optim.Adam(disc.parameters(), lr=3e-5)
+    disc_optimizer = th.optim.Adam(disc.parameters(), lr=1e-5)
     gen_optimizer = th.optim.Adam(gen.parameters(), lr=5e-5)
 
     # hidden distribution
