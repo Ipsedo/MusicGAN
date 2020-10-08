@@ -13,8 +13,17 @@ import math
 
 from tqdm import tqdm
 
+import mlflow
+import argparse
+
 
 def main() -> None:
+    parser = argparse.ArgumentParser("MusicGAN")
+    parser.add_argument("experiment", type=str, metavar="EXP_NAME")
+    parser.add_argument("out", type=str, metavar="OUT_PATH")
+
+    args = parser.parse_args()
+
     wavs_path = glob.glob(
         "/home/samuel/Documents/MusicGAN/res/piano/*.flac")
 
@@ -42,12 +51,11 @@ def main() -> None:
     nb_batch = math.ceil(data.size(0) / batch_size)
 
     disc_optimizer = th.optim.Adam(disc.parameters(), lr=3e-5)
-    gen_optimizer = th.optim.Adam(gen.parameters(), lr=6e-5)
+    gen_optimizer = th.optim.Adam(gen.parameters(), lr=5e-5)
 
     # hidden distribution
     mean_d = th.randn(hidden_channel)
     cov_m = th.randn(hidden_channel, hidden_channel)
-    cov_m /= cov_m.max(dim=1)[0] - cov_m.min(dim=1)[0]
     cov_m = cov_m.t().matmul(cov_m)
     hidden_dist = MultivariateNormal(
         mean_d,
@@ -128,7 +136,13 @@ def main() -> None:
             gen(hidden_dist.sample(
                 (1, 10 * batch_vec_nb, utils.N_FFT))
                 .permute(0, 3, 1, 2).cuda()).detach().cpu(),
-            f"out_train_epoch_{e}.wav")
+            f"./out/out_train_epoch_{e}.wav")
+
+        th.save(disc.state_dict(), "./out/disc_1.pt")
+        th.save(gen.state_dict(), "./out/gen_1.pt")
+
+        th.save(disc_optimizer.state_dict(), "./out/disc_optim_1.pt")
+        th.save(gen_optimizer.state_dict(), "./out/gen_optim_1.pt")
 
 
 if __name__ == '__main__':

@@ -3,7 +3,7 @@ from typing import NamedTuple
 import torch as th
 
 SAMPLE_RATE: int = 44100
-N_FFT: int = 300
+N_FFT: int = 588
 N_SEC: int = 2
 
 WavInfo = NamedTuple(

@@ -11,21 +11,21 @@ class Generator(nn.Module):
         self.__tr_cnn = nn.Sequential(
             nn.ConvTranspose2d(
                 in_channels=in_channels,
-                kernel_size=(5, 5),
+                kernel_size=(7, 5),
                 out_channels=int(in_channels / 2),
-                padding=2),
+                padding=(3, 2)),
             nn.CELU(),
             nn.ConvTranspose2d(
                 in_channels=int(in_channels / 2),
-                kernel_size=(5, 5),
+                kernel_size=(7, 5),
                 out_channels=int(in_channels / 2 ** 1.5),
-                padding=2),
+                padding=(3, 2)),
             nn.CELU(),
             nn.ConvTranspose2d(
                 in_channels=int(in_channels / 2 ** 1.5),
-                kernel_size=(3, 3),
+                kernel_size=(5, 3),
                 out_channels=int(in_channels / 2 ** 2),
-                padding=1),
+                padding=(2, 1)),
             nn.Tanh()
         )
 
@@ -80,23 +80,23 @@ class Discriminator(nn.Module):
         self.__cnn = nn.Sequential(
             nn.Conv2d(
                 in_channel, in_channel * 2,
-                kernel_size=(3, 3),
-                padding=(1, 1)),
-            nn.MaxPool2d(2, 2),
-            nn.ReLU(),
+                kernel_size=(5, 3),
+                padding=(2, 1),
+                stride=(2, 2)),
+            nn.LeakyReLU(),
             nn.Conv2d(
                 in_channel * 2, int(in_channel * 2 ** 1.5),
-                kernel_size=(3, 3),
-                padding=(1, 1)),
-            nn.MaxPool2d(2, 2),
-            nn.ReLU(),
+                kernel_size=(5, 3),
+                padding=(2, 2),
+                stride=(2, 2)),
+            nn.LeakyReLU(),
             nn.Conv2d(
                 int(in_channel * 2 ** 1.5), int(in_channel * 2 ** 2),
                 kernel_size=(5, 5),
-                padding=(2, 2)
+                padding=(2, 2),
+                stride=(3, 3)
             ),
-            nn.MaxPool2d(3, 3),
-            nn.ReLU()
+            nn.LeakyReLU()
         )
 
         height = N_FFT // 2
@@ -105,10 +105,10 @@ class Discriminator(nn.Module):
         div_factor = 2 * 2 * 3
 
         self.__lin = nn.Sequential(
-            nn.Linear(((width // div_factor) * (height // div_factor)) * (
-                        in_channel * 2 ** 2), 2048),
-            nn.ReLU(),
-            nn.Linear(2048, 1),
+            nn.Linear((width // div_factor) ** 2 * (
+                    in_channel * 2 ** 2), 4096),
+            nn.LeakyReLU(),
+            nn.Linear(4096, 1),
             nn.Sigmoid()
         )
 
@@ -120,11 +120,11 @@ class Discriminator(nn.Module):
 
 
 def discriminator_loss(y_real: th.Tensor, y_fake: th.Tensor) -> th.Tensor:
-    return -th.mean(th.log2(y_real) + th.log2(1. - y_fake), dim=0)
+    return -th.mean(th.log2(y_real) + th.log2(1. - y_fake))
 
 
 def generator_loss(y_fake: th.Tensor) -> th.Tensor:
-    return -th.mean(th.log2(y_fake), dim=0)
+    return -th.mean(th.log2(y_fake))
 
 
 if __name__ == '__main__':
