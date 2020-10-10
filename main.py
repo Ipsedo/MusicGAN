@@ -29,19 +29,19 @@ def main() -> None:
 
     data = read_audio.to_tensor(wavs_path, utils.N_FFT, utils.N_SEC)
 
-    hidden_channel = 8
-    fft_vec_size = utils.N_FFT // 2
-    batch_vec_nb = utils.N_SEC * utils.SAMPLE_RATE // fft_vec_size
+    hidden_channel = 16
+    hidden_w = 25
+    hidden_h = hidden_w
 
     gen = networks.Generator(hidden_channel)
     disc = networks.Discriminator(2)
     disc.cuda()
     gen.cuda()
 
-    nb_epoch = 30
+    nb_epoch = 100
     batch_size = 8
 
-    nb_backward_gen = 4
+    nb_backward_gen = 3
 
     for i in tqdm(range(data.size(0) - 1)):
         j = i + random.randint(0, sys.maxsize) // (
@@ -50,8 +50,8 @@ def main() -> None:
 
     nb_batch = math.ceil(data.size(0) / batch_size)
 
-    disc_optimizer = th.optim.Adam(disc.parameters(), lr=1e-5)
-    gen_optimizer = th.optim.Adam(gen.parameters(), lr=5e-5)
+    disc_optimizer = th.optim.Adam(disc.parameters(), lr=4e-5)
+    gen_optimizer = th.optim.Adam(gen.parameters(), lr=1e-5)
 
     # hidden distribution
     mean_d = th.randn(hidden_channel)
@@ -63,7 +63,7 @@ def main() -> None:
 
     def _gen_rand(curr_batch_size: int) -> th.Tensor:
         cpx_vec = hidden_dist.sample(
-            (curr_batch_size, batch_vec_nb, fft_vec_size)).cuda()
+            (curr_batch_size, hidden_w, hidden_h)).cuda()
 
         return cpx_vec.permute(0, 3, 1, 2)
 
@@ -134,15 +134,15 @@ def main() -> None:
 
         read_audio.to_wav(
             gen(hidden_dist.sample(
-                (1, 10 * batch_vec_nb, utils.N_FFT))
+                (1, 10 * hidden_w, hidden_h))
                 .permute(0, 3, 1, 2).cuda()).detach().cpu(),
-            f"./out/out_train_epoch_{e}.wav")
+            f"./out_2/out_train_epoch_{e}.wav")
 
-        th.save(disc.state_dict(), "./out/disc_1.pt")
-        th.save(gen.state_dict(), "./out/gen_1.pt")
+        th.save(disc.state_dict(), "./out_2/disc_1.pt")
+        th.save(gen.state_dict(), "./out_2/gen_1.pt")
 
-        th.save(disc_optimizer.state_dict(), "./out/disc_optim_1.pt")
-        th.save(gen_optimizer.state_dict(), "./out/gen_optim_1.pt")
+        th.save(disc_optimizer.state_dict(), "./out_2/disc_optim_1.pt")
+        th.save(gen_optimizer.state_dict(), "./out_2/gen_optim_1.pt")
 
 
 if __name__ == '__main__':
