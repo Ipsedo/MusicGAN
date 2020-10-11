@@ -60,12 +60,10 @@ def to_tensor(wav_paths: List[str], n_fft: int, n_sec: int) -> th.Tensor:
     return data
 
 
-def to_wav(data: th.Tensor, wav_path: Optional[str] = None) -> th.Tensor:
+def to_wav(data: th.Tensor, wav_path: str) -> None:
     data = data.permute(0, 2, 3, 1).flatten(0, 1)
-    raw_audio = th.irfft(data, signal_ndim=1).flatten(0, -1)
-    if wav_path:
-        scipy.io.wavfile.write(wav_path, SAMPLE_RATE, raw_audio.numpy())
-    return raw_audio
+    raw_audio = th.irfft(data, signal_ndim=1).flatten(0, -1).numpy()
+    scipy.io.wavfile.write(wav_path, SAMPLE_RATE, raw_audio)
 
 
 if __name__ == '__main__':

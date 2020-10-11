@@ -16,13 +16,15 @@ from tqdm import tqdm
 import mlflow
 import argparse
 
+from os.path import join
+
 
 def main() -> None:
     parser = argparse.ArgumentParser("MusicGAN")
 
     parser.add_argument(
-        "experiment",
-        type=str, metavar="EXP_NAME")
+        "run",
+        type=str, metavar="RUN_NAME")
 
     parser.add_argument(
         "-o", "--out-path",
@@ -37,14 +39,14 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    if mlflow.get_experiment_by_name(args.experiment) is None:
-        mlflow.create_experiment(args.experiment)
-    mlflow.set_experiment(args.experiment)
+    exp_name = "MusicGAN"
+    mlflow.set_experiment(exp_name)
 
     wavs_path = glob.glob(
         args.input_musics)
 
-    mlflow.start_run(run_name="main")
+    mlflow.start_run(run_name=args.run)
+
     mlflow.log_param("input_musics", wavs_path)
 
     data = read_audio.to_tensor(wavs_path, utils.N_FFT, utils.N_SEC)
@@ -62,10 +64,10 @@ def main() -> None:
     disc.cuda()
     gen.cuda()
 
-    nb_epoch = 5
+    nb_epoch = 10
     batch_size = 8
 
-    nb_backward_gen = 3
+    nb_backward_gen = 2
 
     mlflow.log_param("nb_epoch", nb_epoch)
     mlflow.log_param("batch_size", batch_size)
@@ -78,8 +80,8 @@ def main() -> None:
 
     nb_batch = math.ceil(data.size(0) / batch_size)
 
-    disc_optimizer = th.optim.Adam(disc.parameters(), lr=4e-5)
-    gen_optimizer = th.optim.Adam(gen.parameters(), lr=1e-5)
+    disc_optimizer = th.optim.Adam(disc.parameters(), lr=1e-5)
+    gen_optimizer = th.optim.Adam(gen.parameters(), lr=1.5e-5)
 
     # hidden distribution
     mean_d = th.randn(hidden_channel)
@@ -98,7 +100,8 @@ def main() -> None:
 
         return cpx_vec.permute(0, 3, 1, 2)
 
-    with mlflow.start_run(nested=True, run_name="train"):
+    with mlflow.start_run(run_name="train", nested=True):
+
         for e in range(nb_epoch):
             disc_loss_sum = 0.
             gen_loss_sum = 0.
@@ -181,11 +184,14 @@ def main() -> None:
                     (out_fake < 0.5).to(th.float).mean().item(),
                     step=e * nb_batch + b_idx)
 
-            _ = read_audio.to_wav(
-                gen(hidden_dist.sample(
-                    (1, 10 * hidden_w, hidden_h))
-                    .permute(0, 3, 1, 2).cuda()).detach().cpu(),
-                f"./out/out_train_epoch_{e}.wav")
+            with th.no_grad():
+                gen.eval()
+                rand_gen_sound = hidden_dist.sample(
+                    (1, 10 * hidden_w, hidden_h)).permute(0, 3, 1, 2).cuda()
+                gen_sound = gen(rand_gen_sound).cpu().detach()
+                read_audio.to_wav(
+                    gen_sound,
+                    join(args.out_path, f"out_train_epoch_{e}.wav"))
 
             with mlflow.start_run(nested=True, run_name=f"epoch_{e}"):
                 mlflow.log_artifact(f"./out/out_train_epoch_{e}.wav")
@@ -204,6 +210,7 @@ def main() -> None:
                 mlflow.log_metric(
                     "true_negative_rate",
                     nb_tn / (nb_batch * batch_size))
+
     mlflow.end_run()
 
 

@@ -8,26 +8,6 @@ class Generator(nn.Module):
     def __init__(self, in_channels: int):
         super().__init__()
 
-        """self.__tr_cnn = nn.Sequential(
-            nn.ConvTranspose2d(
-                in_channels=in_channels,
-                kernel_size=(5, 3),
-                out_channels=int(in_channels / 2),
-                padding=(2, 1)),
-            nn.CELU(),
-            nn.ConvTranspose2d(
-                in_channels=int(in_channels / 2),
-                kernel_size=(5, 3),
-                out_channels=int(in_channels / 2 ** 1.5),
-                padding=(2, 1)),
-            nn.CELU(),
-            nn.ConvTranspose2d(
-                in_channels=int(in_channels / 2 ** 1.5),
-                kernel_size=(3, 3),
-                out_channels=int(in_channels / 2 ** 2),
-                padding=(1, 1)),
-            nn.Tanh()
-        )"""
         self.__tr_cnn = nn.Sequential(
             nn.ConvTranspose2d(
                 in_channels=in_channels,
