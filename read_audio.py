@@ -20,10 +20,12 @@ def to_tensor(wav_paths: List[str], n_fft: int, n_sec: int) -> th.Tensor:
 
     nb_batch = 0
     for wav_p in tqdm(wav_paths):
-        #sample_rate, raw_audio = scipy.io.wavfile.read(wav_p)
+        # sample_rate, raw_audio = scipy.io.wavfile.read(wav_p)
         raw_audio, sample_rate = sf.read(wav_p)
 
-        assert sample_rate == SAMPLE_RATE, "Only 44100Hz is supported"
+        assert sample_rate == SAMPLE_RATE, \
+            f"Only 44100Hz is supported, " \
+            f"actual = {sample_rate}Hz"
 
         nb_vec = raw_audio.shape[0] // fft_vec_size
         nb_vec -= nb_vec % fft_vec_size
@@ -35,7 +37,7 @@ def to_tensor(wav_paths: List[str], n_fft: int, n_sec: int) -> th.Tensor:
     b_idx = 0
 
     for wav_p in tqdm(wav_paths):
-        #sample_rate, raw_audio = scipy.io.wavfile.read(wav_p)
+        # sample_rate, raw_audio = scipy.io.wavfile.read(wav_p)
         raw_audio, sample_rate = sf.read(wav_p)
 
         data_th = th.from_numpy(raw_audio)

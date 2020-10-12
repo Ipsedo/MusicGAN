@@ -64,7 +64,7 @@ def main() -> None:
     disc.cuda()
     gen.cuda()
 
-    nb_epoch = 10
+    nb_epoch = 60
     batch_size = 8
 
     nb_backward_gen = 2
@@ -80,8 +80,8 @@ def main() -> None:
 
     nb_batch = math.ceil(data.size(0) / batch_size)
 
-    disc_optimizer = th.optim.Adam(disc.parameters(), lr=1e-5)
-    gen_optimizer = th.optim.Adam(gen.parameters(), lr=1.5e-5)
+    disc_optimizer = th.optim.Adam(disc.parameters(), lr=1.5e-5)
+    gen_optimizer = th.optim.Adam(gen.parameters(), lr=2.5e-5)
 
     # hidden distribution
     mean_d = th.randn(hidden_channel)
@@ -96,9 +96,9 @@ def main() -> None:
 
     def _gen_rand(curr_batch_size: int) -> th.Tensor:
         cpx_vec = hidden_dist.sample(
-            (curr_batch_size, hidden_w, hidden_h)).cuda()
+            (curr_batch_size, hidden_w, hidden_h))
 
-        return cpx_vec.permute(0, 3, 1, 2)
+        return cpx_vec.permute(0, 3, 1, 2).contiguous()
 
     with mlflow.start_run(run_name="train", nested=True):
 
@@ -122,7 +122,7 @@ def main() -> None:
                 gen.eval()
                 disc.train()
 
-                h_fake = _gen_rand(i_max - i_min)
+                h_fake = _gen_rand(i_max - i_min).cuda()
 
                 x_fake = gen(h_fake)
                 out_real = disc(x_real)
@@ -147,9 +147,10 @@ def main() -> None:
 
                 batch_gen_loss = 0
                 for _ in range(nb_backward_gen):
-                    h_fake = _gen_rand(i_max - i_min)
+                    h_fake = _gen_rand(i_max - i_min).cuda()
 
                     x_fake = gen(h_fake)
+
                     out_fake = disc(x_fake)
 
                     gen_loss = networks.generator_loss(out_fake)
@@ -211,7 +212,7 @@ def main() -> None:
                     "true_negative_rate",
                     nb_tn / (nb_batch * batch_size))
 
-    mlflow.end_run()
+        mlflow.end_run()
 
 
 if __name__ == '__main__':
