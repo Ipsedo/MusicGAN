@@ -64,7 +64,7 @@ def main() -> None:
     disc.cuda()
     gen.cuda()
 
-    nb_epoch = 60
+    nb_epoch = 500
     batch_size = 8
 
     nb_backward_gen = 2
@@ -80,8 +80,8 @@ def main() -> None:
 
     nb_batch = math.ceil(data.size(0) / batch_size)
 
-    disc_optimizer = th.optim.Adam(disc.parameters(), lr=1.5e-5)
-    gen_optimizer = th.optim.Adam(gen.parameters(), lr=2.5e-5)
+    disc_optimizer = th.optim.Adam(disc.parameters(), lr=6e-4)
+    gen_optimizer = th.optim.Adam(gen.parameters(), lr=1e-4)
 
     # hidden distribution
     mean_d = th.randn(hidden_channel)
@@ -170,20 +170,21 @@ def main() -> None:
                     f"tp = {nb_tp / ((b_idx + 1) * batch_size):.4f}, "
                     f"tn = {nb_tn / ((b_idx + 1) * batch_size):.4f}")
 
-                mlflow.log_metric(
-                    "disc_loss", disc_loss.item(),
-                    step=e * nb_batch + b_idx)
-                mlflow.log_metric(
-                    "gen_loss", batch_gen_loss / nb_backward_gen,
-                    step=e * nb_batch + b_idx)
-                mlflow.log_metric(
-                    "batch_true_positive",
-                    (out_real > 0.5).to(th.float).mean().item(),
-                    step=e * nb_batch + b_idx)
-                mlflow.log_metric(
-                    "batch_true_negative",
-                    (out_fake < 0.5).to(th.float).mean().item(),
-                    step=e * nb_batch + b_idx)
+                if b_idx % 100 == 0:
+                    mlflow.log_metric(
+                        "disc_loss", disc_loss.item(),
+                        step=e * nb_batch + b_idx)
+                    mlflow.log_metric(
+                        "gen_loss", batch_gen_loss / nb_backward_gen,
+                        step=e * nb_batch + b_idx)
+                    mlflow.log_metric(
+                        "batch_true_positive",
+                        (out_real > 0.5).to(th.float).mean().item(),
+                        step=e * nb_batch + b_idx)
+                    mlflow.log_metric(
+                        "batch_true_negative",
+                        (out_fake < 0.5).to(th.float).mean().item(),
+                        step=e * nb_batch + b_idx)
 
             with th.no_grad():
                 gen.eval()
