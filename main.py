@@ -80,8 +80,8 @@ def main() -> None:
 
     nb_batch = math.ceil(data.size(0) / batch_size)
 
-    disc_optimizer = th.optim.Adam(disc.parameters(), lr=3e-5)
-    gen_optimizer = th.optim.Adam(gen.parameters(), lr=1e-5)
+    disc_optimizer = th.optim.Adam(disc.parameters(), lr=4e-6)
+    gen_optimizer = th.optim.Adam(gen.parameters(), lr=1.8e-6)
 
     # hidden distribution
     """mean_d = th.randn(hidden_channel)
@@ -189,7 +189,7 @@ def main() -> None:
 
             with th.no_grad():
                 gen.eval()
-                rand_gen_sound = _gen_rand(10 * hidden_h).cuda()
+                rand_gen_sound = th.randn(1, hidden_channel, 10 * hidden_w, hidden_h)
                 gen_sound = gen(rand_gen_sound).cpu().detach()
                 read_audio.to_wav(
                     gen_sound,

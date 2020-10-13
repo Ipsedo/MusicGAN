@@ -30,8 +30,8 @@ class Generator(nn.Module):
                 out_channels=int(in_channels / 2 ** 3),
                 padding=(1, 1),
                 stride=(2, 2),
-                output_padding=(1, 1))#,
-            #nn.Tanh()
+                output_padding=(1, 1)),
+            nn.Tanh()
         )
 
     def forward(self, x: th.Tensor) -> th.Tensor:
