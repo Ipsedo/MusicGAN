@@ -67,7 +67,7 @@ def main() -> None:
     nb_epoch = 500
     batch_size = 8
 
-    nb_backward_gen = 4
+    nb_backward_gen = 2
 
     mlflow.log_param("nb_epoch", nb_epoch)
     mlflow.log_param("batch_size", batch_size)
@@ -80,11 +80,11 @@ def main() -> None:
 
     nb_batch = math.ceil(data.size(0) / batch_size)
 
-    disc_optimizer = th.optim.Adam(disc.parameters(), lr=6e-4)
+    disc_optimizer = th.optim.Adam(disc.parameters(), lr=3e-4)
     gen_optimizer = th.optim.Adam(gen.parameters(), lr=1e-4)
 
     # hidden distribution
-    mean_d = th.randn(hidden_channel)
+    """mean_d = th.randn(hidden_channel)
     cov_m = th.randn(hidden_channel, hidden_channel)
     cov_m = cov_m.t().matmul(cov_m)
     hidden_dist = MultivariateNormal(
@@ -92,13 +92,14 @@ def main() -> None:
         cov_m)
 
     mlflow.log_param("mean_v", mean_d.numpy().tolist())
-    mlflow.log_param("cov_m", cov_m.numpy().tolist())
+    mlflow.log_param("cov_m", cov_m.numpy().tolist())"""
 
     def _gen_rand(curr_batch_size: int) -> th.Tensor:
-        cpx_vec = hidden_dist.sample(
+        """cpx_vec = hidden_dist.sample(
             (curr_batch_size, hidden_w, hidden_h))
 
-        return cpx_vec.permute(0, 3, 1, 2).contiguous()
+        return cpx_vec.permute(0, 3, 1, 2).contiguous()"""
+        return th.randn(curr_batch_size, hidden_channel, hidden_w, hidden_h)
 
     with mlflow.start_run(run_name="train", nested=True):
 
@@ -188,8 +189,7 @@ def main() -> None:
 
             with th.no_grad():
                 gen.eval()
-                rand_gen_sound = hidden_dist.sample(
-                    (1, 10 * hidden_w, hidden_h)).permute(0, 3, 1, 2).cuda()
+                rand_gen_sound = _gen_rand(10 * hidden_h).cuda()
                 gen_sound = gen(rand_gen_sound).cpu().detach()
                 read_audio.to_wav(
                     gen_sound,
@@ -198,19 +198,6 @@ def main() -> None:
             mlflow.log_artifact(f"./out/out_train_epoch_{e}.wav")
             mlflow.pytorch.log_model(disc, f"disc_model_epoch_{e}")
             mlflow.pytorch.log_model(gen, f"gen_model_epoch_{e}")
-
-            mlflow.log_metric(
-                f"disc_loss_mean_epoch_{e}",
-                disc_loss_sum / nb_batch)
-            mlflow.log_metric(
-                f"gen_loss_mean_epoch_{e}",
-                gen_loss_sum / nb_batch)
-            mlflow.log_metric(
-                f"true_positive_rate_epoch_{e}",
-                nb_tp / (nb_batch * batch_size))
-            mlflow.log_metric(
-                f"true_negative_rate_epoch_{e}",
-                nb_tn / (nb_batch * batch_size))
 
     mlflow.end_run()
 
