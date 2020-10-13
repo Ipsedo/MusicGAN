@@ -67,7 +67,7 @@ def main() -> None:
     nb_epoch = 500
     batch_size = 8
 
-    nb_backward_gen = 2
+    nb_backward_gen = 4
 
     mlflow.log_param("nb_epoch", nb_epoch)
     mlflow.log_param("batch_size", batch_size)
@@ -195,25 +195,24 @@ def main() -> None:
                     gen_sound,
                     join(args.out_path, f"out_train_epoch_{e}.wav"))
 
-            with mlflow.start_run(nested=True, run_name=f"epoch_{e}"):
-                mlflow.log_artifact(f"./out/out_train_epoch_{e}.wav")
-                mlflow.pytorch.log_model(disc, "disc_model")
-                mlflow.pytorch.log_model(gen, "gen_model")
+            mlflow.log_artifact(f"./out/out_train_epoch_{e}.wav")
+            mlflow.pytorch.log_model(disc, f"disc_model_epoch_{e}")
+            mlflow.pytorch.log_model(gen, f"gen_model_epoch_{e}")
 
-                mlflow.log_metric(
-                    "disc_loss_mean",
-                    disc_loss_sum / nb_batch)
-                mlflow.log_metric(
-                    "gen_loss_mean",
-                    gen_loss_sum / nb_batch)
-                mlflow.log_metric(
-                    "true_positive_rate",
-                    nb_tp / (nb_batch * batch_size))
-                mlflow.log_metric(
-                    "true_negative_rate",
-                    nb_tn / (nb_batch * batch_size))
+            mlflow.log_metric(
+                f"disc_loss_mean_epoch_{e}",
+                disc_loss_sum / nb_batch)
+            mlflow.log_metric(
+                f"gen_loss_mean_epoch_{e}",
+                gen_loss_sum / nb_batch)
+            mlflow.log_metric(
+                f"true_positive_rate_epoch_{e}",
+                nb_tp / (nb_batch * batch_size))
+            mlflow.log_metric(
+                f"true_negative_rate_epoch_{e}",
+                nb_tn / (nb_batch * batch_size))
 
-        mlflow.end_run()
+    mlflow.end_run()
 
 
 if __name__ == '__main__':
