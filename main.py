@@ -24,18 +24,21 @@ def main() -> None:
 
     parser.add_argument(
         "run",
-        type=str, metavar="RUN_NAME")
+        type=str, metavar="RUN_NAME"
+    )
 
     parser.add_argument(
         "-o", "--out-path",
         dest="out_path", type=str,
-        required=True)
+        required=True
+    )
 
     parser.add_argument(
         "-i", "--input-musics",
         dest="input_musics",
         required=True,
-        type=str)
+        type=str
+    )
 
     args = parser.parse_args()
 
@@ -49,10 +52,12 @@ def main() -> None:
 
     mlflow.log_param("input_musics", wavs_path)
 
-    data = read_audio.to_tensor(wavs_path, utils.N_FFT, utils.N_SEC)
+    data = read_audio.to_tensor(
+        wavs_path, utils.N_FFT, utils.N_SEC
+    )
 
-    hidden_channel = 16
-    hidden_w = 25
+    hidden_channel = 8
+    hidden_w = 75
     hidden_h = hidden_w
 
     mlflow.log_param("hidden_channel", hidden_channel)
@@ -64,42 +69,33 @@ def main() -> None:
     disc.cuda()
     gen.cuda()
 
-    nb_epoch = 500
+    nb_epoch = 400
     batch_size = 8
-
-    nb_backward_gen = 2
 
     mlflow.log_param("nb_epoch", nb_epoch)
     mlflow.log_param("batch_size", batch_size)
-    mlflow.log_param("nb_backward_gen", nb_backward_gen)
 
     for i in tqdm(range(data.size(0) - 1)):
         j = i + random.randint(0, sys.maxsize) // (
-                sys.maxsize // (data.size(0) - i) + 1)
+                sys.maxsize // (data.size(0) - i) + 1
+        )
         data[i, :, :, :], data[j, :, :, :] = data[j, :, :, :], data[i, :, :, :]
 
     nb_batch = math.ceil(data.size(0) / batch_size)
 
-    disc_optimizer = th.optim.Adam(disc.parameters(), lr=4e-6)
-    gen_optimizer = th.optim.Adam(gen.parameters(), lr=1.8e-6)
+    disc_lr = 6e-5
+    gen_lr = 1e-4
 
-    # hidden distribution
-    """mean_d = th.randn(hidden_channel)
-    cov_m = th.randn(hidden_channel, hidden_channel)
-    cov_m = cov_m.t().matmul(cov_m)
-    hidden_dist = MultivariateNormal(
-        mean_d,
-        cov_m)
+    mlflow.log_param("disc_lr", disc_lr)
+    mlflow.log_param("gen_lr", gen_lr)
 
-    mlflow.log_param("mean_v", mean_d.numpy().tolist())
-    mlflow.log_param("cov_m", cov_m.numpy().tolist())"""
+    disc_optimizer = th.optim.Adagrad(disc.parameters(), lr=disc_lr)
+    gen_optimizer = th.optim.Adagrad(gen.parameters(), lr=gen_lr)
 
     def _gen_rand(curr_batch_size: int) -> th.Tensor:
-        """cpx_vec = hidden_dist.sample(
-            (curr_batch_size, hidden_w, hidden_h))
-
-        return cpx_vec.permute(0, 3, 1, 2).contiguous()"""
-        return th.randn(curr_batch_size, hidden_channel, hidden_w, hidden_h)
+        return th.randn(
+            curr_batch_size, hidden_channel, hidden_w, hidden_h
+        )
 
     with mlflow.start_run(run_name="train", nested=True):
 
@@ -146,37 +142,45 @@ def main() -> None:
                 gen.train()
                 disc.eval()
 
-                batch_gen_loss = 0
-                for _ in range(nb_backward_gen):
-                    h_fake = _gen_rand(i_max - i_min).cuda()
+                h_fake = _gen_rand(i_max - i_min).cuda()
 
-                    x_fake = gen(h_fake)
+                x_fake = gen(h_fake)
 
-                    out_fake = disc(x_fake)
+                out_fake = disc(x_fake)
 
-                    gen_loss = networks.generator_loss(out_fake)
+                gen_loss = networks.generator_loss(out_fake)
 
-                    disc_optimizer.zero_grad()
-                    gen_optimizer.zero_grad()
+                disc_optimizer.zero_grad()
+                gen_optimizer.zero_grad()
 
-                    gen_loss.backward()
-                    gen_optimizer.step()
+                gen_loss.backward()
+                gen_optimizer.step()
 
-                    gen_loss_sum += gen_loss.item()
-                    batch_gen_loss += gen_loss.item()
+                gen_loss_sum += gen_loss.item()
+
+                gen_grad_norm = th.cat(
+                    [p.grad.norm() for p in gen.parameters()]
+                ).mean()
+
+                disc_grad_norm = th.cat(
+                    [p.grad.norm() for p in disc.parameters()]
+                ).mean()
 
                 tqdm_bar.set_description(
-                    f"Epoch {e} : disc_loss = {disc_loss_sum / (b_idx + 1):.6f}, "
-                    f"gen_loss = {gen_loss_sum / ((b_idx + 1) * nb_backward_gen):.6f}, "
+                    f"Epoch {e} : "
+                    f"disc_loss = {disc_loss_sum / (b_idx + 1):.6f}, "
+                    f"gen_loss = {gen_loss_sum / (b_idx + 1):.6f}, "
                     f"tp = {nb_tp / ((b_idx + 1) * batch_size):.4f}, "
-                    f"tn = {nb_tn / ((b_idx + 1) * batch_size):.4f}")
+                    f"tn = {nb_tn / ((b_idx + 1) * batch_size):.4f}, "
+                    f"gen_gr = {gen_grad_norm.item():.4f}, "
+                    f"disc_gr = {disc_grad_norm.item():.4f}")
 
-                if b_idx % 100 == 0:
+                if b_idx % 500 == 0:
                     mlflow.log_metric(
                         "disc_loss", disc_loss.item(),
                         step=e * nb_batch + b_idx)
                     mlflow.log_metric(
-                        "gen_loss", batch_gen_loss / nb_backward_gen,
+                        "gen_loss", gen_loss.item(),
                         step=e * nb_batch + b_idx)
                     mlflow.log_metric(
                         "batch_true_positive",
@@ -186,10 +190,22 @@ def main() -> None:
                         "batch_true_negative",
                         (out_fake < 0.5).to(th.float).mean().item(),
                         step=e * nb_batch + b_idx)
+                    mlflow.log_metric(
+                        "disc_grad_norm_mean",
+                        disc_grad_norm.item(),
+                        step=e * nb_batch + b_idx
+                    )
+                    mlflow.log_metric(
+                        "gen_grad_norm_mean",
+                        gen_grad_norm.item(),
+                        step=e * nb_batch + b_idx
+                    )
 
             with th.no_grad():
                 gen.eval()
-                rand_gen_sound = th.randn(1, hidden_channel, 10 * hidden_w, hidden_h)
+                rand_gen_sound = th.randn(
+                    1, hidden_channel, 10 * hidden_w, hidden_h
+                ).cuda()
                 gen_sound = gen(rand_gen_sound).cpu().detach()
                 read_audio.to_wav(
                     gen_sound,

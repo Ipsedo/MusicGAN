@@ -13,21 +13,14 @@ class Generator(nn.Module):
                 in_channels=in_channels,
                 kernel_size=(5, 5),
                 out_channels=int(in_channels / 2),
-                padding=(1, 1),
-                stride=(3, 3)),
-            nn.LeakyReLU(),
-            nn.ConvTranspose2d(
-                in_channels=int(in_channels / 2),
-                kernel_size=(5, 5),
-                out_channels=int(in_channels / 2 ** 2),
                 padding=(2, 3),
                 stride=(2, 2),
                 output_padding=(1, 0)),
-            nn.LeakyReLU(),
+            nn.ReLU(),
             nn.ConvTranspose2d(
-                in_channels=int(in_channels / 2 ** 2),
+                in_channels=int(in_channels / 2),
                 kernel_size=(3, 3),
-                out_channels=int(in_channels / 2 ** 3),
+                out_channels=int(in_channels / 2 ** 2),
                 padding=(1, 1),
                 stride=(2, 2),
                 output_padding=(1, 1)),
@@ -47,22 +40,22 @@ class Discriminator(nn.Module):
             nn.Conv2d(
                 in_channel, in_channel * 2,
                 kernel_size=(3, 3),
-                padding=(1, 1),
-                stride=(2, 2)),
-            nn.LeakyReLU(),
+                padding=(1, 1)),
+            nn.MaxPool2d(2, 2),
+            nn.ReLU(),
             nn.Conv2d(
                 in_channel * 2, int(in_channel * 2 ** 1.5),
                 kernel_size=(3, 3),
-                padding=(1, 2),
-                stride=(2, 2)),
-            nn.LeakyReLU(),
+                padding=(1, 3)),
+            nn.MaxPool2d(2, 2),
+            nn.ReLU(),
             nn.Conv2d(
                 int(in_channel * 2 ** 1.5), int(in_channel * 2 ** 2),
                 kernel_size=(5, 5),
-                padding=(2, 2),
-                stride=(3, 3)
+                padding=(2, 2)
             ),
-            nn.LeakyReLU()
+            nn.MaxPool2d(3, 3),
+            nn.ReLU()
         )
 
         height = N_FFT // 2
@@ -72,9 +65,9 @@ class Discriminator(nn.Module):
 
         self.__lin = nn.Sequential(
             nn.Linear((width // div_factor) ** 2 * (
-                    in_channel * 2 ** 2), 4096),
-            nn.LeakyReLU(),
-            nn.Linear(4096, 1),
+                    in_channel * 2 ** 2), 6000),
+            nn.ReLU(),
+            nn.Linear(6000, 1),
             nn.Sigmoid()
         )
 
