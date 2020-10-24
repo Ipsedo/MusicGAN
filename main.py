@@ -56,8 +56,8 @@ def main() -> None:
         wavs_path, utils.N_FFT, utils.N_SEC
     )
 
-    hidden_channel = 8
-    hidden_w = 75
+    hidden_channel = 32
+    hidden_w = 16
     hidden_h = hidden_w
 
     mlflow.log_param("hidden_channel", hidden_channel)
@@ -83,8 +83,8 @@ def main() -> None:
 
     nb_batch = math.ceil(data.size(0) / batch_size)
 
-    disc_lr = 6e-5
-    gen_lr = 1e-4
+    disc_lr = 5e-4
+    gen_lr = 5e-4
 
     mlflow.log_param("disc_lr", disc_lr)
     mlflow.log_param("gen_lr", gen_lr)
@@ -158,11 +158,11 @@ def main() -> None:
 
                 gen_loss_sum += gen_loss.item()
 
-                gen_grad_norm = th.cat(
+                gen_grad_norm = th.tensor(
                     [p.grad.norm() for p in gen.parameters()]
                 ).mean()
 
-                disc_grad_norm = th.cat(
+                disc_grad_norm = th.tensor(
                     [p.grad.norm() for p in disc.parameters()]
                 ).mean()
 

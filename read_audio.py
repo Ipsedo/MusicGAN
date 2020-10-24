@@ -12,11 +12,11 @@ from tqdm import tqdm
 import glob
 
 
-def to_tensor(wav_paths: List[str], n_fft: int, n_sec: int) -> th.Tensor:
+def to_tensor(wav_paths: List[str], n_fft: int, n_sec: float) -> th.Tensor:
     assert len(wav_paths) > 0, "Empty list !"
 
     fft_vec_size = n_fft // 2
-    batch_vec_nb = n_sec * SAMPLE_RATE // fft_vec_size
+    batch_vec_nb = int(n_sec * SAMPLE_RATE) // fft_vec_size
 
     nb_batch = 0
     for wav_p in tqdm(wav_paths):

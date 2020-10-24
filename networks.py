@@ -10,20 +10,39 @@ class Generator(nn.Module):
 
         self.__tr_cnn = nn.Sequential(
             nn.ConvTranspose2d(
-                in_channels=in_channels,
                 kernel_size=(5, 5),
-                out_channels=int(in_channels / 2),
-                padding=(2, 3),
-                stride=(2, 2),
-                output_padding=(1, 0)),
+                in_channels=in_channels,
+                out_channels=in_channels // 2,
+                stride=2,
+                padding=2,
+                output_padding=1
+            ),
             nn.ReLU(),
             nn.ConvTranspose2d(
-                in_channels=int(in_channels / 2),
+                kernel_size=(5, 5),
+                in_channels=in_channels // 2,
+                out_channels=in_channels // 4,
+                stride=2,
+                padding=2,
+                output_padding=1
+            ),
+            nn.ReLU(),
+            nn.ConvTranspose2d(
+                kernel_size=(4, 4),
+                in_channels=in_channels // 4,
+                out_channels=in_channels // 8,
+                stride=2,
+                padding=1
+            ),
+            nn.ReLU(),
+            nn.ConvTranspose2d(
                 kernel_size=(3, 3),
-                out_channels=int(in_channels / 2 ** 2),
-                padding=(1, 1),
-                stride=(2, 2),
-                output_padding=(1, 1)),
+                in_channels=in_channels // 8,
+                out_channels=in_channels // 16,
+                stride=2,
+                padding=1,
+                output_padding=1
+            ),
             nn.Tanh()
         )
 
@@ -46,7 +65,7 @@ class Discriminator(nn.Module):
             nn.Conv2d(
                 in_channel * 2, int(in_channel * 2 ** 1.5),
                 kernel_size=(3, 3),
-                padding=(1, 3)),
+                padding=(1, 1)),
             nn.MaxPool2d(2, 2),
             nn.ReLU(),
             nn.Conv2d(
@@ -59,15 +78,15 @@ class Discriminator(nn.Module):
         )
 
         height = N_FFT // 2
-        width = N_SEC * SAMPLE_RATE // height
+        width = int(N_SEC * SAMPLE_RATE) // height
 
         div_factor = 2 * 2 * 3
 
         self.__lin = nn.Sequential(
             nn.Linear((width // div_factor) ** 2 * (
-                    in_channel * 2 ** 2), 6000),
+                    in_channel * 2 ** 2), 4096),
             nn.ReLU(),
-            nn.Linear(6000, 1),
+            nn.Linear(4096, 1),
             nn.Sigmoid()
         )
 

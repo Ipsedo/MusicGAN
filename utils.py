@@ -3,8 +3,8 @@ from typing import NamedTuple
 import torch as th
 
 SAMPLE_RATE: int = 44100
-N_FFT: int = 588
-N_SEC: int = 2
+N_FFT: int = 512
+N_SEC: float = (0.5 * N_FFT) ** 2 / SAMPLE_RATE
 
 WavInfo = NamedTuple(
     "WavInfo",
