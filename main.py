@@ -92,10 +92,22 @@ def main() -> None:
     disc_optimizer = th.optim.Adagrad(disc.parameters(), lr=disc_lr)
     gen_optimizer = th.optim.Adagrad(gen.parameters(), lr=gen_lr)
 
-    def _gen_rand(curr_batch_size: int) -> th.Tensor:
-        return th.randn(
-            curr_batch_size, hidden_channel, hidden_w, hidden_h
-        )
+    mean_vec = th.randn(hidden_channel)
+    rand_mat = th.randn(hidden_channel, hidden_channel)
+    cov_mat = rand_mat.t().matmul(rand_mat)
+
+    multi_norm = th.distributions.MultivariateNormal(mean_vec, cov_mat)
+
+    mlflow.log_param("mean_vec", mean_vec.tolist())
+    mlflow.log_param("cov_mat", cov_mat.tolist())
+
+    def _gen_rand(curr_batch_size: int, nb_width: int) -> th.Tensor:
+        #return th.randn(
+        #    curr_batch_size, hidden_channel, hidden_w, hidden_h
+        #)
+        return multi_norm.sample(
+            (curr_batch_size, nb_width * hidden_w, hidden_h)
+        ).permute(0, 3, 1, 2)
 
     with mlflow.start_run(run_name="train", nested=True):
 
@@ -119,7 +131,7 @@ def main() -> None:
                 gen.eval()
                 disc.train()
 
-                h_fake = _gen_rand(i_max - i_min).cuda()
+                h_fake = _gen_rand(i_max - i_min, 1).cuda()
 
                 x_fake = gen(h_fake)
                 out_real = disc(x_real)
@@ -142,7 +154,7 @@ def main() -> None:
                 gen.train()
                 disc.eval()
 
-                h_fake = _gen_rand(i_max - i_min).cuda()
+                h_fake = _gen_rand(i_max - i_min, 1).cuda()
 
                 x_fake = gen(h_fake)
 
@@ -203,9 +215,7 @@ def main() -> None:
 
             with th.no_grad():
                 gen.eval()
-                rand_gen_sound = th.randn(
-                    1, hidden_channel, 10 * hidden_w, hidden_h
-                ).cuda()
+                rand_gen_sound = _gen_rand(1, 10).cuda()
                 gen_sound = gen(rand_gen_sound).cpu().detach()
                 read_audio.to_wav(
                     gen_sound,
