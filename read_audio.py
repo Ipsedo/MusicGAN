@@ -43,7 +43,12 @@ def to_tensor(wav_paths: List[str], n_fft: int, n_sec: float) -> th.Tensor:
         data_th = th.from_numpy(raw_audio)
 
         to_keep = data_th.size(0) - data_th.size(0) % (n_fft - 1)
-        data_th = data_th[:to_keep, :].mean(dim=-1)
+
+        if len(data_th.size()) > 1:
+            data_th = data_th[:to_keep, :].mean(dim=-1)
+        else:
+            data_th = data_th[:to_keep]
+
         data_th = th.stack(data_th.split(n_fft - 1, dim=0))
 
         fft_audio = th.rfft(data_th, signal_ndim=1, normalized=True,
@@ -69,7 +74,7 @@ def to_wav(data: th.Tensor, wav_path: str) -> None:
 
 
 if __name__ == '__main__':
-    w_p = "/home/samuel/Documents/MusicGAN/res/piano/14 satie - quatre petites melodies - elegie.flac"
+    w_p = "/home/samuel/Documents/MusicGAN/res/trump/*.wav"
     w_p = glob.glob(w_p)
 
     out_data = to_tensor(w_p, N_FFT, N_SEC)
@@ -78,8 +83,13 @@ if __name__ == '__main__':
     print(out_data[:, 0, :, :].min())
     print(out_data[:, 0, :, :].max())
     print(out_data[:, 0, :, :].mean())
+    print((out_data[:, 0, :, :] > 1).sum())
+    print((out_data[:, 0, :, :] < -1).sum())
+    print()
     print(out_data[:, 1, :, :].min())
     print(out_data[:, 1, :, :].max())
     print(out_data[:, 1, :, :].mean())
+    print((out_data[:, 1, :, :] > 1).sum())
+    print((out_data[:, 1, :, :] < -1).sum())
 
     to_wav(out_data, "out.wav")
