@@ -59,34 +59,33 @@ class Discriminator(nn.Module):
             nn.Conv2d(
                 in_channel, in_channel * 2,
                 kernel_size=(3, 3),
-                padding=(1, 1)),
-            nn.MaxPool2d(2, 2),
+                padding=(1, 1),
+                stride=(2, 2)),
             nn.ReLU(),
             nn.Conv2d(
                 in_channel * 2, int(in_channel * 2 ** 1.5),
                 kernel_size=(3, 3),
-                padding=(1, 1)),
-            nn.MaxPool2d(2, 2),
+                padding=(1, 1),
+                stride=(2, 2)),
             nn.ReLU(),
             nn.Conv2d(
                 int(in_channel * 2 ** 1.5), int(in_channel * 2 ** 2),
                 kernel_size=(5, 5),
-                padding=(2, 2)
-            ),
-            nn.MaxPool2d(3, 3),
+                padding=(2, 2),
+                stride=(4, 4)),
             nn.ReLU()
         )
 
         height = N_FFT // 2
         width = int(N_SEC * SAMPLE_RATE) // height
 
-        div_factor = 2 * 2 * 3
+        div_factor = 2 * 2 * 4
 
         self.__lin = nn.Sequential(
             nn.Linear((width // div_factor) ** 2 * (
-                    in_channel * 2 ** 2), 4096),
+                    in_channel * 2 ** 2), 2560),
             nn.ReLU(),
-            nn.Linear(4096, 1),
+            nn.Linear(2560, 1),
             nn.Sigmoid()
         )
 
