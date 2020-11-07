@@ -17,7 +17,7 @@ class Generator(nn.Module):
                 padding=2,
                 output_padding=1
             ),
-            nn.SELU(),
+            nn.ELU(),
             nn.ConvTranspose2d(
                 kernel_size=(5, 5),
                 in_channels=in_channels // 2,
@@ -26,7 +26,7 @@ class Generator(nn.Module):
                 padding=2,
                 output_padding=1
             ),
-            nn.SELU(),
+            nn.ELU(),
             nn.ConvTranspose2d(
                 kernel_size=(4, 4),
                 in_channels=in_channels // 4,
@@ -34,7 +34,7 @@ class Generator(nn.Module):
                 stride=2,
                 padding=1
             ),
-            nn.SELU(),
+            nn.ELU(),
             nn.ConvTranspose2d(
                 kernel_size=(3, 3),
                 in_channels=in_channels // 8,
@@ -55,25 +55,24 @@ class Discriminator(nn.Module):
         super().__init__()
 
         self.__cnn = nn.Sequential(
-            nn.Tanh(),
             nn.Conv2d(
                 in_channel, in_channel * 2,
                 kernel_size=(3, 3),
                 padding=(1, 1),
                 stride=(2, 2)),
-            nn.ReLU(),
+            nn.ELU(),
             nn.Conv2d(
                 in_channel * 2, int(in_channel * 2 ** 1.5),
                 kernel_size=(3, 3),
                 padding=(1, 1),
                 stride=(2, 2)),
-            nn.ReLU(),
+            nn.ELU(),
             nn.Conv2d(
                 int(in_channel * 2 ** 1.5), int(in_channel * 2 ** 2),
                 kernel_size=(5, 5),
                 padding=(2, 2),
                 stride=(4, 4)),
-            nn.ReLU()
+            nn.ELU()
         )
 
         height = N_FFT // 2
@@ -84,7 +83,7 @@ class Discriminator(nn.Module):
         self.__lin = nn.Sequential(
             nn.Linear((width // div_factor) ** 2 * (
                     in_channel * 2 ** 2), 2560),
-            nn.ReLU(),
+            nn.ELU(),
             nn.Linear(2560, 1),
             nn.Sigmoid()
         )
