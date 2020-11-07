@@ -58,24 +58,24 @@ class Discriminator(nn.Module):
             nn.Conv2d(
                 in_channel, in_channel * 2,
                 kernel_size=(3, 3),
-                padding=(1, 1),
-                stride=(2, 2)),
+                padding=(1, 1)),
+            nn.MaxPool2d(2, 2),
             nn.ELU(),
             nn.Conv2d(
                 in_channel * 2, int(in_channel * 2 ** 1.5),
                 kernel_size=(3, 3),
-                padding=(1, 1),
-                stride=(2, 2)),
+                padding=(1, 1)),
+            nn.MaxPool2d(2, 2),
             nn.ELU(),
             nn.Conv2d(
                 int(in_channel * 2 ** 1.5), int(in_channel * 2 ** 2),
                 kernel_size=(5, 5),
-                padding=(2, 2),
-                stride=(4, 4)),
+                padding=(2, 2)),
+            nn.MaxPool2d(4, 4),
             nn.ELU()
         )
 
-        height = N_FFT // 2
+        height = N_FFT
         width = int(N_SEC * SAMPLE_RATE) // height
 
         div_factor = 2 * 2 * 4

@@ -1,11 +1,13 @@
-from utils import WavInfo, FFTAudio, SAMPLE_RATE, N_FFT, N_SEC
+from utils import SAMPLE_RATE, N_FFT, N_SEC
 
 import scipy.io.wavfile
 import soundfile as sf
-import numpy as np
 import torch as th
+import torch.fft as th_fft
 
-from typing import List, Optional
+import matplotlib.pyplot as plt
+
+from typing import List
 
 from tqdm import tqdm
 
@@ -15,7 +17,7 @@ import glob
 def to_tensor(wav_paths: List[str], n_fft: int, n_sec: float) -> th.Tensor:
     assert len(wav_paths) > 0, "Empty list !"
 
-    fft_vec_size = n_fft // 2
+    fft_vec_size = n_fft
     batch_vec_nb = int(n_sec * SAMPLE_RATE) // fft_vec_size
 
     nb_batch = 0
@@ -42,17 +44,17 @@ def to_tensor(wav_paths: List[str], n_fft: int, n_sec: float) -> th.Tensor:
 
         data_th = th.from_numpy(raw_audio)
 
-        to_keep = data_th.size(0) - data_th.size(0) % (n_fft - 1)
+        to_keep = data_th.size(0) - data_th.size(0) % n_fft
 
-        if len(data_th.size()) > 1:
-            data_th = data_th[:to_keep, :].mean(dim=-1)
-        else:
-            data_th = data_th[:to_keep]
+        data_th = data_th[:to_keep, :].mean(dim=-1) \
+            if len(data_th.size()) > 1 \
+            else data_th[:to_keep]
 
-        data_th = th.stack(data_th.split(n_fft - 1, dim=0))
+        data_th = th.stack(data_th.split(n_fft, dim=0))
 
-        fft_audio = th.rfft(data_th, signal_ndim=1, normalized=True,
-                            onesided=True)
+        fft_audio = th_fft.fft(data_th, n=n_fft, dim=-1, norm="forward")
+
+        fft_audio = th.stack([fft_audio.real, fft_audio.imag], dim=-1)
 
         to_keep = fft_audio.size(0) - fft_audio.size(0) % batch_vec_nb
         fft_audio = fft_audio[:to_keep, :, :]
@@ -68,14 +70,17 @@ def to_tensor(wav_paths: List[str], n_fft: int, n_sec: float) -> th.Tensor:
 
 
 def to_wav(data: th.Tensor, wav_path: str) -> None:
-    data = data.permute(0, 2, 3, 1).flatten(0, 1)
-    raw_audio = th.irfft(data, signal_ndim=1).flatten(0, -1).numpy()
+    data = data.permute(0, 2, 3, 1).flatten(0, 1).contiguous()
+    data = th.view_as_complex(data)
+    raw_audio = th_fft.ifft(data, n=N_FFT, dim=1, norm="forward").flatten(0, -1).real.numpy()
     scipy.io.wavfile.write(wav_path, SAMPLE_RATE, raw_audio)
 
 
 if __name__ == '__main__':
-    w_p = "/home/samuel/Documents/MusicGAN/res/trump/*.wav"
+    w_p = "/home/samuel/Documents/MusicGAN/res/rammstein/Rammstein - Sehnsucht - 06 - Bueck Dich.mp3.wav"
     w_p = glob.glob(w_p)
+
+    print(N_SEC)
 
     out_data = to_tensor(w_p, N_FFT, N_SEC)
     print(out_data.size())
@@ -91,5 +96,10 @@ if __name__ == '__main__':
     print(out_data[:, 1, :, :].mean())
     print((out_data[:, 1, :, :] > 1).sum())
     print((out_data[:, 1, :, :] < -1).sum())
+
+    plt.matshow(out_data[20, 0, :, :].numpy())
+    plt.show()
+    plt.matshow(out_data[20, 1, :, :].numpy())
+    plt.show()
 
     to_wav(out_data, "out.wav")
