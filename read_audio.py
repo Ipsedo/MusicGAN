@@ -77,7 +77,7 @@ def to_wav(data: th.Tensor, wav_path: str) -> None:
 
 
 if __name__ == '__main__':
-    w_p = "/home/samuel/Documents/MusicGAN/res/rammstein/Rammstein - Sehnsucht - 06 - Bueck Dich.mp3.wav"
+    w_p = "/home/samuel/Documents/MusicGAN/res/*.wav"
     w_p = glob.glob(w_p)
 
     print(N_SEC)
@@ -102,4 +102,5 @@ if __name__ == '__main__':
     plt.matshow(out_data[20, 1, :, :].numpy())
     plt.show()
 
+    exit()
     to_wav(out_data, "out.wav")

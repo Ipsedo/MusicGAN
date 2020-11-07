@@ -83,7 +83,7 @@ def main() -> None:
 
     nb_batch = math.ceil(data.size(0) / batch_size)
 
-    disc_lr = 3e-5
+    disc_lr = 1.5e-5
     gen_lr = 1e-5
 
     mlflow.log_param("disc_lr", disc_lr)

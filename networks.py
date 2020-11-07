@@ -42,7 +42,8 @@ class Generator(nn.Module):
                 stride=2,
                 padding=1,
                 output_padding=1
-            )
+            ),
+            nn.Tanh()
         )
 
     def forward(self, x: th.Tensor) -> th.Tensor:
