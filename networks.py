@@ -106,9 +106,8 @@ class Generator2(nn.Module):
 
     def forward(self, x_rand: th.Tensor,
                 h_first: th.Tensor, c_first: th.Tensor) -> th.Tensor:
-        o, (h_end, c_end) = self.__lstm(x_rand, (h_first, c_first))
+        o, _ = self.__lstm(x_rand, (h_first, c_first))
         return th.stack(o.split(N_FFT, dim=-1), dim=1)
-
 
 
 class Discriminator2(nn.Module):
