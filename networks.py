@@ -96,6 +96,66 @@ class Discriminator(nn.Module):
         return out
 
 
+class Generator2(nn.Module):
+    def __init__(self, in_channel: int):
+        super().__init__()
+
+        self.__lstm = nn.LSTM(
+            in_channel, N_FFT * 2, batch_first=True
+        )
+
+    def forward(self, x_rand: th.Tensor,
+                h_first: th.Tensor, c_first: th.Tensor) -> th.Tensor:
+        o, (h_end, c_end) = self.__lstm(x_rand, (h_first, c_first))
+        return th.stack(o.split(N_FFT, dim=-1), dim=1)
+
+
+
+class Discriminator2(nn.Module):
+    def __init__(self, in_channel: int):
+        super().__init__()
+
+        self.__cnn = nn.Sequential(
+            nn.Conv2d(
+                in_channel, in_channel * 2,
+                kernel_size=(3, 3),
+                padding=(1, 1)),
+            nn.MaxPool2d((2, 1), (2, 1)),
+            nn.ELU(),
+            nn.Conv2d(
+                in_channel * 2, int(in_channel * 2 ** 1.5),
+                kernel_size=(3, 3),
+                padding=(1, 1)),
+            nn.MaxPool2d((2, 1), (2, 1)),
+            nn.ELU(),
+            nn.Conv2d(
+                int(in_channel * 2 ** 1.5), int(in_channel * 2 ** 2),
+                kernel_size=(5, 5),
+                padding=(2, 2)),
+            nn.MaxPool2d(4, 4),
+            nn.ELU()
+        )
+
+        height = N_FFT
+        width = int(N_SEC * SAMPLE_RATE) // height
+
+        div_factor = 2 * 2 * 4
+
+        self.__lin = nn.Sequential(
+            nn.Linear((width // div_factor) ** 2 * (
+                    in_channel * 2 ** 2), 2560),
+            nn.ELU(),
+            nn.Linear(2560, 1),
+            nn.Sigmoid()
+        )
+
+    def forward(self, x: th.Tensor) -> th.Tensor:
+        out = self.__cnn(x)
+        out = out.flatten(1, -1)
+        out = self.__lin(out)
+        return out
+
+
 def discriminator_loss(y_real: th.Tensor, y_fake: th.Tensor) -> th.Tensor:
     return -th.mean(th.log2(y_real) + th.log2(1. - y_fake))
 

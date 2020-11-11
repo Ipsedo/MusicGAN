@@ -57,15 +57,13 @@ def main() -> None:
     )
 
     hidden_channel = 32
-    hidden_w = 16
-    hidden_h = hidden_w
+    hidden_w = utils.N_SEC * utils.SAMPLE_RATE / utils.N_FFT
 
     mlflow.log_param("hidden_channel", hidden_channel)
     mlflow.log_param("hidden_w", hidden_w)
-    mlflow.log_param("hidden_h", hidden_h)
 
-    gen = networks.Generator(hidden_channel)
-    disc = networks.Discriminator(2)
+    gen = networks.Generator2(hidden_channel)
+    disc = networks.Discriminator2(2)
     disc.cuda()
     gen.cuda()
 
@@ -83,7 +81,7 @@ def main() -> None:
 
     nb_batch = math.ceil(data.size(0) / batch_size)
 
-    disc_lr = 1.5e-5
+    disc_lr = 1e-5
     gen_lr = 1e-5
 
     mlflow.log_param("disc_lr", disc_lr)
@@ -103,8 +101,8 @@ def main() -> None:
 
     def _gen_rand(curr_batch_size: int, nb_width: int) -> th.Tensor:
         return multi_norm.sample(
-            (curr_batch_size, nb_width * hidden_w, hidden_h)
-        ).permute(0, 3, 1, 2)
+            (curr_batch_size, int(nb_width * hidden_w))
+        )
 
     with mlflow.start_run(run_name="train", nested=True):
 
@@ -117,6 +115,9 @@ def main() -> None:
             error_tp = 0
             error_tn = 0
 
+            disc.train()
+            gen.train()
+
             for b_idx in tqdm_bar:
                 i_min = b_idx * batch_size
                 i_max = (b_idx + 1) * batch_size
@@ -125,12 +126,16 @@ def main() -> None:
                 x_real = data[i_min:i_max, :, :, :].cuda()
 
                 # Train discriminator
-                gen.eval()
-                disc.train()
+                rand_fake = _gen_rand(i_max - i_min, 1).cuda()
+                h_first = th.rand(1, rand_fake.size(0), utils.N_FFT * 2).cuda()
+                c_first = th.rand(1, rand_fake.size(0), utils.N_FFT * 2).cuda()
 
-                h_fake = _gen_rand(i_max - i_min, 1).cuda()
+                x_fake = gen(
+                    rand_fake,
+                    h_first,
+                    c_first
+                )
 
-                x_fake = gen(h_fake)
                 out_real = disc(x_real)
                 out_fake = disc(x_fake)
 
@@ -148,12 +153,11 @@ def main() -> None:
                 disc_loss_sum += disc_loss.item()
 
                 # Train generator
-                gen.train()
-                disc.eval()
+                rand_fake = _gen_rand(i_max - i_min, 1).cuda()
+                h_first = th.rand(1, rand_fake.size(0), utils.N_FFT * 2).cuda()
+                c_first = th.rand(1, rand_fake.size(0), utils.N_FFT * 2).cuda()
 
-                h_fake = _gen_rand(i_max - i_min, 1).cuda()
-
-                x_fake = gen(h_fake)
+                x_fake = gen(rand_fake, h_first, c_first)
 
                 out_fake = disc(x_fake)
 
@@ -199,7 +203,10 @@ def main() -> None:
             with th.no_grad():
                 gen.eval()
                 rand_gen_sound = _gen_rand(1, 10).cuda()
-                gen_sound = gen(rand_gen_sound).cpu().detach()
+                h_first = th.rand(1, 1, utils.N_FFT * 2).cuda()
+                c_first = th.rand(1, 1, utils.N_FFT * 2).cuda()
+
+                gen_sound = gen(rand_gen_sound, h_first, c_first).cpu().detach()
                 read_audio.to_wav(
                     gen_sound,
                     join(args.out_path, f"out_train_epoch_{e}.wav"))
