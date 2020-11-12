@@ -101,13 +101,19 @@ class Generator2(nn.Module):
         super().__init__()
 
         self.__lstm = nn.LSTM(
-            in_channel, N_FFT * 2, batch_first=True
+            in_channel, in_channel * 4, batch_first=True
         )
+
+        self.__lin_real = nn.Linear(in_channel * 4, N_FFT)
+        self.__lin_imag = nn.Linear(in_channel * 4, N_FFT)
 
     def forward(self, x_rand: th.Tensor,
                 h_first: th.Tensor, c_first: th.Tensor) -> th.Tensor:
         o, _ = self.__lstm(x_rand, (h_first, c_first))
-        return th.stack(o.split(N_FFT, dim=-1), dim=1)
+        o = th.relu(o)
+        o_real = th.tanh(self.__lin_real(o))
+        o_imag = th.tanh(self.__lin_imag(o))
+        return th.stack([o_real, o_imag], dim=1)
 
 
 class Discriminator2(nn.Module):
@@ -120,19 +126,19 @@ class Discriminator2(nn.Module):
                 kernel_size=(5, 3),
                 padding=(2, 1)),
             nn.MaxPool2d((2, 1), (2, 1)),
-            nn.ELU(),
+            nn.ReLU(),
             nn.Conv2d(
                 in_channel * 2, int(in_channel * 2 ** 1.5),
                 kernel_size=(5, 3),
                 padding=(2, 1)),
             nn.MaxPool2d((2, 1), (2, 1)),
-            nn.ELU(),
+            nn.ReLU(),
             nn.Conv2d(
                 int(in_channel * 2 ** 1.5), int(in_channel * 2 ** 2),
                 kernel_size=(5, 5),
                 padding=(2, 2)),
             nn.MaxPool2d(4, 4),
-            nn.ELU()
+            nn.ReLU()
         )
 
         height = N_FFT
@@ -143,7 +149,7 @@ class Discriminator2(nn.Module):
         self.__lin = nn.Sequential(
             nn.Linear((width // div_factor) ** 2 * (
                     in_channel * 2 ** 2), 2560),
-            nn.ELU(),
+            nn.ReLU(),
             nn.Linear(2560, 1),
             nn.Sigmoid()
         )
