@@ -101,11 +101,11 @@ class Generator2(nn.Module):
         super().__init__()
 
         self.__lstm = nn.LSTM(
-            in_channel, in_channel * 4, batch_first=True
+            in_channel, in_channel * 6, batch_first=True
         )
 
-        self.__lin_real = nn.Linear(in_channel * 4, N_FFT)
-        self.__lin_imag = nn.Linear(in_channel * 4, N_FFT)
+        self.__lin_real = nn.Linear(in_channel * 6, N_FFT)
+        self.__lin_imag = nn.Linear(in_channel * 6, N_FFT)
 
     def forward(self, x_rand: th.Tensor,
                 h_first: th.Tensor, c_first: th.Tensor) -> th.Tensor:
