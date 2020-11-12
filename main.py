@@ -62,7 +62,7 @@ def main() -> None:
     mlflow.log_param("hidden_channel", hidden_channel)
     mlflow.log_param("hidden_w", hidden_w)
 
-    gen = networks.Generator2(hidden_channel)
+    gen = networks.Generator2(hidden_channel, hidden_channel * 6)
     disc = networks.Discriminator2(2)
     disc.cuda()
     gen.cuda()
@@ -127,8 +127,8 @@ def main() -> None:
 
                 # Train discriminator
                 rand_fake = _gen_rand(i_max - i_min, 1).cuda()
-                h_first = th.randn(1, rand_fake.size(0), utils.N_FFT * 2).cuda()
-                c_first = th.randn(1, rand_fake.size(0), utils.N_FFT * 2).cuda()
+                h_first = th.randn(1, rand_fake.size(0), hidden_channel * 6).cuda()
+                c_first = th.randn(1, rand_fake.size(0), hidden_channel * 6).cuda()
 
                 x_fake = gen(
                     rand_fake,
@@ -154,8 +154,8 @@ def main() -> None:
 
                 # Train generator
                 rand_fake = _gen_rand(i_max - i_min, 1).cuda()
-                h_first = th.randn(1, rand_fake.size(0), utils.N_FFT * 2).cuda()
-                c_first = th.randn(1, rand_fake.size(0), utils.N_FFT * 2).cuda()
+                h_first = th.randn(1, rand_fake.size(0), hidden_channel * 6).cuda()
+                c_first = th.randn(1, rand_fake.size(0), hidden_channel * 6).cuda()
 
                 x_fake = gen(rand_fake, h_first, c_first)
 
@@ -203,8 +203,8 @@ def main() -> None:
             with th.no_grad():
                 gen.eval()
                 rand_gen_sound = _gen_rand(1, 100).cuda()
-                h_first = th.randn(1, 1, utils.N_FFT * 2).cuda()
-                c_first = th.randn(1, 1, utils.N_FFT * 2).cuda()
+                h_first = th.randn(1, 1, hidden_channel * 6).cuda()
+                c_first = th.randn(1, 1, hidden_channel * 6).cuda()
 
                 gen_sound = gen(rand_gen_sound, h_first, c_first).cpu().detach()
                 read_audio.to_wav(

@@ -97,15 +97,15 @@ class Discriminator(nn.Module):
 
 
 class Generator2(nn.Module):
-    def __init__(self, in_channel: int):
+    def __init__(self, in_channel: int, hidden_size: int):
         super().__init__()
 
         self.__lstm = nn.LSTM(
-            in_channel, in_channel * 6, batch_first=True
+            in_channel, hidden_size, batch_first=True
         )
 
-        self.__lin_real = nn.Linear(in_channel * 6, N_FFT)
-        self.__lin_imag = nn.Linear(in_channel * 6, N_FFT)
+        self.__lin_real = nn.Linear(hidden_size, N_FFT)
+        self.__lin_imag = nn.Linear(hidden_size, N_FFT)
 
     def forward(self, x_rand: th.Tensor,
                 h_first: th.Tensor, c_first: th.Tensor) -> th.Tensor:
