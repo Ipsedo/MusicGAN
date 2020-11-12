@@ -131,13 +131,13 @@ class Discriminator2(nn.Module):
                 in_channel * 2, int(in_channel * 2 ** 1.5),
                 kernel_size=(5, 3),
                 padding=(2, 1)),
-            nn.MaxPool2d((2, 1), (2, 1)),
+            nn.MaxPool2d((2, 2), (2, 2)),
             nn.ReLU(),
             nn.Conv2d(
                 int(in_channel * 2 ** 1.5), int(in_channel * 2 ** 2),
                 kernel_size=(5, 5),
                 padding=(2, 2)),
-            nn.MaxPool2d(4, 4),
+            nn.MaxPool2d((4, 2), (4, 2)),
             nn.ReLU()
         )
 

@@ -21,6 +21,7 @@ def to_tensor(wav_paths: List[str], n_fft: int, n_sec: float) -> th.Tensor:
     batch_vec_nb = int(n_sec * SAMPLE_RATE) // fft_vec_size
 
     nb_batch = 0
+    total_tick = 0
     for wav_p in tqdm(wav_paths):
         # sample_rate, raw_audio = scipy.io.wavfile.read(wav_p)
         raw_audio, sample_rate = sf.read(wav_p)
@@ -32,9 +33,16 @@ def to_tensor(wav_paths: List[str], n_fft: int, n_sec: float) -> th.Tensor:
         nb_vec = raw_audio.shape[0] // fft_vec_size
         nb_vec -= nb_vec % fft_vec_size
 
+        total_tick += raw_audio.shape[0]
+
         nb_batch += nb_vec // batch_vec_nb
 
     data = th.empty(nb_batch, 2, batch_vec_nb, fft_vec_size)
+    print(f"{total_tick // SAMPLE_RATE // 60 // 60 // 24}d "
+          f"{total_tick // SAMPLE_RATE // 60 // 60 % 24}h "
+          f"{total_tick // SAMPLE_RATE // 60 % 60:02d}m "
+          f"{total_tick // SAMPLE_RATE % 60:02d}s "
+          f"audio")
 
     b_idx = 0
 

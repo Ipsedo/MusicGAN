@@ -18,6 +18,8 @@ import argparse
 
 from os.path import join
 
+from typing import Tuple
+
 
 def main() -> None:
     parser = argparse.ArgumentParser("MusicGAN")
@@ -56,13 +58,11 @@ def main() -> None:
         wavs_path, utils.N_FFT, utils.N_SEC
     )
 
-    hidden_channel = 32
+    rand_channel = 32
+    hidden_channel = 256 + 64
     hidden_w = utils.N_SEC * utils.SAMPLE_RATE / utils.N_FFT
 
-    mlflow.log_param("hidden_channel", hidden_channel)
-    mlflow.log_param("hidden_w", hidden_w)
-
-    gen = networks.Generator2(hidden_channel, hidden_channel * 6)
+    gen = networks.Generator2(rand_channel, hidden_channel)
     disc = networks.Discriminator2(2)
     disc.cuda()
     gen.cuda()
@@ -70,45 +70,56 @@ def main() -> None:
     nb_epoch = 400
     batch_size = 8
 
-    mlflow.log_param("nb_epoch", nb_epoch)
-    mlflow.log_param("batch_size", batch_size)
-
-    for i in tqdm(range(data.size(0) - 1)):
-        j = i + random.randint(0, sys.maxsize) // (
-                sys.maxsize // (data.size(0) - i) + 1
-        )
-        data[i, :, :, :], data[j, :, :, :] = data[j, :, :, :], data[i, :, :, :]
+    def __shuffle() -> None:
+        for i in tqdm(range(data.size(0) - 1)):
+            j = i + random.randint(0, sys.maxsize) // (
+                    sys.maxsize // (data.size(0) - i) + 1
+            )
+            data[i, :, :, :], data[j, :, :, :] = \
+                data[j, :, :, :], data[i, :, :, :]
 
     nb_batch = math.ceil(data.size(0) / batch_size)
 
-    disc_lr = 5e-5
-    gen_lr = 4e-5
-
-    mlflow.log_param("disc_lr", disc_lr)
-    mlflow.log_param("gen_lr", gen_lr)
+    disc_lr = 3e-5
+    gen_lr = 1e-5
 
     disc_optimizer = th.optim.Adam(disc.parameters(), lr=disc_lr)
     gen_optimizer = th.optim.Adam(gen.parameters(), lr=gen_lr)
 
-    mean_vec = th.randn(hidden_channel)
-    rand_mat = th.randn(hidden_channel, hidden_channel)
+    mean_vec = th.randn(rand_channel)
+    rand_mat = th.randn(rand_channel, rand_channel)
     cov_mat = rand_mat.t().matmul(rand_mat)
 
     multi_norm = th.distributions.MultivariateNormal(mean_vec, cov_mat)
 
-    mlflow.log_param("mean_vec", mean_vec.tolist())
-    mlflow.log_param("cov_mat", cov_mat.tolist())
+    mlflow.log_params({
+        "rand_channel": rand_channel,
+        "hidden_channel": hidden_channel,
+        "hidden_w": hidden_w,
+        "nb_epoch": nb_epoch,
+        "batch_size": batch_size,
+        "disc_lr": disc_lr,
+        "gen_lr": gen_lr
+    })
 
-    def _gen_rand(curr_batch_size: int, nb_width: int) -> th.Tensor:
+    mlflow.log_param("cov_mat", cov_mat.tolist())
+    mlflow.log_param("mean_vec", mean_vec.tolist())
+
+    def __gen_rand(
+            curr_batch_size: int, nb_width: int
+    ) -> Tuple[th.Tensor, th.Tensor, th.Tensor]:
         return multi_norm.sample(
-            (curr_batch_size, int(nb_width * hidden_w))
-        )
+            (curr_batch_size, int(nb_width * hidden_w))), \
+               th.randn(1, curr_batch_size, hidden_channel).cuda(), \
+               th.randn(1, curr_batch_size, hidden_channel).cuda()
 
     with mlflow.start_run(run_name="train", nested=True):
 
         for e in range(nb_epoch):
             disc_loss_sum = 0.
             gen_loss_sum = 0.
+
+            __shuffle()
 
             tqdm_bar = tqdm(range(nb_batch))
 
@@ -126,14 +137,12 @@ def main() -> None:
                 x_real = data[i_min:i_max, :, :, :].cuda()
 
                 # Train discriminator
-                rand_fake = _gen_rand(i_max - i_min, 1).cuda()
-                h_first = th.randn(1, rand_fake.size(0), hidden_channel * 6).cuda()
-                c_first = th.randn(1, rand_fake.size(0), hidden_channel * 6).cuda()
+                rand_fake, h_first, c_first = __gen_rand(i_max - i_min, 1)
 
                 x_fake = gen(
-                    rand_fake,
-                    h_first,
-                    c_first
+                    rand_fake.cuda(),
+                    h_first.cuda(),
+                    c_first.cuda()
                 )
 
                 out_real = disc(x_real)
@@ -153,11 +162,11 @@ def main() -> None:
                 disc_loss_sum += disc_loss.item()
 
                 # Train generator
-                rand_fake = _gen_rand(i_max - i_min, 1).cuda()
-                h_first = th.randn(1, rand_fake.size(0), hidden_channel * 6).cuda()
-                c_first = th.randn(1, rand_fake.size(0), hidden_channel * 6).cuda()
+                rand_fake, h_first, c_first = __gen_rand(i_max - i_min, 1)
 
-                x_fake = gen(rand_fake, h_first, c_first)
+                x_fake = gen(
+                    rand_fake.cuda(), h_first.cuda(), c_first.cuda()
+                )
 
                 out_fake = disc(x_fake)
 
@@ -186,30 +195,31 @@ def main() -> None:
                     f"e_tp = {error_tp / (b_idx + 1):.4f}, "
                     f"e_tn = {error_tn / (b_idx + 1):.4f}, "
                     f"gen_gr = {gen_grad_norm.item():.4f}, "
-                    f"disc_gr = {disc_grad_norm.item():.4f}")
+                    f"disc_gr = {disc_grad_norm.item():.4f}"
+                )
 
                 if b_idx % 500 == 0:
-                    mlflow.log_metrics(
-                        {
-                            "disc_loss": disc_loss.item(),
-                            "gen_loss": gen_loss.item(),
-                            "batch_tp_error": (1. - out_real).mean().item(),
-                            "batch_tn_error": out_fake.mean().item(),
-                            "disc_grad_norm_mean": disc_grad_norm.item(),
-                            "gen_grad_norm_mean": gen_grad_norm.item()
-                        },
+                    mlflow.log_metrics({
+                        "disc_loss": disc_loss.item(),
+                        "gen_loss": gen_loss.item(),
+                        "batch_tp_error": (1. - out_real).mean().item(),
+                        "batch_tn_error": out_fake.mean().item(),
+                        "disc_grad_norm_mean": disc_grad_norm.item(),
+                        "gen_grad_norm_mean": gen_grad_norm.item()
+                    },
                         step=e * nb_batch + b_idx)
 
             with th.no_grad():
                 gen.eval()
-                rand_gen_sound = _gen_rand(1, 100).cuda()
-                h_first = th.randn(1, 1, hidden_channel * 6).cuda()
-                c_first = th.randn(1, 1, hidden_channel * 6).cuda()
+                rand_gen_sound, h_first, c_first = __gen_rand(1, 100)
 
-                gen_sound = gen(rand_gen_sound, h_first, c_first).cpu().detach()
+                gen_sound = gen(
+                    rand_gen_sound.cuda(), h_first.cuda(), c_first.cuda()
+                ).cpu().detach()
                 read_audio.to_wav(
                     gen_sound,
-                    join(args.out_path, f"out_train_epoch_{e}.wav"))
+                    join(args.out_path, f"out_train_epoch_{e}.wav")
+                )
 
             mlflow.log_artifact(f"./out/out_train_epoch_{e}.wav")
             mlflow.pytorch.log_model(disc, f"disc_model_epoch_{e}")
