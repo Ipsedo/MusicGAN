@@ -81,7 +81,7 @@ def main() -> None:
     nb_batch = math.ceil(data.size(0) / batch_size)
 
     disc_lr = 3e-5
-    gen_lr = 5e-5
+    gen_lr = 2e-5
 
     disc_optimizer = th.optim.Adam(disc.parameters(), lr=disc_lr)
     gen_optimizer = th.optim.Adam(gen.parameters(), lr=gen_lr)
@@ -211,7 +211,7 @@ def main() -> None:
 
             with th.no_grad():
                 gen.eval()
-                rand_gen_sound, h_first, c_first = __gen_rand(1, 100)
+                rand_gen_sound, h_first, c_first = __gen_rand(1, 10)
 
                 gen_sound = gen(
                     rand_gen_sound.cuda(), h_first.cuda(), c_first.cuda()
