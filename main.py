@@ -59,7 +59,7 @@ def main() -> None:
     )
 
     rand_channel = 32
-    hidden_channel = 256 + 64
+    hidden_channel = 256
     hidden_w = utils.N_SEC * utils.SAMPLE_RATE / utils.N_FFT
 
     gen = networks.Generator2(rand_channel, hidden_channel)
@@ -67,8 +67,8 @@ def main() -> None:
     disc.cuda()
     gen.cuda()
 
-    nb_epoch = 400
-    batch_size = 8
+    nb_epoch = 500
+    batch_size = 3
 
     def __shuffle() -> None:
         for i in tqdm(range(data.size(0) - 1)):
@@ -81,7 +81,7 @@ def main() -> None:
     nb_batch = math.ceil(data.size(0) / batch_size)
 
     disc_lr = 3e-5
-    gen_lr = 1e-5
+    gen_lr = 5e-5
 
     disc_optimizer = th.optim.Adam(disc.parameters(), lr=disc_lr)
     gen_optimizer = th.optim.Adam(gen.parameters(), lr=gen_lr)

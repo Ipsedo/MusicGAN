@@ -125,20 +125,20 @@ class Discriminator2(nn.Module):
                 in_channel, in_channel * 2,
                 kernel_size=(5, 3),
                 padding=(2, 1)),
-            nn.MaxPool2d((2, 1), (2, 1)),
-            nn.ReLU(),
+            nn.MaxPool2d(2, 2),
+            nn.CELU(),
             nn.Conv2d(
                 in_channel * 2, int(in_channel * 2 ** 1.5),
                 kernel_size=(5, 3),
                 padding=(2, 1)),
-            nn.MaxPool2d((2, 2), (2, 2)),
-            nn.ReLU(),
+            nn.MaxPool2d(2, 2),
+            nn.CELU(),
             nn.Conv2d(
                 int(in_channel * 2 ** 1.5), int(in_channel * 2 ** 2),
                 kernel_size=(5, 5),
                 padding=(2, 2)),
-            nn.MaxPool2d((4, 2), (4, 2)),
-            nn.ReLU()
+            nn.MaxPool2d(4, 4),
+            nn.CELU()
         )
 
         height = N_FFT
@@ -147,10 +147,12 @@ class Discriminator2(nn.Module):
         div_factor = 2 * 2 * 4
 
         self.__lin = nn.Sequential(
-            nn.Linear((width // div_factor) ** 2 * (
-                    in_channel * 2 ** 2), 2560),
-            nn.ReLU(),
-            nn.Linear(2560, 1),
+            nn.Linear((height // div_factor) *
+                      (width // div_factor) *
+                      (in_channel * 2 ** 2),
+                      5120),
+            nn.CELU(),
+            nn.Linear(5120, 1),
             nn.Sigmoid()
         )
 

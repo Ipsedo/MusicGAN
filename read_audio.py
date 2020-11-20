@@ -43,6 +43,7 @@ def to_tensor(wav_paths: List[str], n_fft: int, n_sec: float) -> th.Tensor:
           f"{total_tick // SAMPLE_RATE // 60 % 60:02d}m "
           f"{total_tick // SAMPLE_RATE % 60:02d}s "
           f"audio")
+    print(f"record : {N_SEC}s")
 
     b_idx = 0
 
@@ -85,7 +86,7 @@ def to_wav(data: th.Tensor, wav_path: str) -> None:
 
 
 if __name__ == '__main__':
-    w_p = "/home/samuel/Documents/MusicGAN/res/Herzeleid/Rammstein - Herzeleid - 01 - Wollt ihr das Bett in Flammen sehen..wav"
+    w_p = "/home/samuel/Documents/MusicGAN/res/rammstein/(1) Mein Herz Brennt.mp3.wav"
     w_p = glob.glob(w_p)
 
     print(N_SEC)
