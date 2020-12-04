@@ -59,11 +59,12 @@ def main() -> None:
     )
 
     rand_channel = 32
-    hidden_channel = 256
-    hidden_w = utils.N_SEC * utils.SAMPLE_RATE / utils.N_FFT
+    hidden_channel = 256 + 128
+    hidden_w = 16
+    hidden_h = hidden_w
 
-    gen = networks.Generator2(rand_channel, hidden_channel)
-    disc = networks.Discriminator2(2)
+    gen = networks.Generator(rand_channel)
+    disc = networks.Discriminator(2)
     disc.cuda()
     gen.cuda()
 
@@ -80,8 +81,8 @@ def main() -> None:
 
     nb_batch = math.ceil(data.size(0) / batch_size)
 
-    disc_lr = 3e-5
-    gen_lr = 2e-5
+    disc_lr = 2e-5
+    gen_lr = 1e-5
 
     disc_optimizer = th.optim.Adam(disc.parameters(), lr=disc_lr)
     gen_optimizer = th.optim.Adam(gen.parameters(), lr=gen_lr)
@@ -107,11 +108,10 @@ def main() -> None:
 
     def __gen_rand(
             curr_batch_size: int, nb_width: int
-    ) -> Tuple[th.Tensor, th.Tensor, th.Tensor]:
+    ) -> th.Tensor:
         return multi_norm.sample(
-            (curr_batch_size, int(nb_width * hidden_w))), \
-               th.randn(1, curr_batch_size, hidden_channel).cuda(), \
-               th.randn(1, curr_batch_size, hidden_channel).cuda()
+            (curr_batch_size, nb_width * hidden_w, hidden_h))\
+            .permute(0, 3, 1, 2)
 
     with mlflow.start_run(run_name="train", nested=True):
 
@@ -137,12 +137,10 @@ def main() -> None:
                 x_real = data[i_min:i_max, :, :, :].cuda()
 
                 # Train discriminator
-                rand_fake, h_first, c_first = __gen_rand(i_max - i_min, 1)
+                rand_fake = __gen_rand(i_max - i_min, 1)
 
                 x_fake = gen(
-                    rand_fake.cuda(),
-                    h_first.cuda(),
-                    c_first.cuda()
+                    rand_fake.cuda()
                 )
 
                 out_real = disc(x_real)
@@ -162,10 +160,10 @@ def main() -> None:
                 disc_loss_sum += disc_loss.item()
 
                 # Train generator
-                rand_fake, h_first, c_first = __gen_rand(i_max - i_min, 1)
+                rand_fake = __gen_rand(i_max - i_min, 1)
 
                 x_fake = gen(
-                    rand_fake.cuda(), h_first.cuda(), c_first.cuda()
+                    rand_fake.cuda()
                 )
 
                 out_fake = disc(x_fake)
@@ -211,10 +209,10 @@ def main() -> None:
 
             with th.no_grad():
                 gen.eval()
-                rand_gen_sound, h_first, c_first = __gen_rand(1, 10)
+                rand_gen_sound = __gen_rand(1, 10)
 
                 gen_sound = gen(
-                    rand_gen_sound.cuda(), h_first.cuda(), c_first.cuda()
+                    rand_gen_sound.cuda()
                 ).cpu().detach()
                 read_audio.to_wav(
                     gen_sound,
