@@ -5,23 +5,23 @@ from utils import SAMPLE_RATE, N_FFT, N_SEC
 
 
 class Generator(nn.Module):
-    def __init__(self, in_channels: int = 10):
+    def __init__(self, in_channels: int = 16):
         super().__init__()
 
         self.__tr_cnn = nn.Sequential(
             nn.ConvTranspose2d(
                 kernel_size=(7, 7),
                 in_channels=in_channels,
-                out_channels=8,
-                stride=4,
+                out_channels=12,
+                stride=2,
                 padding=3,
                 output_padding=1
             ),
             nn.GELU(),
             nn.ConvTranspose2d(
                 kernel_size=(5, 5),
-                in_channels=8,
-                out_channels=5,
+                in_channels=12,
+                out_channels=9,
                 stride=2,
                 padding=2,
                 output_padding=1
@@ -29,8 +29,17 @@ class Generator(nn.Module):
             nn.GELU(),
             nn.ConvTranspose2d(
                 kernel_size=(5, 5),
-                in_channels=5,
-                out_channels=3,
+                in_channels=9,
+                out_channels=6,
+                stride=2,
+                padding=2,
+                output_padding=1
+            ),
+            nn.GELU(),
+            nn.ConvTranspose2d(
+                kernel_size=(5, 5),
+                in_channels=6,
+                out_channels=4,
                 stride=2,
                 padding=2,
                 output_padding=1
@@ -38,7 +47,7 @@ class Generator(nn.Module):
             nn.GELU(),
             nn.ConvTranspose2d(
                 kernel_size=(3, 3),
-                in_channels=3,
+                in_channels=4,
                 out_channels=2,
                 stride=1,
                 padding=1
@@ -85,7 +94,7 @@ class Discriminator(nn.Module):
         height = N_FFT // 2
         width = height
 
-        div_factor = 2 * 2 * 2
+        div_factor = 2 * 2 * 2 * 2
 
         self.__lin = nn.Sequential(
             nn.Linear(
