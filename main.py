@@ -18,7 +18,7 @@ import argparse
 
 from os.path import join
 
-from typing import Tuple
+import matplotlib.pyplot as plt
 
 
 def main() -> None:
@@ -58,18 +58,17 @@ def main() -> None:
         wavs_path, utils.N_FFT, utils.N_SEC
     )
 
-    rand_channel = 32
-    hidden_channel = 256 + 128
-    hidden_w = 16
-    hidden_h = hidden_w
+    rand_channel = 16
+    width, height = 16, 16
+    nb_vec = int(utils.N_SEC * utils.SAMPLE_RATE / utils.N_FFT) // 2
 
     gen = networks.Generator(rand_channel)
-    disc = networks.Discriminator(2)
+    disc = networks.Discriminator()
     disc.cuda()
     gen.cuda()
 
     nb_epoch = 500
-    batch_size = 3
+    batch_size = 8
 
     def __shuffle() -> None:
         for i in tqdm(range(data.size(0) - 1)):
@@ -79,10 +78,10 @@ def main() -> None:
             data[i, :, :, :], data[j, :, :, :] = \
                 data[j, :, :, :], data[i, :, :, :]
 
-    nb_batch = math.ceil(data.size(0) / batch_size)
+    nb_batch = math.floor(data.size(0) / batch_size)
 
-    disc_lr = 2e-5
-    gen_lr = 1e-5
+    disc_lr = 1e-5
+    gen_lr = 2e-5
 
     disc_optimizer = th.optim.Adam(disc.parameters(), lr=disc_lr)
     gen_optimizer = th.optim.Adam(gen.parameters(), lr=gen_lr)
@@ -95,8 +94,7 @@ def main() -> None:
 
     mlflow.log_params({
         "rand_channel": rand_channel,
-        "hidden_channel": hidden_channel,
-        "hidden_w": hidden_w,
+        "nb_vec": nb_vec,
         "nb_epoch": nb_epoch,
         "batch_size": batch_size,
         "disc_lr": disc_lr,
@@ -107,11 +105,10 @@ def main() -> None:
     mlflow.log_param("mean_vec", mean_vec.tolist())
 
     def __gen_rand(
-            curr_batch_size: int, nb_width: int
-    ) -> th.Tensor:
+            curr_batch_size: int, n_vec: int
+    ):
         return multi_norm.sample(
-            (curr_batch_size, nb_width * hidden_w, hidden_h))\
-            .permute(0, 3, 1, 2)
+            (curr_batch_size, n_vec * height, width)).permute(0, 3, 1, 2)
 
     with mlflow.start_run(run_name="train", nested=True):
 
@@ -209,11 +206,12 @@ def main() -> None:
 
             with th.no_grad():
                 gen.eval()
-                rand_gen_sound = __gen_rand(1, 10)
+                rand_gen_sound = __gen_rand(1, 3)
 
                 gen_sound = gen(
                     rand_gen_sound.cuda()
                 ).cpu().detach()
+
                 read_audio.to_wav(
                     gen_sound,
                     join(args.out_path, f"out_train_epoch_{e}.wav")
