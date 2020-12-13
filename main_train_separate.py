@@ -79,17 +79,11 @@ def main() -> None:
 
     nb_batch = math.floor(data.size(0) / batch_size)
 
-    disc_lr = 2e-6
-    gen_lr = 1e-6
+    disc_lr = 1e-5
+    gen_lr = 1e-5
 
     disc_optimizer = th.optim.Adam(disc.parameters(), lr=disc_lr)
     gen_optimizer = th.optim.Adam(gen.parameters(), lr=gen_lr)
-
-    mean_vec = th.randn(rand_channel)
-    rand_mat = th.randn(rand_channel, rand_channel)
-    cov_mat = rand_mat.t().matmul(rand_mat)
-
-    multi_norm = th.distributions.MultivariateNormal(mean_vec, cov_mat)
 
     mlflow.log_params({
         "rand_channel": rand_channel,
@@ -100,9 +94,6 @@ def main() -> None:
         "gen_lr": gen_lr
     })
 
-    mlflow.log_param("cov_mat", cov_mat.tolist())
-    mlflow.log_param("mean_vec", mean_vec.tolist())
-
     def __gen_rand(curr_batch_size: int):
         return th.randn(curr_batch_size, rand_channel)
 
@@ -110,17 +101,11 @@ def main() -> None:
 
         for e in range(nb_epoch):
             disc_loss_sum = 0.
-            gen_loss_sum = 0.
 
             __shuffle()
 
+            # Train discriminator
             tqdm_bar = tqdm(range(nb_batch))
-
-            error_tp = 0
-            error_tn = 0
-
-            disc.train()
-            gen.train()
 
             for b_idx in tqdm_bar:
                 i_min = b_idx * batch_size
@@ -129,7 +114,6 @@ def main() -> None:
 
                 x_real = data[i_min:i_max, :, :, :].cuda()
 
-                # Train discriminator
                 rand_fake = __gen_rand(i_max - i_min)
 
                 x_fake = gen(
@@ -139,10 +123,10 @@ def main() -> None:
                 out_real = disc(x_real)
                 out_fake = disc(x_fake)
 
-                error_tp += (1. - out_real).mean().item()
-                error_tn += out_fake.mean().item()
+                error_tp = (1. - out_real).mean().item()
+                error_tn = out_fake.mean().item()
 
-                disc_loss = networks.discriminator_loss(
+                disc_loss = networks.warsteiner_discriminator_loss(
                     out_real, out_fake
                 )
 
@@ -154,7 +138,28 @@ def main() -> None:
 
                 disc_loss_sum += disc_loss.item()
 
-                # Train generator
+                disc_grad_norm = th.tensor(
+                    [p.grad.norm() for p in disc.parameters()]
+                ).mean()
+
+                tqdm_bar.set_description(
+                    f"Epoch {e} disc : "
+                    f"disc_loss = {disc_loss_sum / (b_idx + 1):.6f}, "
+                    f"e_tp = {error_tp:.4f}, "
+                    f"e_tn = {error_tn:.4f}, "
+                    f"disc_gr = {disc_grad_norm.item():.4f}"
+                )
+
+            # Train generator
+            tqdm_bar = tqdm(range(nb_batch // 2))
+
+            gen_loss_sum = 0.
+
+            for b_idx in tqdm_bar:
+                i_min = b_idx * batch_size
+                i_max = (b_idx + 1) * batch_size
+                i_max = min(data.size(0), i_max)
+
                 rand_fake = __gen_rand(i_max - i_min)
 
                 x_fake = gen(
@@ -163,7 +168,9 @@ def main() -> None:
 
                 out_fake = disc(x_fake)
 
-                gen_loss = networks.generator_loss(out_fake)
+                error_tn = out_fake.mean().item()
+
+                gen_loss = networks.warsteiner_generator_loss(out_fake)
 
                 disc_optimizer.zero_grad()
                 gen_optimizer.zero_grad()
@@ -177,31 +184,12 @@ def main() -> None:
                     [p.grad.norm() for p in gen.parameters()]
                 ).mean()
 
-                disc_grad_norm = th.tensor(
-                    [p.grad.norm() for p in disc.parameters()]
-                ).mean()
-
                 tqdm_bar.set_description(
-                    f"Epoch {e} : "
-                    f"disc_loss = {disc_loss_sum / (b_idx + 1):.6f}, "
+                    f"Epoch {e} gen : "
                     f"gen_loss = {gen_loss_sum / (b_idx + 1):.6f}, "
-                    f"e_tp = {error_tp / (b_idx + 1):.4f}, "
-                    f"e_tn = {error_tn / (b_idx + 1):.4f}, "
+                    f"e_tn = {error_tn:.4f}, "
                     f"gen_gr = {gen_grad_norm.item():.4f}, "
-                    f"disc_gr = {disc_grad_norm.item():.4f}"
                 )
-
-                if b_idx % 500 == 0:
-                    mlflow.log_metrics(
-                        {
-                            "disc_loss": disc_loss.item(),
-                            "gen_loss": gen_loss.item(),
-                            "batch_tp_error": (1. - out_real).mean().item(),
-                            "batch_tn_error": out_fake.mean().item(),
-                            "disc_grad_norm_mean": disc_grad_norm.item(),
-                            "gen_grad_norm_mean": gen_grad_norm.item()
-                        },
-                        step=e * nb_batch + b_idx)
 
             with th.no_grad():
                 gen.eval()

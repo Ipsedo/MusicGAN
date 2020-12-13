@@ -60,6 +60,71 @@ class Generator(nn.Module):
         return out
 
 
+class GeneratorBis(nn.Module):
+    def __init__(self, rand_size: int = 512):
+        super().__init__()
+
+        self.__map_rand = nn.Sequential(
+            nn.Linear(rand_size, 16 * 16 * 16),
+            nn.GELU()
+        )
+
+        in_channels: int = 16
+
+        self.__tr_cnn = nn.Sequential(
+            nn.ConvTranspose2d(
+                kernel_size=(7, 7),
+                in_channels=in_channels,
+                out_channels=12,
+                stride=2,
+                padding=3,
+                output_padding=1
+            ),
+            nn.GELU(),
+            nn.ConvTranspose2d(
+                kernel_size=(7, 7),
+                in_channels=12,
+                out_channels=9,
+                stride=2,
+                padding=3,
+                output_padding=1
+            ),
+            nn.GELU(),
+            nn.ConvTranspose2d(
+                kernel_size=(7, 7),
+                in_channels=9,
+                out_channels=6,
+                stride=2,
+                padding=3,
+                output_padding=1
+            ),
+            nn.GELU(),
+            nn.ConvTranspose2d(
+                kernel_size=(5, 5),
+                in_channels=6,
+                out_channels=4,
+                stride=2,
+                padding=2,
+                output_padding=1
+            ),
+            nn.GELU(),
+            nn.ConvTranspose2d(
+                kernel_size=(5, 5),
+                in_channels=4,
+                out_channels=2,
+                stride=1,
+                padding=2
+            ),
+            nn.Tanh()
+        )
+
+    def forward(self, x: th.Tensor) -> th.Tensor:
+        out = self.__map_rand(x)
+        out = out.resize(x.size(0), 16, 16, 16)
+        out = self.__tr_cnn(out)
+        return out
+
+
 class Discriminator(nn.Module):
     def __init__(self):
         super().__init__()
@@ -70,25 +135,25 @@ class Discriminator(nn.Module):
                 kernel_size=(3, 3),
                 padding=1),
             nn.MaxPool2d(2, 2),
-            nn.ReLU(),
+            nn.GELU(),
             nn.Conv2d(
                 5, 8,
                 kernel_size=(5, 5),
                 padding=2),
             nn.MaxPool2d(2, 2),
-            nn.ReLU(),
+            nn.GELU(),
             nn.Conv2d(
                 8, 11,
-                kernel_size=(5, 5),
-                padding=2),
+                kernel_size=(7, 7),
+                padding=3),
             nn.MaxPool2d(2, 2),
-            nn.ReLU(),
+            nn.GELU(),
             nn.Conv2d(
                 11, 16,
                 kernel_size=(7, 7),
                 padding=3,
                 stride=2),
-            nn.ReLU()
+            nn.GELU()
         )
 
         height = N_FFT // 2
@@ -99,10 +164,10 @@ class Discriminator(nn.Module):
         self.__lin = nn.Sequential(
             nn.Linear(
                 16 * (width // div_factor) ** 2,
-                4352
+                4608
             ),
-            nn.ReLU(),
-            nn.Linear(4352, 1),
+            nn.GELU(),
+            nn.Linear(4608, 1),
             nn.Sigmoid()
         )
 
@@ -225,6 +290,15 @@ def discriminator_loss(y_real: th.Tensor, y_fake: th.Tensor) -> th.Tensor:
 
 def generator_loss(y_fake: th.Tensor) -> th.Tensor:
     return -th.mean(th.log2(y_fake))
+
+
+def warsteiner_discriminator_loss(y_real: th.Tensor,
+                                  y_fake: th.Tensor) -> th.Tensor:
+    return -(th.mean(y_real) - th.mean(y_fake))
+
+
+def warsteiner_generator_loss(y_fake: th.Tensor) -> th.Tensor:
+    return -th.mean(y_fake)
 
 
 if __name__ == '__main__':

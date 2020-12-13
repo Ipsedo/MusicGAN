@@ -7,6 +7,8 @@ import torch as th
 import torch.fft as th_fft
 import numpy as np
 
+import seaborn
+
 import matplotlib.pyplot as plt
 
 from typing import List
@@ -128,6 +130,7 @@ def to_tensor(wav_paths: List[str], n_fft: int, n_sec: float) -> th.Tensor:
             axis=0)
 
         wv_1, wv_2 = pywt.dwt(data_th, "db1", axis=-1)
+
         wv = np.stack([wv_1, wv_2], axis=-1)
 
         to_keep = wv.shape[0] - wv.shape[0] % batch_vec_nb
@@ -165,7 +168,7 @@ if __name__ == '__main__':
 
     print(N_SEC)
 
-    out_data = to_tensor_2(w_p, N_FFT, N_SEC)
+    out_data = to_tensor(w_p, N_FFT, N_SEC)
     print(out_data.size())
 
     print(out_data[:, 0, :, :].min())
@@ -180,9 +183,14 @@ if __name__ == '__main__':
     print((out_data[:, 1, :, :] > 1).sum())
     print((out_data[:, 1, :, :] < -1).sum())
 
-    plt.matshow(out_data[20, 0, :, :].numpy())
+    plt.matshow(out_data[10, 0, :, :].numpy())
     plt.show()
-    plt.matshow(out_data[20, 1, :, :].numpy())
+    plt.matshow(out_data[10, 1, :, :].numpy())
     plt.show()
 
-    to_wav_2(out_data, "out.wav")
+    seaborn.displot(out_data[:, 0, :, :].flatten(0,-1))
+    plt.show()
+    seaborn.displot(out_data[:, 1, :, :].flatten(0,-1))
+    plt.show()
+
+    to_wav(out_data, "out.wav")
