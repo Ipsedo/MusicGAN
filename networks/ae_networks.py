@@ -72,13 +72,17 @@ class Decoder(nn.Module):
         self.__coef_lin = nn.Linear(300, 256)
         self.__magn_lin = nn.Linear(300, 256)
 
+        self.__act = nn.Tanh()
+
     def forward(self, x: th.Tensor) -> th.Tensor:
         out = self.__tr_cnn(x)
 
         out_coef = self.__coef_lin(out.permute(0, 2, 1))
         out_magn = self.__magn_lin(out.permute(0, 2, 1))
 
-        return th.stack([out_coef, out_magn], dim=1)
+        out = th.stack([out_coef, out_magn], dim=1)
+
+        return self.__act(out)
 
 
 if __name__ == '__main__':
