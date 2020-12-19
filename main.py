@@ -79,8 +79,8 @@ def main() -> None:
 
     nb_batch = math.floor(data.size(0) / batch_size)
 
-    disc_lr = 2e-6
-    gen_lr = 1e-6
+    disc_lr = 1e-5
+    gen_lr = 8e-5
 
     disc_optimizer = th.optim.Adam(disc.parameters(), lr=disc_lr)
     gen_optimizer = th.optim.Adam(gen.parameters(), lr=gen_lr)

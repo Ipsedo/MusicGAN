@@ -168,7 +168,7 @@ if __name__ == '__main__':
 
     print(N_SEC)
 
-    out_data = to_tensor(w_p, N_FFT, N_SEC)
+    out_data = to_tensor(w_p, N_FFT, N_SEC * 2)
     print(out_data.size())
 
     print(out_data[:, 0, :, :].min())
