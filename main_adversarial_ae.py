@@ -60,7 +60,7 @@ def main() -> None:
 
     rand_channel = 64
     width = 16
-    nb_vec = int(utils.N_SEC * utils.SAMPLE_RATE / utils.N_FFT) // 2
+    #nb_vec = int(utils.N_SEC * utils.SAMPLE_RATE / utils.N_FFT) // 2
 
     enc = networks.Encoder()
     gen = networks.Decoder()
@@ -82,9 +82,9 @@ def main() -> None:
 
     nb_batch = math.floor(data.size(0) / batch_size)
 
-    disc_lr = 1e-4
-    gen_lr = 1e-5
-    enc_lr = 2e-5
+    disc_lr = 5e-5
+    gen_lr = 5e-6
+    enc_lr = 1e-5
 
     disc_optimizer = th.optim.Adam(disc.parameters(), lr=disc_lr)
     gen_optimizer = th.optim.Adam(gen.parameters(), lr=gen_lr)
@@ -98,7 +98,6 @@ def main() -> None:
 
     mlflow.log_params({
         "rand_channel": rand_channel,
-        "nb_vec": nb_vec,
         "nb_epoch": nb_epoch,
         "batch_size": batch_size,
         "disc_lr": disc_lr,
@@ -108,9 +107,9 @@ def main() -> None:
     mlflow.log_param("cov_mat", cov_mat.tolist())
     mlflow.log_param("mean_vec", mean_vec.tolist())
 
-    def __gen_rand(curr_batch_size: int):
+    def __gen_rand(curr_batch_size: int, nb_vec):
         return multi_norm.sample(
-            (curr_batch_size, width)
+            (curr_batch_size, width * nb_vec)
         ).permute(0, 2, 1)
 
     with mlflow.start_run(run_name="train", nested=True):
@@ -154,7 +153,7 @@ def main() -> None:
                 enc_loss_sum += enc_loss.item()
 
                 # Train discriminator
-                rand_fake = __gen_rand(i_max - i_min)
+                rand_fake = __gen_rand(i_max - i_min, 1)
 
                 x_fake = gen(
                     rand_fake.cuda()
@@ -179,7 +178,7 @@ def main() -> None:
                 disc_loss_sum += disc_loss.item()
 
                 # Train generator
-                rand_fake = __gen_rand(i_max - i_min)
+                rand_fake = __gen_rand(i_max - i_min, 1)
 
                 x_fake = gen(
                     rand_fake.cuda()
@@ -231,7 +230,7 @@ def main() -> None:
 
             with th.no_grad():
                 gen.eval()
-                rand_gen_sound = __gen_rand(10)
+                rand_gen_sound = __gen_rand(10, 10)
 
                 for gen_idx in range(rand_gen_sound.size(0)):
                     gen_sound = gen(
