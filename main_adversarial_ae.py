@@ -94,7 +94,7 @@ def main() -> None:
     rand_mat = th.randn(rand_channel, rand_channel)
     cov_mat = rand_mat.t().matmul(rand_mat)
 
-    multi_norm = th.distributions.MultivariateNormal(mean_vec, cov_mat)
+    multi_norm = MultivariateNormal(mean_vec, cov_mat)
 
     mlflow.log_params({
         "rand_channel": rand_channel,
