@@ -3,3 +3,5 @@ __pycache__/
 res/
 *.wav
 mlruns/
+venv/
+env/
