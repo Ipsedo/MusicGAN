@@ -82,13 +82,13 @@ def main() -> None:
 
     nb_batch = math.floor(data.size(0) / batch_size)
 
-    disc_lr = 5e-5
-    gen_lr = 5e-6
-    enc_lr = 1e-5
+    disc_lr = 3e-4
+    gen_lr = 5e-5
+    enc_lr = 5e-5
 
-    disc_optimizer = th.optim.Adam(disc.parameters(), lr=disc_lr)
-    gen_optimizer = th.optim.Adam(gen.parameters(), lr=gen_lr)
-    enc_optimizer = th.optim.Adam(enc.parameters(), lr=enc_lr)
+    disc_optimizer = th.optim.Adagrad(disc.parameters(), lr=disc_lr)
+    gen_optimizer = th.optim.Adagrad(gen.parameters(), lr=gen_lr)
+    enc_optimizer = th.optim.Adagrad(enc.parameters(), lr=enc_lr)
 
     mean_vec = th.randn(rand_channel)
     rand_mat = th.randn(rand_channel, rand_channel)
@@ -140,12 +140,16 @@ def main() -> None:
                 out_enc = enc(x_real)
                 out_dec = gen(out_enc)
 
-                enc_loss = th.pow(out_dec - x_real, 2).mean()
+                enc_loss = th.pow(out_dec - x_real, 2).sum()
 
                 enc_optimizer.zero_grad()
                 gen_optimizer.zero_grad()
 
                 enc_loss.backward()
+
+                enc_grad_norm = th.tensor(
+                    [p.grad.norm() for p in enc.parameters()]
+                ).mean()
 
                 enc_optimizer.step()
                 gen_optimizer.step()
@@ -212,7 +216,8 @@ def main() -> None:
                     f"e_tp = {error_tp / (b_idx + 1):.4f}, "
                     f"e_tn = {error_tn / (b_idx + 1):.4f}, "
                     f"gen_gr = {gen_grad_norm.item():.4f}, "
-                    f"disc_gr = {disc_grad_norm.item():.4f}"
+                    f"disc_gr = {disc_grad_norm.item():.4f}, "
+                    f"enc_gr = {enc_grad_norm.item():.4f}"
                 )
 
                 if b_idx % 500 == 0:
@@ -224,13 +229,14 @@ def main() -> None:
                             "batch_tp_error": (1. - out_real).mean().item(),
                             "batch_tn_error": out_fake.mean().item(),
                             "disc_grad_norm_mean": disc_grad_norm.item(),
-                            "gen_grad_norm_mean": gen_grad_norm.item()
+                            "gen_grad_norm_mean": gen_grad_norm.item(),
+                            "enc_grad_norm_mean": enc_grad_norm.item()
                         },
                         step=e * nb_batch + b_idx)
 
             with th.no_grad():
                 gen.eval()
-                rand_gen_sound = __gen_rand(10, 10)
+                rand_gen_sound = __gen_rand(3, 10)
 
                 for gen_idx in range(rand_gen_sound.size(0)):
                     gen_sound = gen(

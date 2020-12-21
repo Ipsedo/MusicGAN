@@ -89,7 +89,7 @@ if __name__ == '__main__':
     enc = Encoder()
     dec = Decoder()
 
-    w_p = "/home/samuel/Documents/MusicGAN/res/rammstein/(1) Mein Herz Brennt.mp3.wav"
+    w_p = "/home/samuel/Documents/MusicGAN/res/Herzeleid/Rammstein - Herzeleid - 01 - Wollt ihr das Bett in Flammen sehen..wav"
     w_p = glob.glob(w_p)
 
     print(N_SEC)
@@ -102,3 +102,13 @@ if __name__ == '__main__':
 
     out_dec = dec(out_enc)
     print(out_dec.size())
+
+    loss = th.pow(out_dec - out_data, 2.).sum()
+
+    loss.backward()
+
+    enc_grad_norm = th.tensor(
+        [p.grad.norm() for p in enc.parameters()]
+    ).mean()
+
+    print(enc_grad_norm)
