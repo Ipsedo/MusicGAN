@@ -101,7 +101,8 @@ def main() -> None:
         "nb_epoch": nb_epoch,
         "batch_size": batch_size,
         "disc_lr": disc_lr,
-        "gen_lr": gen_lr
+        "gen_lr": gen_lr,
+        "enc_lr": enc_lr
     })
 
     mlflow.log_param("cov_mat", cov_mat.tolist())
