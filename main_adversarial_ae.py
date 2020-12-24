@@ -83,12 +83,12 @@ def main() -> None:
     nb_batch = math.floor(data.size(0) / batch_size)
 
     disc_lr = 3e-4
-    gen_lr = 3e-4
+    gen_lr = 1.5e-4
     enc_lr = 1e-4
 
     disc_optimizer = th.optim.Adagrad(disc.parameters(), lr=disc_lr)
     gen_optimizer = th.optim.Adagrad(gen.parameters(), lr=gen_lr)
-    enc_optimizer = th.optim.Adagrad(enc.parameters(), lr=enc_lr)
+    enc_optimizer = th.optim.Adagrad(list(enc.parameters()) + list(gen.parameters()), lr=enc_lr)
 
     mean_vec = th.randn(rand_channel)
     rand_mat = th.randn(rand_channel, rand_channel)

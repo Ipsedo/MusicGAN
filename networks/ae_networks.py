@@ -72,8 +72,6 @@ class Decoder(nn.Module):
         self.__coef_lin = nn.Linear(300, 256)
         self.__magn_lin = nn.Linear(300, 256)
 
-        self.__act = nn.Tanh()
-
     def forward(self, x: th.Tensor) -> th.Tensor:
         out = self.__tr_cnn(x)
 
@@ -82,7 +80,7 @@ class Decoder(nn.Module):
 
         out = th.stack([out_coef, out_magn], dim=1)
 
-        return self.__act(out)
+        return out
 
 
 if __name__ == '__main__':
