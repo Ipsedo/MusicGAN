@@ -83,8 +83,8 @@ def main() -> None:
     nb_batch = math.floor(data.size(0) / batch_size)
 
     disc_lr = 3e-4
-    gen_lr = 5e-5
-    enc_lr = 5e-5
+    gen_lr = 3e-4
+    enc_lr = 1e-4
 
     disc_optimizer = th.optim.Adagrad(disc.parameters(), lr=disc_lr)
     gen_optimizer = th.optim.Adagrad(gen.parameters(), lr=gen_lr)
