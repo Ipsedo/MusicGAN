@@ -205,8 +205,10 @@ def to_tensor_ticks(
             np.split(raw_audio, raw_audio.shape[0] // per_batch_sample, axis=0),
             axis=0)
 
-        data[actual_batch:raw_audio_splitted.shape[0]] = \
+        data[actual_batch:actual_batch + raw_audio_splitted.shape[0]] = \
             th.from_numpy(raw_audio_splitted).permute(0, 2, 1)
+
+        actual_batch += raw_audio_splitted.shape[0]
 
     return data
 
@@ -217,7 +219,7 @@ def ticks_to_wav(data: th.Tensor, wav_path: str, sample_rate: int) -> None:
 
 
 if __name__ == '__main__':
-    w_p = "/home/samuel/Documents/MusicGAN/res/rammstein/(1) Mein Herz Brennt.mp3.wav"
+    w_p = "/home/samuel/Documents/MusicGAN/res/rammstein_16000Hz/(1) Mein Herz Brennt.wav"
     w_p = glob.glob(w_p)
 
     """print(N_SEC)
@@ -249,8 +251,11 @@ if __name__ == '__main__':
 
     wavelet_to_wav(out_data, "out.wav")"""
 
-    out_data = to_tensor_ticks(w_p, 44100, 1, 16000)
+    out_data = to_tensor_ticks(w_p, 16000, 1, 16000)
 
-    ticks_to_wav(out_data, "test.wav", 44100)
+    print(out_data.max())
+    print(out_data.min())
+
+    ticks_to_wav(out_data, "test.wav", 16000)
 
     print(out_data.size())
