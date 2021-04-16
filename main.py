@@ -54,7 +54,7 @@ def main() -> None:
 
     mlflow.log_param("input_musics", wavs_path)
 
-    data = read_audio.to_tensor(
+    data = read_audio.to_tensor_wavelet(
         wavs_path, utils.N_FFT, utils.N_SEC
     )
 
@@ -212,7 +212,7 @@ def main() -> None:
                         rand_gen_sound[gen_idx, :].unsqueeze(0).cuda()
                     ).cpu().detach()
 
-                    read_audio.to_wav(
+                    read_audio.wavelet_to_wav(
                         gen_sound,
                         join(args.out_path,
                              f"out_train_epoch_{e}_gen{gen_idx}.wav")

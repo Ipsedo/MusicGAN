@@ -54,7 +54,7 @@ def main() -> None:
 
     mlflow.log_param("input_musics", wavs_path)
 
-    data = read_audio.to_tensor(
+    data = read_audio.to_tensor_wavelet(
         wavs_path, utils.N_FFT, utils.N_SEC
     )
 
@@ -82,9 +82,9 @@ def main() -> None:
 
     nb_batch = math.floor(data.size(0) / batch_size)
 
-    disc_lr = 3e-5
-    gen_lr = 6e-5
-    enc_lr = 2e-5
+    disc_lr = 5e-5
+    gen_lr = 1e-5
+    enc_lr = 2.5e-6
 
     disc_optimizer = th.optim.Adagrad(disc.parameters(), lr=disc_lr)
     gen_optimizer = th.optim.Adagrad(gen.parameters(), lr=gen_lr)
@@ -109,9 +109,9 @@ def main() -> None:
     mlflow.log_param("mean_vec", mean_vec.tolist())
 
     def __gen_rand(curr_batch_size: int, nb_vec):
-        return multi_norm.sample(
-            (curr_batch_size, width * nb_vec)
-        ).permute(0, 2, 1)
+        return th.randn(
+            curr_batch_size, rand_channel, width * nb_vec
+        )
 
     with mlflow.start_run(run_name="train", nested=True):
 
@@ -244,7 +244,7 @@ def main() -> None:
                         rand_gen_sound[gen_idx, :].unsqueeze(0).cuda()
                     ).cpu().detach()
 
-                    read_audio.to_wav(
+                    read_audio.wavelet_to_wav(
                         gen_sound,
                         join(args.out_path,
                              f"out_train_epoch_{e}_gen{gen_idx}.wav")

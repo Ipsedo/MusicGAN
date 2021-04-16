@@ -2,7 +2,7 @@ import torch as th
 import torch.nn as nn
 
 from utils import N_FFT, N_SEC
-from read_audio import to_tensor
+from read_audio import to_tensor_wavelet
 
 import glob
 
@@ -101,6 +101,7 @@ class Discriminator1D(nn.Module):
         self.__magn_lin = nn.Linear(vec_size, vec_size // 2)
 
         self.__cnn = nn.Sequential(
+            nn.GELU(),
             nn.Conv1d(vec_size, 200, kernel_size=5, padding=2),
             nn.MaxPool1d(2, 2),
             nn.GELU(),
@@ -143,7 +144,7 @@ if __name__ == '__main__':
 
     print(N_SEC)
 
-    out_data = to_tensor(w_p, N_FFT, N_SEC)
+    out_data = to_tensor_wavelet(w_p, N_FFT, N_SEC)
     print(out_data.size())
 
     disc = Discriminator()
