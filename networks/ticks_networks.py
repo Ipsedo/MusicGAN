@@ -14,7 +14,8 @@ class ConvTrBlock(nn.Module):
 
         self.__conv = nn.ConvTranspose1d(
             input_channels, output_channels,
-            kernel_size=2, stride=2
+            kernel_size=3, stride=2, dilation=1,
+            padding=1, output_padding=1
         )
 
     def forward(self, x: th.Tensor) -> th.Tensor:
@@ -44,15 +45,13 @@ class Generator(nn.Module):
 
         nb_layer = 7
 
-        self.__gen = nn.ModuleList()
-
-        for i in range(nb_layer):
-            self.__gen.append(
-                GatedActUnit(
-                    rand_channels if i == 0 else hidden_channels,
-                    hidden_channels
-                )
+        self.__gen = nn.Sequential(*[
+            GatedActUnit(
+                rand_channels if i == 0 else hidden_channels,
+                hidden_channels
             )
+            for i in range(nb_layer)
+        ])
 
         self.__out_conv = nn.ConvTranspose1d(
             hidden_channels, out_channels,
@@ -60,10 +59,9 @@ class Generator(nn.Module):
         )
 
     def forward(self, x: th.Tensor):
-        for layer in self.__gen:
-            x = layer(x)
+        out_tr_conv = self.__gen(x)
 
-        return self.__out_conv(x)
+        return th.tanh(self.__out_conv(out_tr_conv))
 
 
 ################
@@ -86,18 +84,20 @@ class DiscBlock(nn.Module):
 
         self.__mp = nn.MaxPool1d(2, 2)
 
+        self.__relu = nn.ReLU()
+
     def forward(self, x: th.Tensor) -> th.Tensor:
         out_c = self.__conv(x)
         out_mp = self.__mp(out_c)
 
-        return th.relu(out_mp)
+        return self.__relu(out_mp)
 
 
 class Discriminator(nn.Module):
     def __init__(self, input_channels: int, hidden_channels: int):
         super(Discriminator, self).__init__()
 
-        nb_layer = 5
+        nb_layer = 6
 
         self.__conv = nn.Sequential(*[
             DiscBlock(
@@ -110,9 +110,9 @@ class Discriminator(nn.Module):
         out_size = 16000 // (2 ** nb_layer) * hidden_channels
 
         self.__clf = nn.Sequential(
-            nn.Linear(out_size, 3072),
+            nn.Linear(out_size, 2560),
             nn.ReLU(),
-            nn.Linear(3072, 1),
+            nn.Linear(2560, 1),
             nn.Sigmoid()
         )
 

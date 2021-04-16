@@ -6,16 +6,15 @@ import torch as th
 import glob
 from os import mkdir
 from os.path import join, exists, isdir
+import sys
 
 import mlflow
 
 import argparse
-
 from tqdm import tqdm
 
 import random
-
-import sys
+from statistics import mean
 
 
 def main() -> None:
@@ -23,12 +22,14 @@ def main() -> None:
 
     parser.add_argument(
         "run",
-        type=str, metavar="RUN_NAME"
+        type=str,
+        metavar="RUN_NAME"
     )
 
     parser.add_argument(
         "-o", "--out-path",
-        dest="out_path", type=str,
+        dest="out_path",
+        type=str,
         required=True
     )
 
@@ -45,51 +46,67 @@ def main() -> None:
     mlflow.set_experiment(exp_name)
 
     wavs_path = glob.glob(
-        args.input_musics)
+        args.input_musics
+    )
 
     mlflow.start_run(run_name=args.run)
 
     mlflow.log_param("input_musics", wavs_path)
 
     sample_rate = 16000
-    rand_channel = 32
     sample_length = 16000
+
+    rand_channel = 16
     rand_length = 125
     out_channel = 1
-    gen_hidden_channel = 16
+    gen_hidden_channel = 10
     disc_hidden_channel = 9
+
+    disc_lr = 5e-5
+    gen_lr = 5e-5
+
+    nb_epoch = 100
+    batch_size = 4
 
     output_dir = args.out_path
 
     if not exists(output_dir):
         mkdir(output_dir)
     elif exists(output_dir) and not isdir(output_dir):
-        raise Exception(f"\"{output_dir}\" is not a directory !")
+        raise Exception(
+            f"\"{output_dir}\" is not a directory !"
+        )
 
-    disc_lr = 1e-4
-    gen_lr = 1e-4
+    data = read_audio.to_tensor_ticks(
+        wavs_path,
+        sample_rate,
+        out_channel,
+        sample_length
+    )
 
-    data = read_audio.to_tensor_ticks(wavs_path, sample_rate, out_channel, sample_length)
+    gen = networks.Generator(
+        rand_channel,
+        gen_hidden_channel,
+        out_channel
+    )
 
-    gen = networks.Generator(rand_channel, gen_hidden_channel, out_channel)
-    disc = networks.Discriminator(out_channel, disc_hidden_channel)
+    disc = networks.Discriminator(
+        out_channel,
+        disc_hidden_channel
+    )
 
     gen.cuda()
     disc.cuda()
 
-    optim_disc = th.optim.SGD(disc.parameters(), lr=disc_lr)
-    optim_gen = th.optim.SGD(gen.parameters(), lr=gen_lr)
+    optim_gen = th.optim.Adam(
+        gen.parameters(),
+        lr=gen_lr
+    )
 
-    def __shuffle() -> None:
-        for i in tqdm(range(data.size(0) - 1)):
-            j = i + random.randint(0, sys.maxsize) // (
-                    sys.maxsize // (data.size(0) - i) + 1
-            )
-            data[i, :, :], data[j, :, :] = \
-                data[j, :, :], data[i, :, :]
-
-    nb_epoch = 10
-    batch_size = 4
+    optim_disc = th.optim.Adam(
+        disc.parameters(),
+        lr=disc_lr
+    )
 
     nb_batch = data.size(0) // batch_size
 
@@ -115,39 +132,40 @@ def main() -> None:
     mlflow.log_param("mean_vec", mean_vec.tolist())
 
     with mlflow.start_run(run_name="train", nested=True):
+
         for e in range(nb_epoch):
 
-            __shuffle()
+            # shuffle tensor
+            batch_idx_list = list(range(nb_batch))
+            random.shuffle(batch_idx_list)
+            tqdm_bar = tqdm(batch_idx_list)
 
-            tqdm_bar = tqdm(range(nb_batch))
+            metric_window = 30
+            error_tp = [1. for _ in range(metric_window)]
+            error_tn = [1. for _ in range(metric_window)]
 
-            error_tp = 0.
-            error_tn = 0.
-
-            disc_loss_sum = 0.
-            gen_loss_sum = 0.
+            disc_loss_sum = [2. for _ in range(metric_window)]
+            gen_loss_sum = [1. for _ in range(metric_window)]
 
             for b_idx in tqdm_bar:
                 i_min = b_idx * batch_size
                 i_max = (b_idx + 1) * batch_size
 
-                # train discirminator
+                # train discriminator
+
                 disc.train()
                 gen.eval()
 
-                x_real = data[i_min:i_max].cuda()
+                x_real = data[i_min:i_max, :, :].cuda()
 
-                rand_fake = multi_norm.sample((i_max - i_min, rand_length))\
-                    .permute(0, 2, 1)\
+                rand_fake = multi_norm.sample((i_max - i_min, rand_length)) \
+                    .permute(0, 2, 1) \
                     .cuda()
 
                 x_fake = gen(rand_fake)
 
                 out_real = disc(x_real)
                 out_fake = disc(x_fake)
-
-                error_tp += (1. - out_real).mean().item()
-                error_tn += out_fake.mean().item()
 
                 disc_loss = networks.discriminator_loss(
                     out_real, out_fake
@@ -159,13 +177,20 @@ def main() -> None:
                 disc_loss.backward()
                 optim_disc.step()
 
-                disc_loss_sum += disc_loss.item()
+                # discriminator metrics
+                error_tp.append((1. - out_real).mean().item())
+                error_tn.append(out_fake.mean().item())
+
+                del error_tn[0]
+                del error_tp[0]
 
                 # train generator
+
                 gen.train()
                 disc.eval()
 
-                rand_fake = multi_norm.sample((i_max - i_min, rand_length)) \
+                rand_fake = multi_norm \
+                    .sample((i_max - i_min, rand_length)) \
                     .permute(0, 2, 1) \
                     .cuda()
 
@@ -180,9 +205,8 @@ def main() -> None:
                 gen_loss.backward()
                 optim_gen.step()
 
-                gen_loss_sum += gen_loss.item()
-
                 # metrics
+
                 gen_grad_norm = th.tensor(
                     [p.grad.norm() for p in gen.parameters()]
                 ).mean()
@@ -191,28 +215,35 @@ def main() -> None:
                     [p.grad.norm() for p in disc.parameters()]
                 ).mean()
 
+                del disc_loss_sum[0]
+                del gen_loss_sum[0]
+
+                disc_loss_sum.append(disc_loss.item())
+                gen_loss_sum.append(gen_loss.item())
+
                 tqdm_bar.set_description(
                     f"Epoch {e}, "
-                    f"disc_loss = {disc_loss_sum / (b_idx + 1):.6f}, "
-                    f"gen_loss = {gen_loss_sum / (b_idx + 1):.6f}, "
-                    f"e_tp = {error_tp / (b_idx + 1):.4f}, "
-                    f"e_tn = {error_tn / (b_idx + 1):.4f}, "
+                    f"disc_loss = {mean(disc_loss_sum):.6f}, "
+                    f"gen_loss = {mean(gen_loss_sum):.6f}, "
+                    f"e_tp = {mean(error_tp):.4f}, "
+                    f"e_tn = {mean(error_tn):.4f}, "
                     f"gen_gr = {gen_grad_norm.item():.4f}, "
                     f"disc_gr = {disc_grad_norm.item():.4f}"
                 )
 
+                # log metrics
                 if b_idx % 500 == 0:
-                    mlflow.log_metrics(
-                        {
-                            "disc_loss": disc_loss.item(),
-                            "gen_loss": gen_loss.item(),
-                            "batch_tp_error": (1. - out_real).mean().item(),
-                            "batch_tn_error": out_fake.mean().item(),
-                            "disc_grad_norm_mean": disc_grad_norm.item(),
-                            "gen_grad_norm_mean": gen_grad_norm.item()
-                        },
+                    mlflow.log_metrics({
+                        "disc_loss": disc_loss.item(),
+                        "gen_loss": gen_loss.item(),
+                        "batch_tp_error": error_tp[-1],
+                        "batch_tn_error": error_tn[-1],
+                        "disc_grad_norm_mean": disc_grad_norm.item(),
+                        "gen_grad_norm_mean": gen_grad_norm.item()
+                    },
                         step=e * nb_batch + b_idx)
 
+            # Generate sound
             with th.no_grad():
 
                 # 10 seconds
@@ -221,6 +252,7 @@ def main() -> None:
                     .cuda()
 
                 x_fake = gen(rand_fake)
+
                 read_audio.ticks_to_wav(
                     x_fake.detach().cpu(),
                     join(output_dir, f"gen_epoch_{e}.wav"),
