@@ -62,11 +62,11 @@ def main() -> None:
     gen_hidden_channel = 32
     disc_hidden_channel = 24
 
-    disc_lr = 1e-4
-    gen_lr = 1e-4
+    disc_lr = 1e-5
+    gen_lr = 1e-5
 
     nb_epoch = 100
-    batch_size = 4
+    batch_size = 3
 
     output_dir = args.out_path
 

@@ -14,7 +14,7 @@ class ConvTrBlock(nn.Module):
     ):
         super(ConvTrBlock, self).__init__()
 
-        kernel_size: int = 15
+        kernel_size: int = 25
         stride: int = 4
 
         self.__conv = nn.ConvTranspose1d(
