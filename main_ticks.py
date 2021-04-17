@@ -54,16 +54,16 @@ def main() -> None:
     mlflow.log_param("input_musics", wavs_path)
 
     sample_rate = 16000
-    sample_length = 16000
+    sample_length = 16384
 
     rand_channel = 8
-    rand_length = 125
+    rand_length = 16
     out_channel = 1
     gen_hidden_channel = 32
-    disc_hidden_channel = 8
+    disc_hidden_channel = 24
 
     disc_lr = 1e-4
-    gen_lr = 8e-5
+    gen_lr = 1e-4
 
     nb_epoch = 100
     batch_size = 4
@@ -133,19 +133,19 @@ def main() -> None:
 
     with mlflow.start_run(run_name="train", nested=True):
 
+        metric_window = 30
+        error_tp = [1. for _ in range(metric_window)]
+        error_tn = [1. for _ in range(metric_window)]
+
+        disc_loss_sum = [2. for _ in range(metric_window)]
+        gen_loss_sum = [1. for _ in range(metric_window)]
+
         for e in range(nb_epoch):
 
             # shuffle tensor
             batch_idx_list = list(range(nb_batch))
             random.shuffle(batch_idx_list)
             tqdm_bar = tqdm(batch_idx_list)
-
-            metric_window = 30
-            error_tp = [1. for _ in range(metric_window)]
-            error_tn = [1. for _ in range(metric_window)]
-
-            disc_loss_sum = [2. for _ in range(metric_window)]
-            gen_loss_sum = [1. for _ in range(metric_window)]
 
             for b_idx in tqdm_bar:
                 i_min = b_idx * batch_size

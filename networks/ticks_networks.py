@@ -15,7 +15,7 @@ class ConvTrBlock(nn.Module):
         super(ConvTrBlock, self).__init__()
 
         kernel_size: int = 15
-        stride: int = 2
+        stride: int = 4
 
         self.__conv = nn.ConvTranspose1d(
             input_channels, output_channels,
@@ -23,7 +23,7 @@ class ConvTrBlock(nn.Module):
             stride=stride,
             dilation=1,
             padding=kernel_size // 2,
-            output_padding=kernel_size % 2
+            output_padding=kernel_size % stride
         )
 
     def forward(self, x: th.Tensor) -> th.Tensor:
@@ -51,7 +51,7 @@ class Generator(nn.Module):
     ):
         super(Generator, self).__init__()
 
-        nb_layer = 7
+        nb_layer = 5
 
         self.__gen = nn.Sequential(*[
             GatedActUnit(
@@ -84,7 +84,7 @@ class DiscBlock(nn.Module):
             input_channels: int,
             output_channels: int,
             kernel_size: int = 15,
-            stride: int = 2
+            stride: int = 4
     ):
         super(DiscBlock, self).__init__()
 
@@ -108,7 +108,7 @@ class Discriminator(nn.Module):
     def __init__(self, input_channels: int, hidden_channels: int):
         super(Discriminator, self).__init__()
 
-        nb_layer = 7
+        nb_layer = 4
 
         self.__conv = nn.Sequential(*[
             DiscBlock(
@@ -118,12 +118,12 @@ class Discriminator(nn.Module):
             for i in range(nb_layer)
         ])
 
-        out_size = 16000 // (2 ** nb_layer) * hidden_channels
+        out_size = 16384 // (4 ** nb_layer) * hidden_channels
 
         self.__clf = nn.Sequential(
-            nn.Linear(out_size, 2300),
+            nn.Linear(out_size, 2048),
             nn.ReLU(),
-            nn.Linear(2300, 1),
+            nn.Linear(2048, 1),
             nn.Sigmoid()
         )
 
