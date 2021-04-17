@@ -8,14 +8,22 @@ import torch.nn as nn
 
 class ConvTrBlock(nn.Module):
     def __init__(
-            self, input_channels: int, output_channels: int
+            self,
+            input_channels: int,
+            output_channels: int,
     ):
         super(ConvTrBlock, self).__init__()
 
+        kernel_size: int = 15
+        stride: int = 2
+
         self.__conv = nn.ConvTranspose1d(
             input_channels, output_channels,
-            kernel_size=3, stride=2, dilation=1,
-            padding=1, output_padding=1
+            kernel_size=kernel_size,
+            stride=stride,
+            dilation=1,
+            padding=kernel_size // 2,
+            output_padding=kernel_size % 2
         )
 
     def forward(self, x: th.Tensor) -> th.Tensor:
@@ -71,33 +79,36 @@ class Generator(nn.Module):
 # Designed for 16000 ticks aka 1 sec at 16000Hz
 
 class DiscBlock(nn.Module):
-    def __init__(self, input_channels: int, output_channels: int):
+    def __init__(
+            self,
+            input_channels: int,
+            output_channels: int,
+            kernel_size: int = 15,
+            stride: int = 2
+    ):
         super(DiscBlock, self).__init__()
 
         self.__conv = nn.Conv1d(
             input_channels,
             output_channels,
-            kernel_size=3,
-            stride=1,
-            padding=1
+            kernel_size=kernel_size,
+            stride=stride,
+            padding=kernel_size // 2
         )
-
-        self.__mp = nn.MaxPool1d(2, 2)
 
         self.__relu = nn.ReLU()
 
     def forward(self, x: th.Tensor) -> th.Tensor:
         out_c = self.__conv(x)
-        out_mp = self.__mp(out_c)
 
-        return self.__relu(out_mp)
+        return self.__relu(out_c)
 
 
 class Discriminator(nn.Module):
     def __init__(self, input_channels: int, hidden_channels: int):
         super(Discriminator, self).__init__()
 
-        nb_layer = 6
+        nb_layer = 7
 
         self.__conv = nn.Sequential(*[
             DiscBlock(
@@ -110,9 +121,9 @@ class Discriminator(nn.Module):
         out_size = 16000 // (2 ** nb_layer) * hidden_channels
 
         self.__clf = nn.Sequential(
-            nn.Linear(out_size, 2560),
+            nn.Linear(out_size, 2300),
             nn.ReLU(),
-            nn.Linear(2560, 1),
+            nn.Linear(2300, 1),
             nn.Sigmoid()
         )
 

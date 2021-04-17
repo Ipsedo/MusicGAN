@@ -56,14 +56,14 @@ def main() -> None:
     sample_rate = 16000
     sample_length = 16000
 
-    rand_channel = 16
+    rand_channel = 8
     rand_length = 125
     out_channel = 1
-    gen_hidden_channel = 10
-    disc_hidden_channel = 9
+    gen_hidden_channel = 32
+    disc_hidden_channel = 8
 
-    disc_lr = 5e-5
-    gen_lr = 5e-5
+    disc_lr = 1e-4
+    gen_lr = 8e-5
 
     nb_epoch = 100
     batch_size = 4
