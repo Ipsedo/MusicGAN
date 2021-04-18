@@ -86,7 +86,8 @@ def to_tensor_old(wav_paths: List[str], n_fft: int, n_sec: float) -> th.Tensor:
     return data
 
 
-def to_tensor_wavelet(wav_paths: List[str], n_fft: int, n_sec: float) -> th.Tensor:
+def to_tensor_wavelet(wav_paths: List[str], n_fft: int,
+                      n_sec: float) -> th.Tensor:
     assert len(wav_paths) > 0, "Empty list !"
 
     fft_vec_size = n_fft
@@ -161,8 +162,9 @@ def to_wav_old(data: th.Tensor, wav_path: str) -> None:
 
 def wavelet_to_wav(data: th.Tensor, wav_path: str) -> None:
     data = data.permute(0, 2, 3, 1).flatten(0, 1).contiguous().numpy()
-    #raw_audio = th_fft.ifft(data, n=N_FFT, dim=1, norm="forward").flatten(0, -1).real.numpy()
-    raw_audio = pywt.idwt(data[:, :, 0], data[:, :, 1], "db1", axis=-1).flatten()
+    # raw_audio = th_fft.ifft(data, n=N_FFT, dim=1, norm="forward").flatten(0, -1).real.numpy()
+    raw_audio = pywt.idwt(data[:, :, 0], data[:, :, 1], "db1",
+                          axis=-1).flatten()
     scipy.io.wavfile.write(wav_path, SAMPLE_RATE, raw_audio)
 
 
@@ -176,7 +178,6 @@ def to_tensor_ticks(
         channels: int,
         per_batch_sample: int
 ) -> th.Tensor:
-
     nb_batch = 0
 
     for wav_p in tqdm(wav_paths):
@@ -198,7 +199,7 @@ def to_tensor_ticks(
 
         to_keep = raw_audio.shape[0] - raw_audio.shape[0] % per_batch_sample
 
-        raw_audio = raw_audio[:to_keep, :].mean(axis=-1)[:, None]\
+        raw_audio = raw_audio[:to_keep, :].mean(axis=-1)[:, None] \
             if channels == 1 else raw_audio[:to_keep, :]
 
         raw_audio_splitted = np.stack(

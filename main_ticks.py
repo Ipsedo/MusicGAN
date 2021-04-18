@@ -6,7 +6,6 @@ import torch as th
 import glob
 from os import mkdir
 from os.path import join, exists, isdir
-import sys
 
 import mlflow
 
@@ -49,6 +48,11 @@ def main() -> None:
         args.input_musics
     )
 
+    if len(wavs_path) == 0:
+        raise Exception(
+            "Empty train sounds."
+        )
+
     mlflow.start_run(run_name=args.run)
 
     mlflow.log_param("input_musics", wavs_path)
@@ -59,7 +63,7 @@ def main() -> None:
     rand_channel = 8
     rand_length = 16
     out_channel = 1
-    gen_hidden_channel = 32
+    gen_hidden_channel = 16
     disc_hidden_channel = 24
 
     disc_lr = 1e-5
@@ -108,7 +112,7 @@ def main() -> None:
         lr=disc_lr
     )
 
-    nb_batch = data.size(0) // batch_size
+    nb_batch = data.size()[0] // batch_size
 
     mean_vec = th.randn(rand_channel)
     rand_mat = th.randn(rand_channel, rand_channel)
@@ -133,7 +137,7 @@ def main() -> None:
 
     with mlflow.start_run(run_name="train", nested=True):
 
-        metric_window = 30
+        metric_window = 100
         error_tp = [1. for _ in range(metric_window)]
         error_tn = [1. for _ in range(metric_window)]
 
@@ -147,6 +151,7 @@ def main() -> None:
             random.shuffle(batch_idx_list)
             tqdm_bar = tqdm(batch_idx_list)
 
+            # loop on batch
             for b_idx in tqdm_bar:
                 i_min = b_idx * batch_size
                 i_max = (b_idx + 1) * batch_size
@@ -247,7 +252,8 @@ def main() -> None:
             with th.no_grad():
 
                 # 10 seconds
-                rand_fake = multi_norm.sample((1, rand_length * 10)) \
+                rand_fake = multi_norm \
+                    .sample((1, rand_length * 10)) \
                     .permute(0, 2, 1) \
                     .cuda()
 

@@ -6,42 +6,61 @@ import torch.nn as nn
 # Generator
 ##############
 
-class ConvTrBlock(nn.Module):
+class TransConv(nn.Module):
+    def __init__(
+            self,
+            in_channels: int,
+            out_channels: int,
+            kernel_size: int,
+            stride: int = 1,
+
+    ):
+        assert kernel_size % 2 == 0, f"kernel_size % 2 must be 0"
+        assert stride % 2 == 0, f"stride % 2 must be 0"
+
+        super(TransConv, self).__init__()
+
+        self.__conv_tr = nn.ConvTranspose1d(
+            in_channels, out_channels,
+            kernel_size, stride,
+            padding=(kernel_size - stride) // 2
+        )
+
+    def forward(self, x: th.Tensor) -> th.Tensor:
+        out_conv = self.__conv_tr(x)
+        return out_conv
+
+
+class GatedActUnit(nn.Module):
     def __init__(
             self,
             input_channels: int,
             output_channels: int,
+            filter_kernel_size: int,
+            filter_stride: int,
+            gate_kernel_size: int,
+            gate_stride: int
     ):
-        super(ConvTrBlock, self).__init__()
+        super(GatedActUnit, self).__init__()
 
-        kernel_size: int = 25
-        stride: int = 4
-
-        self.__conv = nn.ConvTranspose1d(
-            input_channels, output_channels,
-            kernel_size=kernel_size,
-            stride=stride,
-            dilation=1,
-            padding=kernel_size // 2,
-            output_padding=kernel_size % stride
+        self.__filter_conv = TransConv(
+            input_channels,
+            output_channels,
+            filter_kernel_size,
+            filter_stride
+        )
+        self.__gate_conv = TransConv(
+            input_channels,
+            output_channels,
+            gate_kernel_size,
+            gate_stride
         )
 
     def forward(self, x: th.Tensor) -> th.Tensor:
-        return self.__conv(x)
-
-
-class GatedActUnit(nn.Module):
-    def __init__(self, input_channels: int, output_channels: int):
-        super(GatedActUnit, self).__init__()
-
-        self.__filter_conv = ConvTrBlock(input_channels, output_channels)
-        self.__gate_conv = ConvTrBlock(input_channels, output_channels)
-
-    def forward(self, x: th.Tensor):
         out_f = self.__filter_conv(x)
         out_g = self.__gate_conv(x)
 
-        return th.tanh(out_f) * th.sigmoid(out_g)
+        return th.selu(out_f) * th.sigmoid(out_g)
 
 
 class Generator(nn.Module):
@@ -53,20 +72,30 @@ class Generator(nn.Module):
 
         nb_layer = 5
 
+        filter_kernel_size = 26
+        filter_stride = 4
+
+        gate_kernel_size = 26
+        gate_stride = 4
+
         self.__gen = nn.Sequential(*[
             GatedActUnit(
                 rand_channels if i == 0 else hidden_channels,
-                hidden_channels
+                hidden_channels,
+                filter_kernel_size,
+                filter_stride,
+                gate_kernel_size,
+                gate_stride
             )
             for i in range(nb_layer)
         ])
 
         self.__out_conv = nn.ConvTranspose1d(
             hidden_channels, out_channels,
-            kernel_size=3, stride=1, padding=1
+            kernel_size=25, stride=1, padding=12
         )
 
-    def forward(self, x: th.Tensor):
+    def forward(self, x: th.Tensor) -> th.Tensor:
         out_tr_conv = self.__gen(x)
 
         return th.tanh(self.__out_conv(out_tr_conv))
@@ -76,14 +105,14 @@ class Generator(nn.Module):
 # Discriminator
 ################
 
-# Designed for 16000 ticks aka 1 sec at 16000Hz
+# Designed for 16384 ticks aka ~1 sec at 16000Hz
 
 class DiscBlock(nn.Module):
     def __init__(
             self,
             input_channels: int,
             output_channels: int,
-            kernel_size: int = 15,
+            kernel_size: int = 25,
             stride: int = 4
     ):
         super(DiscBlock, self).__init__()
@@ -128,7 +157,7 @@ class Discriminator(nn.Module):
         )
 
     def forward(self, x: th.Tensor) -> th.Tensor:
-        out_conv =  self.__conv(x)
+        out_conv = self.__conv(x)
         out_conv = out_conv.flatten(-2, -1)
 
         out_clf = self.__clf(out_conv)
