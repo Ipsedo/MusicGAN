@@ -12,7 +12,7 @@ class TransConv(nn.Module):
             in_channels: int,
             out_channels: int,
             kernel_size: int,
-            stride: int = 1,
+            stride: int,
 
     ):
         assert kernel_size % 2 == 0, f"kernel_size % 2 must be 0"
@@ -31,6 +31,7 @@ class TransConv(nn.Module):
         return out_conv
 
 
+# Gate Unit
 class GatedActUnit(nn.Module):
     def __init__(
             self,
@@ -49,6 +50,7 @@ class GatedActUnit(nn.Module):
             filter_kernel_size,
             filter_stride
         )
+
         self.__gate_conv = TransConv(
             input_channels,
             output_channels,
@@ -60,19 +62,74 @@ class GatedActUnit(nn.Module):
         out_f = self.__filter_conv(x)
         out_g = self.__gate_conv(x)
 
-        return th.selu(out_f) * th.sigmoid(out_g)
+        return th.tanh(out_f) * th.sigmoid(out_g)
+
+
+# Residual Block
+class ResidualTransConv(nn.Module):
+    def __init__(
+            self,
+            input_channel: int,
+            hidden_channel: int,
+            output_channel: int,
+            kernel_size: int,
+            stride: int
+    ):
+        assert kernel_size % 2 == 0, f"kernel_size % 2 must be 1"
+        assert stride % 2 == 0, f"stride % 2 must be 1"
+
+        super(ResidualTransConv, self).__init__()
+
+        self.__tr_conv_block = nn.Sequential(
+            nn.ConvTranspose1d(
+                input_channel, hidden_channel,
+                kernel_size=kernel_size,
+                padding=kernel_size // 2,
+                stride=1
+            ),
+            nn.ReLU(),
+            nn.ConvTranspose1d(
+                hidden_channel, input_channel,
+                kernel_size=kernel_size,
+                padding=kernel_size // 2 - 1,
+                stride=1
+            ),
+            nn.ReLU()
+        )
+
+        self.__tr_conv_down = nn.Sequential(
+            nn.ConvTranspose1d(
+                input_channel, output_channel,
+                kernel_size=kernel_size,
+                padding=(kernel_size - stride) // 2,
+                stride=stride
+            ),
+            nn.ReLU(),
+            nn.BatchNorm1d(output_channel)
+        )
+
+    def forward(self, x: th.Tensor) -> th.Tensor:
+        out_conv_tr = self.__tr_conv_block(x)
+
+        out = x + out_conv_tr
+        out = self.__tr_conv_down(out)
+
+        return out
 
 
 class Generator(nn.Module):
     def __init__(
-            self, rand_channels: int,
-            hidden_channels: int, out_channels: int
+            self,
+            rand_channels: int,
+            hidden_channels: int,
+            res_hidden_channels: int,
+            out_channels: int
     ):
         super(Generator, self).__init__()
 
         nb_layer = 5
 
-        filter_kernel_size = 26
+        """filter_kernel_size = 26
         filter_stride = 4
 
         gate_kernel_size = 26
@@ -86,6 +143,16 @@ class Generator(nn.Module):
                 filter_stride,
                 gate_kernel_size,
                 gate_stride
+            )
+            for i in range(nb_layer)
+        ])"""
+
+        self.__gen = nn.Sequential(*[
+            ResidualTransConv(
+                rand_channels if i == 0 else hidden_channels,
+                res_hidden_channels,
+                hidden_channels,
+                26, 4
             )
             for i in range(nb_layer)
         ])
@@ -125,12 +192,10 @@ class DiscBlock(nn.Module):
             padding=kernel_size // 2
         )
 
-        self.__relu = nn.ReLU()
-
     def forward(self, x: th.Tensor) -> th.Tensor:
         out_c = self.__conv(x)
 
-        return self.__relu(out_c)
+        return th.relu(out_c)
 
 
 class Discriminator(nn.Module):
