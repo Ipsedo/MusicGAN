@@ -1,6 +1,7 @@
 from utils import SAMPLE_RATE, N_FFT, N_SEC
 
 import scipy.io.wavfile
+import scipy.signal
 import soundfile as sf
 import pywt
 import torch as th
@@ -219,8 +220,80 @@ def ticks_to_wav(data: th.Tensor, wav_path: str, sample_rate: int) -> None:
     scipy.io.wavfile.write(wav_path, sample_rate, raw_audio)
 
 
+##########
+# STFT
+##########
+
+def to_tensor_stft(
+        wav_paths: List[str],
+        sample_rate: int,
+
+) -> th.Tensor:
+    nperseg = 1022
+    stride = 256
+    noverlap = nperseg - stride
+
+    nb_vec = 256
+
+    nb_batch = 0
+
+    n_fft = 512
+
+    for wav_p in tqdm(wav_paths):
+        # sample_rate, raw_audio = scipy.io.wavfile.read(wav_p)
+        raw_audio, curr_sample_rate = sf.read(wav_p)
+
+        assert sample_rate == curr_sample_rate, \
+            f"Needed = {sample_rate}Hz, " \
+            f"actual = {curr_sample_rate}Hz"
+
+        nb_seg = raw_audio.shape[0] // stride
+
+        nb_batch += nb_seg // nb_vec
+
+    data = th.empty(nb_batch, 2, nb_vec, n_fft)
+
+    curr_batch = 0
+    for wav_p in tqdm(wav_paths):
+        raw_audio, _ = sf.read(wav_p)
+
+        _, _, magn_phase = scipy.signal.stft(
+            raw_audio.mean(-1), nperseg=nperseg, noverlap=noverlap
+        )
+
+        magn_phase = magn_phase.transpose()
+
+        magn_phase = magn_phase[
+                     :magn_phase.shape[0] -
+                      magn_phase.shape[0] % nb_vec, :]
+
+        splitted_magn_phase = np.stack(
+            np.split(magn_phase, magn_phase.shape[0] // nb_vec, axis=0),
+            axis=0
+        )
+
+        data[curr_batch:curr_batch + splitted_magn_phase.shape[0], 0, :, :] = \
+            th.from_numpy(np.real(splitted_magn_phase))
+
+        data[curr_batch:curr_batch + splitted_magn_phase.shape[0], 1, :, :] = \
+            th.from_numpy(np.imag(splitted_magn_phase))
+
+        curr_batch += splitted_magn_phase.shape[0]
+
+    return data
+
+
+def stft_to_wav(x: th.Tensor, wav_path: str, sample_rate: int):
+    x = x.permute(0, 2, 3, 1)
+    x = x.flatten(0, 1)
+    x = x.numpy()
+    x = x[:, :, 0] + x[:, :, 1] * 1j
+    _, raw_audio = scipy.signal.istft(x.transpose(), nperseg=1022, noverlap=1022 - 256)
+    scipy.io.wavfile.write(wav_path, sample_rate, raw_audio)
+
+
 if __name__ == '__main__':
-    w_p = "/home/samuel/Documents/MusicGAN/res/rammstein_16000Hz/(1) Mein Herz Brennt.wav"
+    w_p = "/home/samuel/Documents/MusicGAN/res/rammstein/(1) Mein Herz Brennt.mp3.wav"
     w_p = glob.glob(w_p)
 
     """print(N_SEC)
@@ -252,11 +325,31 @@ if __name__ == '__main__':
 
     wavelet_to_wav(out_data, "out.wav")"""
 
-    out_data = to_tensor_ticks(w_p, 16000, 1, 16000)
+    """out_data = to_tensor_ticks(w_p, 16000, 1, 16000)
 
     print(out_data.max())
     print(out_data.min())
 
     ticks_to_wav(out_data, "test.wav", 16000)
 
-    print(out_data.size())
+    print(out_data.size())"""
+
+    out = to_tensor_stft(w_p, 44100)
+
+    print(out[:, 0, :, :].max(), out[:, 0, :, :].min())
+    print(out[:, 1, :, :].max(), out[:, 1, :, :].min())
+
+    print(out.size())
+
+    stft_to_wav(out, "out.wav", 44100)
+
+    idx = 60
+
+    real, imag = out[idx, 0, :, :].numpy(), out[idx, 1, :, :].numpy()
+    fig, ax = plt.subplots()
+    ax.matshow(real / (real.max() - real.min()), cmap='plasma')
+    fig.show()
+
+    fig, ax = plt.subplots()
+    ax.matshow(imag / (imag.max() - imag.min()), cmap='plasma')
+    fig.show()
