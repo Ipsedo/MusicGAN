@@ -63,14 +63,15 @@ def main() -> None:
     rand_channel = 8
     rand_length = 16
     out_channel = 1
-    gen_hidden_channel = 16
+    gen_hidden_channel = 24
+    gen_res_hidden_channel = 32
     disc_hidden_channel = 24
 
-    disc_lr = 1e-5
-    gen_lr = 1e-5
+    disc_lr = 1e-4
+    gen_lr = 3e-5
 
     nb_epoch = 100
-    batch_size = 3
+    batch_size = 4
 
     output_dir = args.out_path
 
@@ -91,6 +92,7 @@ def main() -> None:
     gen = networks.Generator(
         rand_channel,
         gen_hidden_channel,
+        gen_res_hidden_channel,
         out_channel
     )
 
@@ -102,12 +104,12 @@ def main() -> None:
     gen.cuda()
     disc.cuda()
 
-    optim_gen = th.optim.Adam(
+    optim_gen = th.optim.Adagrad(
         gen.parameters(),
         lr=gen_lr
     )
 
-    optim_disc = th.optim.Adam(
+    optim_disc = th.optim.Adagrad(
         disc.parameters(),
         lr=disc_lr
     )
@@ -123,6 +125,7 @@ def main() -> None:
         "rand_channel": rand_channel,
         "out_channel": out_channel,
         "gen_hidden_channel": gen_hidden_channel,
+        "gen_res_hidden_channel": gen_res_hidden_channel,
         "nb_epoch": nb_epoch,
         "batch_size": batch_size,
         "disc_lr": disc_lr,
