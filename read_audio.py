@@ -272,21 +272,16 @@ def to_tensor_stft(
             axis=0
         )
 
-        real = np.real(splitted_magn_phase)
-        imag = np.imag(splitted_magn_phase)
+        magn = np.absolute(splitted_magn_phase)
+        phase = np.angle(splitted_magn_phase)
 
-        eps = 1e-20
-
-        magn = np.sqrt(real * real + imag * imag)
-        phase = np.arctan(imag / (real + eps))
-
-        max_magn = magn.max(axis=(0, 1))
-        min_magn = magn.min(axis=(0, 1))
-        max_phase = phase.max(axis=(0, 1))
-        min_phase = phase.min(axis=(0, 1))
+        max_magn = magn.max()
+        min_magn = magn.min()
+        max_phase = phase.max()
+        min_phase = phase.min()
 
         magn = (magn - min_magn) / (max_magn - min_magn)
-        phase = (phase - min_phase) / (max_phase - min_phase + eps)
+        phase = (phase - min_phase) / (max_phase - min_phase)
 
         data[curr_batch:curr_batch + splitted_magn_phase.shape[0], 0, :, :] = \
             th.from_numpy(magn) * 2 - 1
@@ -304,8 +299,8 @@ def stft_to_wav(x: th.Tensor, wav_path: str, sample_rate: int):
     x = x.flatten(0, 1)
     x = (x.numpy() + 1) / 2
 
-    real = x[:, :, 0] * np.cos(x[:, :, 1])
-    imag = x[:, :, 0] * np.sin(x[:, :, 1])
+    real = x[:, :, 0] * np.cos(x[:, :, 1] * np.pi)
+    imag = x[:, :, 0] * np.sin(x[:, :, 1] * np.pi)
 
     x = real + imag * 1j
     _, raw_audio = scipy.signal.istft(x.transpose(), nperseg=1022,
