@@ -11,9 +11,11 @@ class ResidualTransConv(nn.Module):
             hidden_channels: int,
             out_channels: int,
             kernel_size: int,
-            up_sample: int = 2
+            kernel_size_up_sample: int,
+            up_sample: int
     ):
         assert kernel_size % 2 == 1
+        assert kernel_size_up_sample % 2 == 0
         assert up_sample % 2 == 0
 
         super(ResidualTransConv, self).__init__()
@@ -39,10 +41,9 @@ class ResidualTransConv(nn.Module):
         self.__upsample_conv = nn.Sequential(
             nn.ConvTranspose2d(
                 in_channels, out_channels,
-                kernel_size,
+                kernel_size_up_sample,
                 stride=up_sample,
-                padding=kernel_size // 2,
-                output_padding=1
+                padding=kernel_size // 2
             ),
             nn.ReLU()
         )
@@ -73,7 +74,7 @@ class STFTGenerator(nn.Module):
                 rand_channels if i == 0 else residual_channel,
                 hidden_channel,
                 residual_channel,
-                3, 2
+                5, 6, 2
             )
             for i in range(nb_layer)
         ])
@@ -81,7 +82,8 @@ class STFTGenerator(nn.Module):
         self.__conv_out = nn.Sequential(
             nn.Conv2d(
                 residual_channel, out_channel,
-                kernel_size=3, stride=1, padding=1
+                kernel_size=5,
+                stride=1, padding=2
             ),
             nn.Tanh()
         )
@@ -133,7 +135,7 @@ class STFTDiscriminator(nn.Module):
             ConvBlock(
                 in_channels if i == 0 else hidden_channel,
                 hidden_channel,
-                kernel_size=3,
+                kernel_size=5,
                 stride=2
             )
             for i in range(nb_layer)
@@ -162,9 +164,9 @@ class STFTDiscriminator(nn.Module):
 
 
 if __name__ == '__main__':
-    rand_data = th.rand(16, 8, 1, 2)
+    rand_data = th.rand(1, 8, 1, 2)
 
-    rs = ResidualTransConv(8, 256, 256, 3, 2)
+    rs = ResidualTransConv(8, 24, 16, 3, 4, 2)
 
     o = rs(rand_data)
 
@@ -173,6 +175,8 @@ if __name__ == '__main__':
     gen = STFTGenerator(
         8, 32, 48, 2
     )
+
+    print(gen)
 
     o = gen(rand_data)
 

@@ -272,11 +272,27 @@ def to_tensor_stft(
             axis=0
         )
 
+        real = np.real(splitted_magn_phase)
+        imag = np.imag(splitted_magn_phase)
+
+        eps = 1e-20
+
+        magn = np.sqrt(real * real + imag * imag)
+        phase = np.arctan(imag / (real + eps))
+
+        max_magn = magn.max(axis=(0, 1))
+        min_magn = magn.min(axis=(0, 1))
+        max_phase = phase.max(axis=(0, 1))
+        min_phase = phase.min(axis=(0, 1))
+
+        magn = (magn - min_magn) / (max_magn - min_magn)
+        phase = (phase - min_phase) / (max_phase - min_phase + eps)
+
         data[curr_batch:curr_batch + splitted_magn_phase.shape[0], 0, :, :] = \
-            th.from_numpy(np.real(splitted_magn_phase))
+            th.from_numpy(magn) * 2 - 1
 
         data[curr_batch:curr_batch + splitted_magn_phase.shape[0], 1, :, :] = \
-            th.from_numpy(np.imag(splitted_magn_phase))
+            th.from_numpy(phase) * 2 - 1
 
         curr_batch += splitted_magn_phase.shape[0]
 
@@ -286,9 +302,14 @@ def to_tensor_stft(
 def stft_to_wav(x: th.Tensor, wav_path: str, sample_rate: int):
     x = x.permute(0, 2, 3, 1)
     x = x.flatten(0, 1)
-    x = x.numpy()
-    x = x[:, :, 0] + x[:, :, 1] * 1j
-    _, raw_audio = scipy.signal.istft(x.transpose(), nperseg=1022, noverlap=1022 - 256)
+    x = (x.numpy() + 1) / 2
+
+    real = x[:, :, 0] * np.cos(x[:, :, 1])
+    imag = x[:, :, 0] * np.sin(x[:, :, 1])
+
+    x = real + imag * 1j
+    _, raw_audio = scipy.signal.istft(x.transpose(), nperseg=1022,
+                                      noverlap=1022 - 256)
     scipy.io.wavfile.write(wav_path, sample_rate, raw_audio)
 
 
