@@ -61,14 +61,14 @@ def main() -> None:
     sample_length = 16384
 
     rand_channel = 8
-    rand_length = 16
+    rand_length = 4
     out_channel = 1
     gen_hidden_channel = 24
     gen_res_hidden_channel = 32
     disc_hidden_channel = 24
 
     disc_lr = 1e-4
-    gen_lr = 3e-5
+    gen_lr = 1e-5
 
     nb_epoch = 100
     batch_size = 4

@@ -75,20 +75,20 @@ class ResidualTransConv(nn.Module):
             kernel_size: int,
             stride: int
     ):
-        assert kernel_size % 2 == 0, f"kernel_size % 2 must be 1"
-        assert stride % 2 == 0, f"stride % 2 must be 1"
+        assert kernel_size % 2 == 0, f"kernel_size % 2 must be 0"
+        assert stride % 2 == 0, f"stride % 2 must be 0"
 
         super(ResidualTransConv, self).__init__()
 
         self.__tr_conv_block = nn.Sequential(
-            nn.ConvTranspose1d(
+            nn.Conv1d(
                 input_channel, hidden_channel,
                 kernel_size=kernel_size,
                 padding=kernel_size // 2,
                 stride=1
             ),
             nn.ReLU(),
-            nn.ConvTranspose1d(
+            nn.Conv1d(
                 hidden_channel, input_channel,
                 kernel_size=kernel_size,
                 padding=kernel_size // 2 - 1,
@@ -127,7 +127,7 @@ class Generator(nn.Module):
     ):
         super(Generator, self).__init__()
 
-        nb_layer = 5
+        nb_layer = 12
 
         """filter_kernel_size = 26
         filter_stride = 4
@@ -152,7 +152,7 @@ class Generator(nn.Module):
                 rand_channels if i == 0 else hidden_channels,
                 res_hidden_channels,
                 hidden_channels,
-                26, 4
+                26, 2
             )
             for i in range(nb_layer)
         ])
@@ -180,7 +180,7 @@ class DiscBlock(nn.Module):
             input_channels: int,
             output_channels: int,
             kernel_size: int = 25,
-            stride: int = 4
+            stride: int = 2
     ):
         super(DiscBlock, self).__init__()
 
@@ -202,7 +202,7 @@ class Discriminator(nn.Module):
     def __init__(self, input_channels: int, hidden_channels: int):
         super(Discriminator, self).__init__()
 
-        nb_layer = 4
+        nb_layer = 8
 
         self.__conv = nn.Sequential(*[
             DiscBlock(
@@ -212,7 +212,7 @@ class Discriminator(nn.Module):
             for i in range(nb_layer)
         ])
 
-        out_size = 16384 // (4 ** nb_layer) * hidden_channels
+        out_size = 16384 // (2 ** nb_layer) * hidden_channels
 
         self.__clf = nn.Sequential(
             nn.Linear(out_size, 2048),
@@ -228,3 +228,13 @@ class Discriminator(nn.Module):
         out_clf = self.__clf(out_conv)
 
         return out_clf
+
+
+if __name__ == '__main__':
+    d = th.randn(16, 8, 2)
+
+    gen = ResidualTransConv(8, 16, 10, 26, 2)
+
+    o = gen(d)
+
+    print(o.size())
