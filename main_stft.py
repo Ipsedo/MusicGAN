@@ -69,7 +69,7 @@ def main() -> None:
     disc_hidden_channel = 64
 
     disc_lr = 1e-5
-    gen_lr = 1e-5
+    gen_lr = 2e-5
 
     nb_epoch = 100
     batch_size = 4
