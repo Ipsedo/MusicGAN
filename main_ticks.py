@@ -63,12 +63,12 @@ def main() -> None:
     rand_channel = 8
     rand_length = 4
     out_channel = 1
-    gen_hidden_channel = 24
-    gen_res_hidden_channel = 32
+    gen_hidden_channel = 12
+    gen_res_hidden_channel = 16
     disc_hidden_channel = 24
 
-    disc_lr = 1e-4
-    gen_lr = 1e-5
+    disc_lr = 5e-5
+    gen_lr = 1e-4
 
     nb_epoch = 100
     batch_size = 4
@@ -104,12 +104,12 @@ def main() -> None:
     gen.cuda()
     disc.cuda()
 
-    optim_gen = th.optim.Adagrad(
+    optim_gen = th.optim.Adam(
         gen.parameters(),
         lr=gen_lr
     )
 
-    optim_disc = th.optim.Adagrad(
+    optim_disc = th.optim.Adam(
         disc.parameters(),
         lr=disc_lr
     )
