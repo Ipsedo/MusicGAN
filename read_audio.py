@@ -254,26 +254,34 @@ def to_tensor_stft(
     data = th.empty(nb_batch, 2, nb_vec, n_fft)
 
     curr_batch = 0
+
     for wav_p in tqdm(wav_paths):
         raw_audio, _ = sf.read(wav_p)
 
-        _, _, magn_phase = scipy.signal.stft(
+        _, _, z = scipy.signal.stft(
             raw_audio.mean(-1), nperseg=nperseg, noverlap=noverlap
         )
 
-        magn_phase = magn_phase.transpose()
+        z = z.transpose()
 
-        magn_phase = magn_phase[
-                     :magn_phase.shape[0] -
-                      magn_phase.shape[0] % nb_vec, :]
+        z = z[:z.shape[0] - z.shape[0] % nb_vec, :]
 
-        splitted_magn_phase = np.stack(
-            np.split(magn_phase, magn_phase.shape[0] // nb_vec, axis=0),
-            axis=0
+        # splitted_z = np.stack(
+        #    np.split(z, z.shape[0] // nb_vec, axis=0),
+        #    axis=0
+        # )
+
+        magn = np.absolute(z)
+        phase = np.unwrap(np.angle(z), axis=0)
+
+        phase[1:, :] = phase[1:, :] - phase[:-1, :]
+
+        magn = np.stack(
+            np.split(magn, magn.shape[0] // nb_vec, axis=0), axis=0
         )
-
-        magn = np.absolute(splitted_magn_phase)
-        phase = np.angle(splitted_magn_phase)
+        phase = np.stack(
+            np.split(phase, phase.shape[0] // nb_vec, axis=0), axis=0
+        )
 
         max_magn = magn.max()
         min_magn = magn.min()
@@ -283,13 +291,13 @@ def to_tensor_stft(
         magn = (magn - min_magn) / (max_magn - min_magn)
         phase = (phase - min_phase) / (max_phase - min_phase)
 
-        data[curr_batch:curr_batch + splitted_magn_phase.shape[0], 0, :, :] = \
+        data[curr_batch:curr_batch + magn.shape[0], 0, :, :] = \
             th.from_numpy(magn) * 2 - 1
 
-        data[curr_batch:curr_batch + splitted_magn_phase.shape[0], 1, :, :] = \
+        data[curr_batch:curr_batch + phase.shape[0], 1, :, :] = \
             th.from_numpy(phase) * 2 - 1
 
-        curr_batch += splitted_magn_phase.shape[0]
+        curr_batch += magn.shape[0]
 
     return data
 
@@ -297,10 +305,18 @@ def to_tensor_stft(
 def stft_to_wav(x: th.Tensor, wav_path: str, sample_rate: int):
     x = x.permute(0, 2, 3, 1)
     x = x.flatten(0, 1)
-    x = (x.numpy() + 1) / 2
+    x = x.numpy()
 
-    real = x[:, :, 0] * np.cos(x[:, :, 1] * np.pi)
-    imag = x[:, :, 0] * np.sin(x[:, :, 1] * np.pi)
+    phases = x[:, :, 1]
+    for i in range(phases.shape[0] - 1):
+        phases[i + 1, :] = phases[i + 1, :] + phases[i, :]
+
+    phases = phases * np.pi
+
+    magn = (x[:, :, 0] + 1) / 2
+
+    real = magn * np.cos(phases)
+    imag = magn * np.sin(phases)
 
     x = real + imag * 1j
     _, raw_audio = scipy.signal.istft(x.transpose(), nperseg=1022,
@@ -309,7 +325,7 @@ def stft_to_wav(x: th.Tensor, wav_path: str, sample_rate: int):
 
 
 if __name__ == '__main__':
-    w_p = "/home/samuel/Documents/MusicGAN/res/rammstein/(1) Mein Herz Brennt.mp3.wav"
+    w_p = "/home/samuel/Documents/MusicGAN/res/rammstein_16000Hz/(2) Links 234.wav"
     w_p = glob.glob(w_p)
 
     """print(N_SEC)
@@ -350,18 +366,21 @@ if __name__ == '__main__':
 
     print(out_data.size())"""
 
-    out = to_tensor_stft(w_p, 44100)
+    out = to_tensor_stft(w_p, 16000)
 
     print(out[:, 0, :, :].max(), out[:, 0, :, :].min())
     print(out[:, 1, :, :].max(), out[:, 1, :, :].min())
 
     print(out.size())
 
-    stft_to_wav(out, "out.wav", 44100)
+    stft_to_wav(out, "out.wav", 16000)
 
-    idx = 60
+    idx = 30
 
     real, imag = out[idx, 0, :, :].numpy(), out[idx, 1, :, :].numpy()
+
+    # imag = (imag + 1) / 2 - (out[idx - 1, 1, :, :].numpy() + 1) / 2
+
     fig, ax = plt.subplots()
     ax.matshow(real / (real.max() - real.min()), cmap='plasma')
     fig.show()
