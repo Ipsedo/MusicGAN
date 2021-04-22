@@ -57,19 +57,19 @@ def main() -> None:
 
     mlflow.log_param("input_musics", wavs_path)
 
-    sample_rate = 44100
+    sample_rate = 16000
 
     rand_channel = 8
-    rand_width = 1
-    rand_height = 2
+    rand_width = 2
+    rand_height = 4
 
-    gen_hidden_channel = 48
-    gen_residual_channel = 32
+    gen_hidden_channel = 32
+    gen_residual_channel = 24
 
-    disc_hidden_channel = 64
+    disc_hidden_channel = 16
 
-    disc_lr = 1e-5
-    gen_lr = 2e-5
+    disc_lr = 1e-6
+    gen_lr = 1e-6
 
     nb_epoch = 100
     batch_size = 4
@@ -84,7 +84,7 @@ def main() -> None:
         )
 
     gen = networks.STFTGenerator(
-        rand_channel, gen_residual_channel, gen_hidden_channel, 2
+        rand_channel, gen_hidden_channel, gen_residual_channel, 2
     )
 
     disc = networks.STFTDiscriminator(
@@ -114,7 +114,6 @@ def main() -> None:
     mlflow.log_params({
         "rand_channel": rand_channel,
         "gen_hidden_channel": gen_hidden_channel,
-        "gen_residual_channel": gen_residual_channel,
         "disc_hidden_channel": disc_hidden_channel,
         "nb_epoch": nb_epoch,
         "batch_size": batch_size,

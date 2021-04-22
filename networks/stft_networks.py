@@ -57,19 +57,68 @@ class ResidualTransConv(nn.Module):
         return out
 
 
+# Gate Unit
+class GatedActUnit(nn.Module):
+    def __init__(
+            self,
+            input_channels: int,
+            hidden_channels: int,
+            output_channels: int,
+            kernel_size: int,
+            stride: int
+    ):
+        assert kernel_size % 2 == 0
+
+        super(GatedActUnit, self).__init__()
+
+        self.__filter_conv = nn.Conv2d(
+            input_channels,
+            hidden_channels,
+            kernel_size=kernel_size + 1,
+            stride=1,
+            padding=kernel_size // 2
+        )
+
+        self.__gate_conv = nn.Conv2d(
+            input_channels,
+            hidden_channels,
+            kernel_size=kernel_size + 1,
+            stride=1,
+            padding=kernel_size // 2
+        )
+
+        self.__tr_conv = nn.ConvTranspose2d(
+            hidden_channels,
+            output_channels,
+            kernel_size=kernel_size,
+            stride=stride,
+            padding=(kernel_size - stride) // 2
+        )
+
+    def forward(self, x: th.Tensor) -> th.Tensor:
+        out_f = self.__filter_conv(x)
+        out_g = self.__gate_conv(x)
+
+        out = th.tanh(out_f) * th.sigmoid(out_g)
+
+        out = th.relu(self.__tr_conv(out))
+
+        return out
+
+
 class STFTGenerator(nn.Module):
     def __init__(
             self,
             rand_channels: int,
-            residual_channel: int,
             hidden_channel: int,
+            residual_channel: int,
             out_channel: int
     ):
         super(STFTGenerator, self).__init__()
 
-        nb_layer = 8
+        nb_layer = 7
 
-        self.__gen = nn.Sequential(*[
+        """self.__gen = nn.Sequential(*[
             ResidualTransConv(
                 rand_channels if i == 0 else residual_channel,
                 hidden_channel,
@@ -77,13 +126,25 @@ class STFTGenerator(nn.Module):
                 5, 6, 2
             )
             for i in range(nb_layer)
+        ])"""
+
+        self.__gen = nn.Sequential(*[
+            GatedActUnit(
+                rand_channels if i == 0 else residual_channel,
+                hidden_channel,
+                residual_channel,
+                4, 2
+            )
+            for i in range(nb_layer)
         ])
 
         self.__conv_out = nn.Sequential(
             nn.Conv2d(
-                residual_channel, out_channel,
+                residual_channel,
+                out_channel,
                 kernel_size=5,
-                stride=1, padding=2
+                stride=1,
+                padding=2
             ),
             nn.Tanh()
         )
@@ -129,7 +190,7 @@ class STFTDiscriminator(nn.Module):
     ):
         super(STFTDiscriminator, self).__init__()
 
-        nb_layer = 6
+        nb_layer = 5
 
         self.__conv = nn.Sequential(*[
             ConvBlock(
@@ -146,12 +207,12 @@ class STFTDiscriminator(nn.Module):
 
         out_size = hidden_channel * nb_time // 2 ** nb_layer * nb_freq // 2 ** nb_layer
 
-        self.__clf = nn.Sequential(*[
-            nn.Linear(out_size, 3072),
+        self.__clf = nn.Sequential(
+            nn.Linear(out_size, 2560),
             nn.ReLU(),
-            nn.Linear(3072, 1),
+            nn.Linear(2560, 1),
             nn.Sigmoid()
-        ])
+        )
 
     def forward(self, x: th.Tensor) -> th.Tensor:
         out_conv = self.__conv(x)
@@ -162,25 +223,27 @@ class STFTDiscriminator(nn.Module):
         return out_clf
 
 
-
 if __name__ == '__main__':
-    rand_data = th.rand(1, 8, 1, 2)
+    rand_data = th.rand(1, 8, 2, 4)
 
-    rs = ResidualTransConv(8, 24, 16, 3, 4, 2)
+    # rs = ResidualTransConv(8, 24, 16, 3, 4, 2)
+    gu = GatedActUnit(
+        8, 10, 6, 2
+    )
 
-    o = rs(rand_data)
+    o = gu(rand_data)
 
     print(o.size())
 
     gen = STFTGenerator(
-        8, 32, 48, 2
+        8, 24, 32, 2
     )
 
     print(gen)
 
     o = gen(rand_data)
 
-    print(o.size())
+    print("A ", o.size())
 
     disc = STFTDiscriminator(
         2, 64
