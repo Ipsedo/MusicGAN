@@ -23,17 +23,22 @@ class ResidualTransConv(nn.Module):
         self.__tr_conv_block = nn.Sequential(
             nn.Conv2d(
                 in_channels, hidden_channels,
-                kernel_size,
-                stride=1,
-                padding=kernel_size // 2
+                (kernel_size, kernel_size),
+                stride=(1, 1),
+                padding=(
+                    kernel_size // 2,
+                    kernel_size // 2
+                )
             ),
             nn.ReLU(),
             nn.Conv2d(
                 hidden_channels, in_channels,
-                kernel_size,
-                stride=1,
-                padding=kernel_size // 2
-
+                (kernel_size, kernel_size),
+                stride=(1, 1),
+                padding=(
+                    kernel_size // 2,
+                    kernel_size // 2
+                )
             ),
             nn.ReLU()
         )
@@ -41,9 +46,12 @@ class ResidualTransConv(nn.Module):
         self.__upsample_conv = nn.Sequential(
             nn.ConvTranspose2d(
                 in_channels, out_channels,
-                kernel_size_up_sample,
-                stride=up_sample,
-                padding=kernel_size // 2
+                (kernel_size_up_sample, kernel_size_up_sample),
+                stride=(up_sample, up_sample),
+                padding=(
+                    kernel_size // 2,
+                    kernel_size // 2
+                )
             ),
             nn.ReLU()
         )
@@ -64,35 +72,58 @@ class GatedActUnit(nn.Module):
             input_channels: int,
             hidden_channels: int,
             output_channels: int,
-            kernel_size: int,
+            conv_ker_size: int,
+            tr_conv_ker_size: int,
             stride: int
     ):
-        assert kernel_size % 2 == 0
+        assert conv_ker_size % 2 == 1
+        assert tr_conv_ker_size % 2 == 0
 
         super(GatedActUnit, self).__init__()
 
         self.__filter_conv = nn.Conv2d(
             input_channels,
             hidden_channels,
-            kernel_size=kernel_size + 1,
-            stride=1,
-            padding=kernel_size // 2
+            kernel_size=(
+                conv_ker_size,
+                conv_ker_size
+            ),
+            stride=(1, 1),
+            padding=(
+                conv_ker_size // 2,
+                conv_ker_size // 2
+            )
         )
 
         self.__gate_conv = nn.Conv2d(
             input_channels,
             hidden_channels,
-            kernel_size=kernel_size + 1,
-            stride=1,
-            padding=kernel_size // 2
+            kernel_size=(
+                conv_ker_size,
+                conv_ker_size
+            ),
+            stride=(1, 1),
+            padding=(
+                conv_ker_size // 2,
+                conv_ker_size // 2
+            )
         )
 
-        self.__tr_conv = nn.ConvTranspose2d(
-            hidden_channels,
-            output_channels,
-            kernel_size=kernel_size,
-            stride=stride,
-            padding=(kernel_size - stride) // 2
+        self.__tr_conv = nn.Sequential(
+            nn.ConvTranspose2d(
+                hidden_channels,
+                output_channels,
+                kernel_size=(
+                    tr_conv_ker_size,
+                    tr_conv_ker_size
+                ),
+                stride=(stride, stride),
+                padding=(
+                    (tr_conv_ker_size - stride) // 2,
+                    (tr_conv_ker_size - stride) // 2
+                )
+            ),
+            nn.LeakyReLU(negative_slope=1e-1)
         )
 
     def forward(self, x: th.Tensor) -> th.Tensor:
@@ -101,7 +132,7 @@ class GatedActUnit(nn.Module):
 
         out = th.tanh(out_f) * th.sigmoid(out_g)
 
-        out = th.relu(self.__tr_conv(out))
+        out = self.__tr_conv(out)
 
         return out
 
@@ -110,13 +141,11 @@ class STFTGenerator(nn.Module):
     def __init__(
             self,
             rand_channels: int,
-            hidden_channel: int,
-            residual_channel: int,
             out_channel: int
     ):
         super(STFTGenerator, self).__init__()
 
-        nb_layer = 7
+        nb_layer = 4
 
         """self.__gen = nn.Sequential(*[
             ResidualTransConv(
@@ -128,23 +157,38 @@ class STFTGenerator(nn.Module):
             for i in range(nb_layer)
         ])"""
 
+        channel_list = [
+            224,
+            112,
+            56,
+            28
+        ]
+
+        h_channel_list = [
+            256,
+            128,
+            64,
+            32
+        ]
+
         self.__gen = nn.Sequential(*[
             GatedActUnit(
-                rand_channels if i == 0 else residual_channel,
-                hidden_channel,
-                residual_channel,
-                4, 2
+                rand_channels if i == 0
+                else channel_list[i - 1],
+                h_channel_list[i],
+                channel_list[i],
+                5, 6, 4
             )
             for i in range(nb_layer)
         ])
 
         self.__conv_out = nn.Sequential(
             nn.Conv2d(
-                residual_channel,
+                channel_list[-1],
                 out_channel,
-                kernel_size=5,
-                stride=1,
-                padding=2
+                kernel_size=(5, 5),
+                stride=(1, 1),
+                padding=(2, 2)
             ),
             nn.Tanh()
         )
@@ -171,33 +215,44 @@ class ConvBlock(nn.Module):
 
         self.__conv = nn.Conv2d(
             in_channels, out_channels,
-            kernel_size,
-            stride=stride,
-            padding=kernel_size // 2
+            (kernel_size, kernel_size),
+            stride=(stride, stride),
+            padding=(
+                kernel_size // 2,
+                kernel_size // 2
+            )
         )
+
+        self.__relu = nn.LeakyReLU(negative_slope=1e-1)
 
     def forward(self, x: th.Tensor) -> th.Tensor:
         out = self.__conv(x)
 
-        return th.relu(out)
+        return self.__relu(out)
 
 
 class STFTDiscriminator(nn.Module):
     def __init__(
             self,
-            in_channels: int,
-            hidden_channel: int
+            in_channels: int
     ):
         super(STFTDiscriminator, self).__init__()
 
-        nb_layer = 5
+        nb_layer = 3
+        stride = 4
+
+        hidden_channels = [
+            16,
+            32,
+            64
+        ]
 
         self.__conv = nn.Sequential(*[
             ConvBlock(
-                in_channels if i == 0 else hidden_channel,
-                hidden_channel,
+                in_channels if i == 0 else hidden_channels[i - 1],
+                hidden_channels[i],
                 kernel_size=5,
-                stride=2
+                stride=stride
             )
             for i in range(nb_layer)
         ])
@@ -205,11 +260,12 @@ class STFTDiscriminator(nn.Module):
         nb_time = 256
         nb_freq = 512
 
-        out_size = hidden_channel * nb_time // 2 ** nb_layer * nb_freq // 2 ** nb_layer
+        out_size = hidden_channels[
+                       -1] * nb_time // stride ** nb_layer * nb_freq // stride ** nb_layer
 
         self.__clf = nn.Sequential(
             nn.Linear(out_size, 2560),
-            nn.ReLU(),
+            nn.LeakyReLU(negative_slope=1e-1),
             nn.Linear(2560, 1),
             nn.Sigmoid()
         )
@@ -224,20 +280,18 @@ class STFTDiscriminator(nn.Module):
 
 
 if __name__ == '__main__':
-    rand_data = th.rand(1, 8, 2, 4)
+    rand_data = th.rand(1, 8, 1, 2)
 
     # rs = ResidualTransConv(8, 24, 16, 3, 4, 2)
-    gu = GatedActUnit(
-        8, 10, 6, 2
+    """gu = GatedActUnit(
+        8, 10, 16, 3, 2
     )
 
     o = gu(rand_data)
 
-    print(o.size())
+    print(o.size())"""
 
-    gen = STFTGenerator(
-        8, 24, 32, 2
-    )
+    gen = STFTGenerator(8, 2)
 
     print(gen)
 
@@ -245,9 +299,7 @@ if __name__ == '__main__':
 
     print("A ", o.size())
 
-    disc = STFTDiscriminator(
-        2, 64
-    )
+    disc = STFTDiscriminator(2)
 
     print(disc)
 

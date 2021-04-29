@@ -59,17 +59,17 @@ def main() -> None:
 
     sample_rate = 16000
 
-    rand_channel = 8
-    rand_width = 2
-    rand_height = 4
+    rand_channel = 32
+    rand_width = 1
+    rand_height = 2
 
-    gen_hidden_channel = 32
+    """gen_hidden_channel = 32
     gen_residual_channel = 24
 
-    disc_hidden_channel = 16
+    disc_hidden_channel = 16"""
 
-    disc_lr = 1e-6
-    gen_lr = 1e-6
+    disc_lr = 3e-5
+    gen_lr = 1e-5
 
     nb_epoch = 100
     batch_size = 4
@@ -84,12 +84,10 @@ def main() -> None:
         )
 
     gen = networks.STFTGenerator(
-        rand_channel, gen_hidden_channel, gen_residual_channel, 2
+        rand_channel, 2
     )
 
-    disc = networks.STFTDiscriminator(
-        2, disc_hidden_channel
-    )
+    disc = networks.STFTDiscriminator(2)
 
     gen.cuda()
     disc.cuda()
@@ -113,8 +111,6 @@ def main() -> None:
 
     mlflow.log_params({
         "rand_channel": rand_channel,
-        "gen_hidden_channel": gen_hidden_channel,
-        "disc_hidden_channel": disc_hidden_channel,
         "nb_epoch": nb_epoch,
         "batch_size": batch_size,
         "disc_lr": disc_lr,
