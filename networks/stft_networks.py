@@ -137,6 +137,53 @@ class GatedActUnit(nn.Module):
         return out
 
 
+class GeneratorBlock(nn.Module):
+    def __init__(
+            self,
+            input_channel: int,
+            hidden_channel: int,
+            output_channel: int,
+            conv_kernel_size: int,
+            convtr_kernel_size: int,
+            stride: int
+    ):
+        super(GeneratorBlock, self).__init__()
+
+        self.__conv_block = nn.Sequential(
+            nn.Conv2d(
+                input_channel,
+                hidden_channel,
+                kernel_size=(
+                    conv_kernel_size,
+                    conv_kernel_size
+                ),
+                stride=(1, 1),
+                padding=(
+                    conv_kernel_size // 2,
+                    conv_kernel_size // 2
+                )
+            ),
+            nn.LeakyReLU(negative_slope=0.2),
+            nn.ConvTranspose2d(
+                hidden_channel,
+                output_channel,
+                kernel_size=(
+                    convtr_kernel_size,
+                    convtr_kernel_size
+                ),
+                stride=(stride, stride),
+                padding=(
+                    (convtr_kernel_size - stride) // 2,
+                    (convtr_kernel_size - stride) // 2
+                )
+            ),
+            nn.LeakyReLU(negative_slope=0.2)
+        )
+
+    def forward(self, x: th.Tensor) -> th.Tensor:
+        return self.__conv_block(x)
+
+
 class STFTGenerator(nn.Module):
     def __init__(
             self,
@@ -145,7 +192,7 @@ class STFTGenerator(nn.Module):
     ):
         super(STFTGenerator, self).__init__()
 
-        nb_layer = 4
+        nb_layer = 8
 
         """self.__gen = nn.Sequential(*[
             ResidualTransConv(
@@ -159,25 +206,44 @@ class STFTGenerator(nn.Module):
 
         channel_list = [
             224,
+            224,
+            112,
             112,
             56,
+            56,
+            28,
             28
         ]
 
         h_channel_list = [
             256,
+            256,
+            128,
             128,
             64,
+            64,
+            32,
             32
         ]
 
-        self.__gen = nn.Sequential(*[
+        """self.__gen = nn.Sequential(*[
             GatedActUnit(
                 rand_channels if i == 0
                 else channel_list[i - 1],
                 h_channel_list[i],
                 channel_list[i],
-                5, 6, 4
+                5, 6, 2
+            )
+            for i in range(nb_layer)
+        ])"""
+
+        self.__gen = nn.Sequential(*[
+            GeneratorBlock(
+                rand_channels if i == 0
+                else channel_list[i - 1],
+                h_channel_list[i],
+                channel_list[i],
+                3, 4, 2
             )
             for i in range(nb_layer)
         ])

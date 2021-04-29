@@ -57,18 +57,13 @@ def main() -> None:
 
     mlflow.log_param("input_musics", wavs_path)
 
-    sample_rate = 16000
+    sample_rate = 44100
 
-    rand_channel = 32
+    rand_channel = 128
     rand_width = 1
     rand_height = 2
 
-    """gen_hidden_channel = 32
-    gen_residual_channel = 24
-
-    disc_hidden_channel = 16"""
-
-    disc_lr = 3e-5
+    disc_lr = 1e-5
     gen_lr = 1e-5
 
     nb_epoch = 100
