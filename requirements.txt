@@ -1,8 +1,7 @@
 mlflow
-PyWavelets
 soundfile
 scipy
 tqdm
 torch
-seaborn
+torchaudio
 matplotlib
