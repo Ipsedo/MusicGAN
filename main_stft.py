@@ -63,7 +63,7 @@ def main() -> None:
     rand_width = 1
     rand_height = 2
 
-    disc_lr = 1e-5
+    disc_lr = 2e-5
     gen_lr = 1e-5
 
     nb_epoch = 100
