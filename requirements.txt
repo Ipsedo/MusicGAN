@@ -5,3 +5,4 @@ tqdm
 torch
 torchaudio
 matplotlib
+numpy
