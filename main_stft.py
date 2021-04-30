@@ -59,14 +59,14 @@ def main() -> None:
 
     sample_rate = 44100
 
-    rand_channel = 128
+    rand_channel = 64
     rand_width = 1
     rand_height = 2
 
-    disc_lr = 2e-5
+    disc_lr = 1e-5
     gen_lr = 1e-5
 
-    nb_epoch = 100
+    nb_epoch = 200
     batch_size = 4
 
     output_dir = args.out_path
@@ -99,9 +99,9 @@ def main() -> None:
 
     nb_batch = data.size()[0] // batch_size
 
-    mean_vec = th.randn(rand_channel)
+    mean_vec = th.zeros(rand_channel)#th.randn(rand_channel)
     rand_mat = th.randn(rand_channel, rand_channel)
-    cov_mat = rand_mat.t().matmul(rand_mat)
+    cov_mat = th.eye(rand_channel, rand_channel)#rand_mat.t().matmul(rand_mat)
     multi_norm = th.distributions.MultivariateNormal(mean_vec, cov_mat)
 
     mlflow.log_params({
