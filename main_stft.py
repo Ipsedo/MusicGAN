@@ -59,11 +59,11 @@ def main() -> None:
 
     sample_rate = 44100
 
-    rand_channel = 64
+    rand_channel = 128
     rand_width = 1
     rand_height = 2
 
-    disc_lr = 1e-5
+    disc_lr = 2e-5
     gen_lr = 1e-5
 
     nb_epoch = 200
