@@ -57,17 +57,17 @@ def main() -> None:
 
     mlflow.log_param("input_musics", wavs_path)
 
-    sample_rate = 44100
+    sample_rate = 16000
 
-    rand_channel = 128
-    rand_width = 1
-    rand_height = 2
+    rand_channel = 32
+    rand_width = 2
+    rand_height = 4
 
-    disc_lr = 2e-5
+    disc_lr = 1e-5
     gen_lr = 1e-5
 
     nb_epoch = 200
-    batch_size = 4
+    batch_size = 10
 
     output_dir = args.out_path
 
@@ -99,9 +99,10 @@ def main() -> None:
 
     nb_batch = data.size()[0] // batch_size
 
-    mean_vec = th.zeros(rand_channel)#th.randn(rand_channel)
+    mean_vec = th.zeros(rand_channel)  # th.randn(rand_channel)
     rand_mat = th.randn(rand_channel, rand_channel)
-    cov_mat = th.eye(rand_channel, rand_channel)#rand_mat.t().matmul(rand_mat)
+    cov_mat = th.eye(rand_channel,
+                     rand_channel)  # rand_mat.t().matmul(rand_mat)
     multi_norm = th.distributions.MultivariateNormal(mean_vec, cov_mat)
 
     mlflow.log_params({
@@ -231,19 +232,25 @@ def main() -> None:
             # Generate sound
             with th.no_grad():
 
-                # 10 seconds
-                rand_fake = multi_norm.sample(
-                    (1, rand_width * 10, rand_height)) \
-                    .permute(0, 3, 1, 2) \
-                    .cuda()
+                for gen_idx in range(3):
+                    # 10 seconds
+                    rand_fake = multi_norm.sample(
+                        (1, rand_width * 10, rand_height)) \
+                        .permute(0, 3, 1, 2) \
+                        .cuda()
 
-                x_fake = gen(rand_fake)
+                    x_fake = gen(rand_fake)
 
-                read_audio.stft_to_wav(
-                    x_fake.detach().cpu(),
-                    join(output_dir, f"gen_epoch_{e}.wav"),
-                    sample_rate
-                )
+                    read_audio.stft_to_wav(
+                        x_fake.detach().cpu(),
+                        join(output_dir, f"gen_epoch_{e}_ID{gen_idx}.wav"),
+                        sample_rate
+                    )
+
+                    # log gen sound
+                    mlflow.log_artifact(
+                        join(output_dir, f"gen_epoch_{e}_ID{gen_idx}.wav")
+                    )
 
             # Save discriminator
             th.save(
@@ -277,11 +284,6 @@ def main() -> None:
             )
             mlflow.log_artifact(
                 join(output_dir, f"optim_disc_epoch_{e}.pt")
-            )
-
-            # log gen sound
-            mlflow.log_artifact(
-                join(output_dir, f"gen_epoch_{e}.wav")
             )
 
 

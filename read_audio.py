@@ -189,7 +189,7 @@ def stft_to_wav(x: th.Tensor, wav_path: str, sample_rate: int):
 
 
 if __name__ == '__main__':
-    w_p = "/home/samuel/Documents/MusicGAN/res/rammstein_16000Hz/(2) Links 234.wav"
+    w_p = "/home/samuel/Documents/MusicGAN/res/electronic_gems_16000Hz/22Rains - Birds-NgXpUM3cGV8.mp3.wav"
     w_p = glob.glob(w_p)
 
     """print(N_SEC)
