@@ -60,13 +60,13 @@ def main() -> None:
     sample_rate = 44100
 
     rand_channel = 32
-    rand_width = 2
-    rand_height = 4
+    rand_width = 1
+    rand_height = 2
 
-    disc_lr = 1e-5
-    gen_lr = 1e-5
+    disc_lr = 2e-5
+    gen_lr = 5e-6
 
-    nb_epoch = 200
+    nb_epoch = 1000
     batch_size = 10
 
     output_dir = args.out_path
@@ -88,11 +88,13 @@ def main() -> None:
     disc.cuda()
 
     optim_gen = th.optim.Adam(
-        gen.parameters(), lr=gen_lr
+        gen.parameters(), lr=gen_lr,
+        weight_decay=5e-2
     )
 
     optim_disc = th.optim.Adam(
-        disc.parameters(), lr=disc_lr
+        disc.parameters(), lr=disc_lr,
+        weight_decay=5e-2
     )
 
     data = read_audio.to_tensor_stft(wavs_path, sample_rate)
