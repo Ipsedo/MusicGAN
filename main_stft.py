@@ -57,7 +57,7 @@ def main() -> None:
 
     mlflow.log_param("input_musics", wavs_path)
 
-    sample_rate = 16000
+    sample_rate = 44100
 
     rand_channel = 32
     rand_width = 2
@@ -117,6 +117,9 @@ def main() -> None:
     mlflow.log_param("cov_mat", cov_mat.tolist())
     mlflow.log_param("mean_vec", mean_vec.tolist())
 
+    nb_batch_disc = 200
+    max_nb_batch_gen = 200
+
     with mlflow.start_run(run_name="train", nested=True):
 
         metric_window = 100
@@ -127,16 +130,17 @@ def main() -> None:
         gen_loss_sum = [1. for _ in range(metric_window)]
 
         for e in range(nb_epoch):
+
+            # train discriminator
             # shuffle tensor
             batch_idx_list = list(range(nb_batch))
             random.shuffle(batch_idx_list)
+            batch_idx_list = batch_idx_list[:nb_batch_disc]
             tqdm_bar = tqdm(batch_idx_list)
 
             for b_idx in tqdm_bar:
                 i_min = b_idx * batch_size
                 i_max = (b_idx + 1) * batch_size
-
-                # train discriminator
 
                 disc.train()
                 gen.eval()
@@ -166,11 +170,31 @@ def main() -> None:
                 # discriminator metrics
                 error_tp.append((1. - out_real).mean().item())
                 error_tn.append(out_fake.mean().item())
-
                 del error_tn[0]
                 del error_tp[0]
 
-                # train generator
+                disc_grad_norm = th.tensor(
+                    [p.grad.norm() for p in disc.parameters()]
+                ).mean()
+
+                del disc_loss_sum[0]
+                disc_loss_sum.append(disc_loss.item())
+
+                tqdm_bar.set_description(
+                    f"Epoch {e:02} - disc, "
+                    f"disc_loss = {mean(disc_loss_sum):.6f}, "
+                    f"e_tp = {mean(error_tp):.5f}, "
+                    f"e_tn = {mean(error_tn):.5f}, "
+                    f"disc_gr = {disc_grad_norm.item():.4f}"
+                )
+
+            # train generator
+
+            tqdm_bar = tqdm(range(max_nb_batch_gen))
+
+            for b_idx in tqdm_bar:
+                i_min = b_idx * batch_size
+                i_max = (b_idx + 1) * batch_size
 
                 gen.train()
                 disc.eval()
@@ -197,37 +221,30 @@ def main() -> None:
                     [p.grad.norm() for p in gen.parameters()]
                 ).mean()
 
-                disc_grad_norm = th.tensor(
-                    [p.grad.norm() for p in disc.parameters()]
-                ).mean()
-
-                del disc_loss_sum[0]
                 del gen_loss_sum[0]
 
-                disc_loss_sum.append(disc_loss.item())
                 gen_loss_sum.append(gen_loss.item())
 
+                error_tn.append(out_fake.mean().item())
+                del error_tn[0]
+
                 tqdm_bar.set_description(
-                    f"Epoch {e}, "
-                    f"disc_loss = {mean(disc_loss_sum):.6f}, "
+                    f"Epoch {e:02} - gen, "
                     f"gen_loss = {mean(gen_loss_sum):.6f}, "
-                    f"e_tp = {mean(error_tp):.4f}, "
-                    f"e_tn = {mean(error_tn):.4f}, "
+                    f"e_tn = {mean(error_tn):.5f}, "
                     f"gen_gr = {gen_grad_norm.item():.4f}, "
-                    f"disc_gr = {disc_grad_norm.item():.4f}"
                 )
 
                 # log metrics
-                if b_idx % 500 == 0:
-                    mlflow.log_metrics({
-                        "disc_loss": disc_loss.item(),
-                        "gen_loss": gen_loss.item(),
-                        "batch_tp_error": error_tp[-1],
-                        "batch_tn_error": error_tn[-1],
-                        "disc_grad_norm_mean": disc_grad_norm.item(),
-                        "gen_grad_norm_mean": gen_grad_norm.item()
-                    },
-                        step=e * nb_batch + b_idx)
+            mlflow.log_metrics({
+                "disc_loss": disc_loss.item(),
+                "gen_loss": gen_loss.item(),
+                "batch_tp_error": error_tp[-1],
+                "batch_tn_error": error_tn[-1],
+                "disc_grad_norm_mean": disc_grad_norm.item(),
+                "gen_grad_norm_mean": gen_grad_norm.item()
+            },
+                step=e)
 
             # Generate sound
             with th.no_grad():
