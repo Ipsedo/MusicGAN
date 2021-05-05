@@ -163,7 +163,7 @@ class GeneratorBlock(nn.Module):
                     conv_kernel_size // 2
                 )
             ),
-            nn.LeakyReLU(negative_slope=0.2),
+            nn.SELU(),
             nn.ConvTranspose2d(
                 hidden_channel,
                 output_channel,
@@ -177,7 +177,7 @@ class GeneratorBlock(nn.Module):
                     (convtr_kernel_size - stride) // 2
                 )
             ),
-            nn.LeakyReLU(negative_slope=0.2)
+            nn.SELU()
         )
 
     def forward(self, x: th.Tensor) -> th.Tensor:
@@ -193,6 +193,7 @@ class STFTGenerator(nn.Module):
         super(STFTGenerator, self).__init__()
 
         nb_layer = 7
+        stride = 2
 
         """self.__gen = nn.Sequential(*[
             ResidualTransConv(
@@ -205,16 +206,16 @@ class STFTGenerator(nn.Module):
         ])"""
 
         channel_list = [
-            (rand_channels, 72, 64),
-            (64, 64, 56),
-            (56, 56, 48),
+            (rand_channels, 128, 128),
+            (128, 128, 96),
+            (96, 96, 64),
+            (64, 64, 48),
             (48, 48, 40),
             (40, 40, 32),
-            (32, 32, 24),
-            (24, 24, 16)
+            (32, 32, 16)
         ]
 
-        """self.__gen = nn.Sequential(*[
+        self.__gen = nn.Sequential(*[
             GatedActUnit(
                 channel_list[i][0],
                 channel_list[i][1],
@@ -222,17 +223,18 @@ class STFTGenerator(nn.Module):
                 5, 4, 2
             )
             for i in range(nb_layer)
-        ])"""
+        ])
 
-        self.__gen = nn.Sequential(*[
+        """self.__gen = nn.Sequential(*[
             GeneratorBlock(
                 channel_list[i][0],
                 channel_list[i][1],
                 channel_list[i][2],
-                5, 4, 2
+                5, 4,
+                stride
             )
             for i in range(nb_layer)
-        ])
+        ])"""
 
         self.__conv_out = nn.Sequential(
             nn.Conv2d(
@@ -278,7 +280,7 @@ class ConvBlock(nn.Module):
                     kernel_size // 2
                 )
             ),
-            nn.LeakyReLU(negative_slope=0.2)
+            nn.SELU()
         )
 
     def forward(self, x: th.Tensor) -> th.Tensor:
@@ -323,7 +325,7 @@ class STFTDiscriminator(nn.Module):
 
         self.__clf = nn.Sequential(
             nn.Linear(out_size, 1536),
-            nn.LeakyReLU(negative_slope=0.2),
+            nn.SELU(),
             nn.Linear(1536, 1),
             nn.Sigmoid()
         )
