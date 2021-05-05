@@ -144,10 +144,10 @@ def to_tensor_stft(
         magn = th.stack(magn.split(nb_vec, dim=0), dim=0)
         phase = th.stack(phase.split(nb_vec, dim=0), dim=0)
 
-        max_magn, _ = magn.max(dim=0)
-        min_magn, _ = magn.min(dim=0)
-        max_phase, _ = phase.max(dim=0)
-        min_phase, _ = phase.min(dim=0)
+        max_magn = magn.max()
+        min_magn = magn.min()
+        max_phase = phase.max()
+        min_phase = phase.min()
 
         magn = (magn - min_magn) / (max_magn - min_magn)
         phase = (phase - min_phase) / (max_phase - min_phase)
