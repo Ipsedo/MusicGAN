@@ -63,8 +63,8 @@ def main() -> None:
     rand_width = 1
     rand_height = 2
 
-    disc_lr = 1e-4
-    gen_lr = 5e-5
+    disc_lr = 1e-5
+    gen_lr = 1e-5
 
     nb_epoch = 1000
     batch_size = 10
@@ -88,13 +88,11 @@ def main() -> None:
     disc.cuda()
 
     optim_gen = th.optim.Adam(
-        gen.parameters(), lr=gen_lr,
-        weight_decay=1e-1
+        gen.parameters(), lr=gen_lr
     )
 
     optim_disc = th.optim.Adam(
-        disc.parameters(), lr=disc_lr,
-        weight_decay=1e-1
+        disc.parameters(), lr=disc_lr
     )
 
     data = read_audio.to_tensor_stft(wavs_path, sample_rate)
@@ -119,8 +117,8 @@ def main() -> None:
     mlflow.log_param("cov_mat", cov_mat.tolist())
     mlflow.log_param("mean_vec", mean_vec.tolist())
 
-    nb_batch_disc = 200
-    max_nb_batch_gen = 100
+    nb_batch_disc = 2000
+    max_nb_batch_gen = 1000
 
     with mlflow.start_run(run_name="train", nested=True):
 
