@@ -192,8 +192,7 @@ class STFTGenerator(nn.Module):
     ):
         super(STFTGenerator, self).__init__()
 
-        nb_layer = 4
-        stride = 2
+        nb_layer = 6
 
         """self.__gen = nn.Sequential(*[
             ResidualTransConv(
@@ -207,9 +206,29 @@ class STFTGenerator(nn.Module):
 
         channel_list = [
             (rand_channels, 128, 96),
-            (96, 72, 64),
-            (64, 56, 48),
-            (48, 32, 16)
+            (96, 112, 72),
+            (72, 84, 72),
+            (72, 84, 64),
+            (64, 70, 48),
+            (48, 56, 32)
+        ]
+
+        strides = [
+            2,
+            2,
+            2,
+            2,
+            4,
+            4
+        ]
+
+        kernel_sizes = [
+            (3, 4),
+            (3, 4),
+            (3, 4),
+            (3, 4),
+            (5, 6),
+            (5, 6)
         ]
 
         self.__gen = nn.Sequential(*[
@@ -217,7 +236,9 @@ class STFTGenerator(nn.Module):
                 channel_list[i][0],
                 channel_list[i][1],
                 channel_list[i][2],
-                5, 6, 4
+                kernel_sizes[i][0],
+                kernel_sizes[i][1],
+                strides[i]
             )
             for i in range(nb_layer)
         ])
@@ -236,9 +257,9 @@ class STFTGenerator(nn.Module):
             nn.Conv2d(
                 channel_list[-1][2],
                 out_channel,
-                kernel_size=(5, 5),
+                kernel_size=(7, 7),
                 stride=(1, 1),
-                padding=(2, 2)
+                padding=(3, 3)
             ),
             nn.Tanh()
         )
@@ -302,12 +323,14 @@ class STFTDiscriminator(nn.Module):
             (28, 32)
         ]
 
+        kernel_size = [5, 5, 5, 3, 3, 3]
+
         self.__conv = nn.Sequential(*[
             ConvBlock(
                 conv_channels[i][0],
                 conv_channels[i][1],
-                kernel_size=7,
-                stride=stride
+                kernel_size[i],
+                stride
             )
             for i in range(nb_layer)
         ])
@@ -322,6 +345,7 @@ class STFTDiscriminator(nn.Module):
         self.__clf = nn.Sequential(
             nn.Linear(out_size, 1536),
             nn.SELU(),
+            nn.BatchNorm1d(1536),
             nn.Linear(1536, 1),
             nn.Sigmoid()
         )
@@ -336,7 +360,7 @@ class STFTDiscriminator(nn.Module):
 
 
 if __name__ == '__main__':
-    rand_data = th.rand(1, 8, 1, 2)
+    rand_data = th.rand(5, 8, 1, 2)
 
     # rs = ResidualTransConv(8, 24, 16, 3, 4, 2)
     """gu = GatedActUnit(
