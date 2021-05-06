@@ -163,7 +163,7 @@ class GeneratorBlock(nn.Module):
                     conv_kernel_size // 2
                 )
             ),
-            nn.ReLU(),
+            nn.SELU(),
             nn.ConvTranspose2d(
                 hidden_channel,
                 output_channel,
@@ -177,7 +177,7 @@ class GeneratorBlock(nn.Module):
                     (convtr_kernel_size - stride) // 2
                 )
             ),
-            nn.ReLU()
+            nn.SELU()
         )
 
     def forward(self, x: th.Tensor) -> th.Tensor:
@@ -206,10 +206,10 @@ class STFTGenerator(nn.Module):
         ])"""
 
         channel_list = [
-            (rand_channels, 50, 40),
-            (40, 40, 30),
-            (30, 30, 20),
-            (20, 20, 10)
+            (rand_channels, 128, 96),
+            (96, 72, 64),
+            (64, 56, 48),
+            (48, 32, 16)
         ]
 
         self.__gen = nn.Sequential(*[
@@ -227,7 +227,7 @@ class STFTGenerator(nn.Module):
                 channel_list[i][0],
                 channel_list[i][1],
                 channel_list[i][2],
-                5, 4, 2
+                5, 6, 4
             )
             for i in range(nb_layer)
         ])"""
@@ -276,7 +276,7 @@ class ConvBlock(nn.Module):
                     kernel_size // 2
                 )
             ),
-            nn.ReLU()
+            nn.SELU()
         )
 
     def forward(self, x: th.Tensor) -> th.Tensor:
@@ -306,7 +306,7 @@ class STFTDiscriminator(nn.Module):
             ConvBlock(
                 conv_channels[i][0],
                 conv_channels[i][1],
-                kernel_size=5,
+                kernel_size=7,
                 stride=stride
             )
             for i in range(nb_layer)
@@ -321,7 +321,7 @@ class STFTDiscriminator(nn.Module):
 
         self.__clf = nn.Sequential(
             nn.Linear(out_size, 1536),
-            nn.ReLU(),
+            nn.SELU(),
             nn.Linear(1536, 1),
             nn.Sigmoid()
         )
