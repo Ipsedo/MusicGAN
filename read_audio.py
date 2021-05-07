@@ -189,7 +189,7 @@ def stft_to_wav(x: th.Tensor, wav_path: str, sample_rate: int):
 
 
 if __name__ == '__main__':
-    w_p = "/home/samuel/Documents/MusicGAN/res/electronic_gems_mp3/22Rains - Birds-NgXpUM3cGV8.mp3"
+    w_p = "/home/samuel/Documents/MusicGAN/out/train_stft/gen_epoch_65_ID2.wav"
     w_p = glob.glob(w_p)
 
     """print(N_SEC)
@@ -230,14 +230,14 @@ if __name__ == '__main__':
 
     print(out_data.size())"""
 
-    out = to_tensor_stft(w_p, 48000)
+    out = to_tensor_stft(w_p, 44100)
 
     print(out[:, 0, :, :].max(), out[:, 0, :, :].min())
     print(out[:, 1, :, :].max(), out[:, 1, :, :].min())
 
     print(out.size())
 
-    stft_to_wav(out, "out.wav", 48000)
+    stft_to_wav(out, "out.wav", 44100)
 
     idx = 40
 

@@ -323,7 +323,7 @@ class STFTDiscriminator(nn.Module):
             (28, 32)
         ]
 
-        kernel_size = [5, 5, 5, 3, 3, 3]
+        kernel_size = [7, 7, 5, 5, 3, 3]
 
         self.__conv = nn.Sequential(*[
             ConvBlock(
@@ -345,7 +345,6 @@ class STFTDiscriminator(nn.Module):
         self.__clf = nn.Sequential(
             nn.Linear(out_size, 1536),
             nn.SELU(),
-            nn.BatchNorm1d(1536),
             nn.Linear(1536, 1),
             nn.Sigmoid()
         )
