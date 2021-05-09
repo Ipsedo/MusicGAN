@@ -189,7 +189,7 @@ def stft_to_wav(x: th.Tensor, wav_path: str, sample_rate: int):
 
 
 if __name__ == '__main__':
-    w_p = "/home/samuel/Documents/MusicGAN/out/train_stft/gen_epoch_65_ID2.wav"
+    w_p = "/home/samuel/Documents/MusicGAN/out/train_stft/gen_epoch_1_ID2.wav"
     w_p = glob.glob(w_p)
 
     """print(N_SEC)
@@ -239,7 +239,7 @@ if __name__ == '__main__':
 
     stft_to_wav(out, "out.wav", 44100)
 
-    idx = 40
+    idx = 5
 
     real, imag = out[idx, 0, :, :].numpy(), out[idx, 1, :, :].numpy()
 
