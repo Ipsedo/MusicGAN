@@ -87,14 +87,12 @@ def main() -> None:
     gen.cuda()
     disc.cuda()
 
-    optim_gen = th.optim.Adam(
-        gen.parameters(), lr=gen_lr,
-        weight_decay=1e-1
+    optim_gen = th.optim.RMSprop(
+        gen.parameters(), lr=gen_lr
     )
 
-    optim_disc = th.optim.Adam(
-        disc.parameters(), lr=disc_lr,
-        weight_decay=1e-1
+    optim_disc = th.optim.RMSprop(
+        disc.parameters(), lr=disc_lr
     )
 
     data = read_audio.to_tensor_stft(wavs_path, sample_rate)
@@ -118,9 +116,6 @@ def main() -> None:
 
     mlflow.log_param("cov_mat", cov_mat.tolist())
     mlflow.log_param("mean_vec", mean_vec.tolist())
-
-    nb_batch_disc = 100
-    max_nb_batch_gen = 100
 
     with mlflow.start_run(run_name="train", nested=True):
 
@@ -147,6 +142,11 @@ def main() -> None:
                 disc.train()
                 gen.eval()
 
+                # clip weight
+                weight_limit = 1e-1
+                for p in disc.parameters():
+                    th.clamp(p, -weight_limit, weight_limit)
+
                 x_real = data[i_min:i_max, :, :, :].cuda()
 
                 rand_fake = multi_norm.sample(
@@ -159,7 +159,7 @@ def main() -> None:
                 out_real = disc(x_real)
                 out_fake = disc(x_fake)
 
-                disc_loss = networks.discriminator_loss(
+                disc_loss = networks.wasserstein_discriminator_loss(
                     out_real, out_fake
                 )
 
@@ -170,7 +170,7 @@ def main() -> None:
                 optim_disc.step()
 
                 # discriminator metrics
-                error_tp.append((1. - out_real).mean().item())
+                error_tp.append(out_real.mean().item())
                 error_tn.append(out_fake.mean().item())
                 del error_tn[0]
                 del error_tp[0]
@@ -183,33 +183,33 @@ def main() -> None:
                 disc_loss_sum.append(disc_loss.item())
 
                 # train generator
+                if b_idx % 10 == 0:
+                    gen.train()
+                    disc.eval()
 
-                gen.train()
-                disc.eval()
+                    rand_fake = multi_norm.sample(
+                        (i_max - i_min, rand_width, rand_height)) \
+                        .permute(0, 3, 1, 2) \
+                        .cuda()
 
-                rand_fake = multi_norm.sample(
-                    (i_max - i_min, rand_width, rand_height)) \
-                    .permute(0, 3, 1, 2) \
-                    .cuda()
+                    x_fake = gen(rand_fake)
+                    out_fake = disc(x_fake)
 
-                x_fake = gen(rand_fake)
-                out_fake = disc(x_fake)
+                    gen_loss = networks.wasserstein_generator_loss(out_fake)
 
-                gen_loss = networks.generator_loss(out_fake)
+                    optim_gen.zero_grad()
+                    optim_disc.zero_grad()
 
-                optim_gen.zero_grad()
-                optim_disc.zero_grad()
+                    gen_loss.backward()
+                    optim_gen.step()
 
-                gen_loss.backward()
-                optim_gen.step()
+                    # metrics
+                    gen_grad_norm = th.tensor(
+                        [p.grad.norm() for p in gen.parameters()]
+                    ).mean()
 
-                # metrics
-                gen_grad_norm = th.tensor(
-                    [p.grad.norm() for p in gen.parameters()]
-                ).mean()
-
-                del gen_loss_sum[0]
-                gen_loss_sum.append(gen_loss.item())
+                    del gen_loss_sum[0]
+                    gen_loss_sum.append(gen_loss.item())
 
                 tqdm_bar.set_description(
                     f"Epoch {e:02} - disc, "
@@ -217,8 +217,6 @@ def main() -> None:
                     f"gen_loss = {mean(gen_loss_sum):.6f}, "
                     f"e_tp = {mean(error_tp):.5f}, "
                     f"e_tn = {mean(error_tn):.5f}, "
-                    f"disc_gr = {disc_grad_norm.item():.4f}, "
-                    f"gen_gr = {gen_grad_norm.item():.4f}"
                 )
 
                 # log metrics

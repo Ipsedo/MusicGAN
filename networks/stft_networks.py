@@ -225,13 +225,13 @@ class STFTGenerator(nn.Module):
         ]
 
         kernel_sizes = [
-            (3, 2),
-            (3, 2),
-            (3, 2),
-            (3, 2),
-            (3, 2),
-            (3, 2),
-            (3, 2),
+            (3, 4),
+            (3, 4),
+            (3, 4),
+            (3, 4),
+            (3, 4),
+            (3, 4),
+            (3, 4)
         ]
 
         self.__gen = nn.Sequential(*[
@@ -260,9 +260,9 @@ class STFTGenerator(nn.Module):
             nn.Conv2d(
                 channel_list[-1][2],
                 out_channel,
-                kernel_size=(7, 7),
+                kernel_size=(3, 3),
                 stride=(1, 1),
-                padding=(3, 3)
+                padding=(1, 1)
             ),
             nn.Tanh()
         )
@@ -349,8 +349,7 @@ class STFTDiscriminator(nn.Module):
         self.__clf = nn.Sequential(
             nn.Linear(out_size, 1024),
             nn.SELU(),
-            nn.Linear(1024, 1),
-            nn.Sigmoid()
+            nn.Linear(1024, 1)
         )
 
     def forward(self, x: th.Tensor) -> th.Tensor:
