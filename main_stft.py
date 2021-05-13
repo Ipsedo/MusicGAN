@@ -63,8 +63,8 @@ def main() -> None:
     rand_width = 2
     rand_height = 4
 
-    disc_lr = 1e-6
-    gen_lr = 2e-6
+    disc_lr = 1e-5
+    gen_lr = 5e-6
 
     nb_epoch = 1000
     batch_size = 10
