@@ -63,8 +63,8 @@ def main() -> None:
     rand_width = 2
     rand_height = 4
 
-    disc_lr = 1e-5
-    gen_lr = 1e-5
+    disc_lr = 1e-6
+    gen_lr = 2e-6
 
     nb_epoch = 1000
     batch_size = 10
@@ -87,11 +87,11 @@ def main() -> None:
     gen.cuda()
     disc.cuda()
 
-    optim_gen = th.optim.RMSprop(
+    optim_gen = th.optim.Adam(
         gen.parameters(), lr=gen_lr
     )
 
-    optim_disc = th.optim.RMSprop(
+    optim_disc = th.optim.Adam(
         disc.parameters(), lr=disc_lr
     )
 
@@ -132,6 +132,8 @@ def main() -> None:
             batch_idx_list = list(range(nb_batch))
             random.shuffle(batch_idx_list)
             tqdm_bar = tqdm(batch_idx_list)
+
+            iter_idx = 0
 
             for b_idx in tqdm_bar:
                 i_min = b_idx * batch_size
@@ -183,7 +185,7 @@ def main() -> None:
                 disc_loss_sum.append(disc_loss.item())
 
                 # train generator
-                if b_idx % 10 == 0:
+                if iter_idx % 5 == 0:
                     gen.train()
                     disc.eval()
 
@@ -220,7 +222,7 @@ def main() -> None:
                 )
 
                 # log metrics
-                if b_idx % 200 == 0:
+                if iter_idx % 200 == 0:
                     mlflow.log_metrics({
                         "disc_loss": disc_loss.item(),
                         "gen_loss": gen_loss.item(),
@@ -230,6 +232,8 @@ def main() -> None:
                         "gen_grad_norm_mean": gen_grad_norm.item()
                     },
                         step=e)
+
+                iter_idx += 1
 
             # Generate sound
             with th.no_grad():
