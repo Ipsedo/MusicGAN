@@ -63,11 +63,11 @@ def main() -> None:
     rand_width = 2
     rand_height = 4
 
-    disc_lr = 1e-5
-    gen_lr = 5e-6
+    disc_lr = 1e-6
+    gen_lr = 1e-6
 
     nb_epoch = 1000
-    batch_size = 10
+    batch_size = 4
 
     output_dir = args.out_path
 
@@ -87,11 +87,11 @@ def main() -> None:
     gen.cuda()
     disc.cuda()
 
-    optim_gen = th.optim.Adam(
+    optim_gen = th.optim.RMSprop(
         gen.parameters(), lr=gen_lr
     )
 
-    optim_disc = th.optim.Adam(
+    optim_disc = th.optim.RMSprop(
         disc.parameters(), lr=disc_lr
     )
 
