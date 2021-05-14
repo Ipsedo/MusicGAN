@@ -87,11 +87,11 @@ def main() -> None:
     gen.cuda()
     disc.cuda()
 
-    optim_gen = th.optim.RMSprop(
+    optim_gen = th.optim.Adam(
         gen.parameters(), lr=gen_lr
     )
 
-    optim_disc = th.optim.RMSprop(
+    optim_disc = th.optim.Adam(
         disc.parameters(), lr=disc_lr
     )
 
@@ -145,9 +145,9 @@ def main() -> None:
                 gen.eval()
 
                 # clip weight
-                weight_limit = 1e-1
+                weight_limit = 1e-2
                 for p in disc.parameters():
-                    th.clamp(p, -weight_limit, weight_limit)
+                    p.data.clamp_(-weight_limit, weight_limit)
 
                 x_real = data[i_min:i_max, :, :, :].cuda()
 
@@ -185,7 +185,7 @@ def main() -> None:
                 disc_loss_sum.append(disc_loss.item())
 
                 # train generator
-                if iter_idx % 5 == 0:
+                if iter_idx % 7 == 0:
                     gen.train()
                     disc.eval()
 

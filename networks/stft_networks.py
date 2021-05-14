@@ -123,7 +123,7 @@ class GatedActUnit(nn.Module):
                     (tr_conv_ker_size - stride) // 2
                 )
             ),
-            nn.SELU()
+            nn.LeakyReLU(1e-1)
         )
 
     def forward(self, x: th.Tensor) -> th.Tensor:
