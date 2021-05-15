@@ -234,12 +234,12 @@ class STFTGenerator(nn.Module):
         ])"""
 
         channel_list = [
-            (rand_channels, 256),
-            (256, 192),
-            (192, 128),
+            (rand_channels, 128),
             (128, 96),
-            (96, 64),
-            (64, 32),
+            (96, 72),
+            (72, 64),
+            (64, 48),
+            (48, 32),
             (32, 16)
         ]
 
