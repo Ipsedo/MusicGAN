@@ -338,8 +338,7 @@ class ConvBlock(nn.Module):
                     kernel_size // 2
                 )
             ),
-            nn.LeakyReLU(1e-1),
-            nn.BatchNorm2d(out_channels)
+            nn.LeakyReLU(1e-1)
         )
 
     def forward(self, x: th.Tensor) -> th.Tensor:
