@@ -234,13 +234,13 @@ class STFTGenerator(nn.Module):
         ])"""
 
         channel_list = [
-            (rand_channels, 64),
-            (64, 56),
-            (56, 48),
-            (48, 40),
-            (40, 32),
-            (32, 24),
-            (24, 16)
+            (rand_channels, 256),
+            (256, 192),
+            (192, 128),
+            (128, 96),
+            (96, 64),
+            (64, 32),
+            (32, 16)
         ]
 
         self.__gen = nn.Sequential(*[
@@ -332,25 +332,26 @@ class STFTDiscriminator(nn.Module):
     ):
         super(STFTDiscriminator, self).__init__()
 
-        nb_layer = 6
+        nb_layer = 7
         stride = 2
 
         conv_channels = [
             (in_channels, 16),
             (16, 32),
-            (32, 40),
-            (40, 48),
-            (48, 56),
-            (56, 64)
+            (32, 64),
+            (64, 96),
+            (96, 128),
+            (128, 192),
+            (192, 256)
         ]
 
-        kernel_size = [3, 3, 3, 3, 3, 3]
+        kernel_size = 3
 
         self.__conv = nn.Sequential(*[
             ConvBlock(
                 conv_channels[i][0],
                 conv_channels[i][1],
-                kernel_size[i],
+                kernel_size,
                 stride
             )
             for i in range(nb_layer)
