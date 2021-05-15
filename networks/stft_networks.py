@@ -234,13 +234,13 @@ class STFTGenerator(nn.Module):
         ])"""
 
         channel_list = [
-            (rand_channels, 128),
-            (128, 96),
-            (96, 72),
-            (72, 64),
-            (64, 48),
-            (48, 32),
-            (32, 16)
+            (rand_channels, 64),
+            (64, 56),
+            (56, 48),
+            (48, 40),
+            (40, 32),
+            (32, 24),
+            (24, 16)
         ]
 
         self.__gen = nn.Sequential(*[
