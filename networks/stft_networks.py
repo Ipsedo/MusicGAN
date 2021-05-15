@@ -352,20 +352,19 @@ class STFTDiscriminator(nn.Module):
     ):
         super(STFTDiscriminator, self).__init__()
 
-        nb_layer = 7
+        nb_layer = 6
         stride = 2
 
         conv_channels = [
             (in_channels, 32),
-            (32, 64),
-            (64, 72),
-            (72, 96),
-            (96, 128),
-            (128, 192),
-            (192, 256)
+            (32, 32),
+            (32, 48),
+            (48, 48),
+            (48, 64),
+            (64, 64)
         ]
 
-        kernel_size = [3, 3, 3, 3, 3, 3, 3]
+        kernel_size = [3, 3, 3, 3, 3, 3]
 
         self.__conv = nn.Sequential(*[
             ConvBlock(
