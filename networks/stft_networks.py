@@ -267,8 +267,7 @@ class STFTGenerator(nn.Module):
             TransConvBlock(
                 channel_list[i][0],
                 channel_list[i][1],
-                kernel_sizes[i][1],
-                strides[i]
+                4, 2
             )
             for i in range(nb_layer)
         ])
@@ -339,7 +338,8 @@ class ConvBlock(nn.Module):
                     kernel_size // 2
                 )
             ),
-            nn.LeakyReLU(1e-1)
+            nn.LeakyReLU(1e-1),
+            nn.BatchNorm2d(out_channels)
         )
 
     def forward(self, x: th.Tensor) -> th.Tensor:
@@ -357,10 +357,10 @@ class STFTDiscriminator(nn.Module):
         stride = 2
 
         conv_channels = [
-            (in_channels, 16),
-            (16, 32),
+            (in_channels, 32),
             (32, 64),
-            (64, 96),
+            (64, 72),
+            (72, 96),
             (96, 128),
             (128, 192),
             (192, 256)
