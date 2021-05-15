@@ -235,12 +235,12 @@ class STFTGenerator(nn.Module):
 
         channel_list = [
             (rand_channels, 128),
-            (128, 128),
             (128, 96),
-            (96, 96),
             (96, 72),
             (72, 64),
-            (64, 32)
+            (64, 48),
+            (48, 32),
+            (32, 16)
         ]
 
         self.__gen = nn.Sequential(*[
@@ -340,8 +340,8 @@ class STFTDiscriminator(nn.Module):
             (16, 32),
             (32, 40),
             (40, 48),
-            (48, 64),
-            (64, 64)
+            (48, 56),
+            (56, 64)
         ]
 
         kernel_size = [3, 3, 3, 3, 3, 3]

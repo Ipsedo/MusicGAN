@@ -185,7 +185,7 @@ def main() -> None:
                 disc_loss_sum.append(disc_loss.item())
 
                 # train generator
-                if iter_idx % 3 == 0:
+                if iter_idx % 8 == 0:
                     gen.train()
                     disc.eval()
 
