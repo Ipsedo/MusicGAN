@@ -209,6 +209,13 @@ class TransConvBlock(nn.Module):
             nn.BatchNorm2d(out_channels)
         )
 
+        # init conv
+        self.__tr_conv_block[0].weight.data.normal_(0., 2e-2)
+
+        # init batch norm
+        self.__tr_conv_block[2].weight.data.normal_(1., 2e-2)
+        self.__tr_conv_block[2].bias.data.fill_(0.)
+
     def forward(self, x: th.Tensor) -> th.Tensor:
         return self.__tr_conv_block(x)
 
@@ -285,6 +292,9 @@ class STFTGenerator(nn.Module):
             nn.Tanh()
         )
 
+        # init conv
+        self.__conv_out[0].weight.data.normal_(0., 2e-2)
+
     def forward(self, x: th.Tensor) -> th.Tensor:
         out = self.__gen(x)
 
@@ -320,6 +330,9 @@ class ConvBlock(nn.Module):
             ),
             nn.LeakyReLU(1e-1)
         )
+
+        # init conv
+        self.__conv[0].weight.data.normal_(0., 2e-2)
 
     def forward(self, x: th.Tensor) -> th.Tensor:
         return self.__conv(x)
