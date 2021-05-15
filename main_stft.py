@@ -120,11 +120,11 @@ def main() -> None:
     with mlflow.start_run(run_name="train", nested=True):
 
         metric_window = 20
-        error_tp = [1. for _ in range(metric_window)]
-        error_tn = [1. for _ in range(metric_window)]
+        error_tp = [0. for _ in range(metric_window)]
+        error_tn = [0. for _ in range(metric_window)]
 
-        disc_loss_sum = [2. for _ in range(metric_window)]
-        gen_loss_sum = [1. for _ in range(metric_window)]
+        disc_loss_sum = [0. for _ in range(metric_window)]
+        gen_loss_sum = [0. for _ in range(metric_window)]
 
         for e in range(nb_epoch):
 
@@ -185,7 +185,7 @@ def main() -> None:
                 disc_loss_sum.append(disc_loss.item())
 
                 # train generator
-                if iter_idx % 7 == 0:
+                if iter_idx % 3 == 0:
                     gen.train()
                     disc.eval()
 
