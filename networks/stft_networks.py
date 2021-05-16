@@ -205,7 +205,7 @@ class TransConvBlock(nn.Module):
                     (kernel_size - stride) // 2
                 )
             ),
-            nn.SELU()
+            nn.LeakyReLU(1e-1)
         )
 
     def forward(self, x: th.Tensor) -> th.Tensor:
@@ -317,8 +317,7 @@ class ConvBlock(nn.Module):
                     kernel_size // 2
                 )
             ),
-            nn.SELU(),
-            nn.BatchNorm2d(out_channels)
+            nn.LeakyReLU(1e-1)
         )
 
     def forward(self, x: th.Tensor) -> th.Tensor:
@@ -338,11 +337,11 @@ class STFTDiscriminator(nn.Module):
         conv_channels = [
             (in_channels, 16),
             (16, 32),
-            (32, 48),
-            (48, 64),
+            (32, 64),
             (64, 72),
             (72, 96),
-            (96, 128)
+            (96, 128),
+            (128, 256)
         ]
 
         kernel_size = 3
@@ -366,7 +365,7 @@ class STFTDiscriminator(nn.Module):
 
         self.__clf = nn.Sequential(
             nn.Linear(out_size, 2560),
-            nn.SELU(),
+            nn.LeakyReLU(1e-1),
             nn.Linear(2560, 1)
         )
 
