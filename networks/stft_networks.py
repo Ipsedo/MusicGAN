@@ -234,9 +234,9 @@ class STFTGenerator(nn.Module):
         ])"""
 
         channel_list = [
-            (rand_channels, 256),
-            (256, 192),
-            (192, 128),
+            (rand_channels, 192),
+            (192, 160),
+            (160, 128),
             (128, 96),
             (96, 64),
             (64, 32),
@@ -342,8 +342,8 @@ class STFTDiscriminator(nn.Module):
             (32, 64),
             (64, 96),
             (96, 128),
-            (128, 192),
-            (192, 256)
+            (128, 160),
+            (160, 192)
         ]
 
         kernel_size = 3
