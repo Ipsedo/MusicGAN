@@ -212,7 +212,7 @@ def main() -> None:
                     ).mean()
 
                     del error_gen[0]
-                    error_gen.append(out_fake.item())
+                    error_gen.append(out_fake.mean().item())
 
                     del gen_loss_sum[0]
                     gen_loss_sum.append(gen_loss.item())
