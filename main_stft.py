@@ -142,33 +142,37 @@ def main() -> None:
 
                 # train discriminator
 
-                disc.train()
-                gen.eval()
-
                 # clip weight
                 weight_limit = 1e-2
                 for p in disc.parameters():
                     p.data.clamp_(-weight_limit, weight_limit)
 
+                # sample real data
                 x_real = data[i_min:i_max, :, :, :].cuda()
 
+                # sample fake data
                 rand_fake = multi_norm.sample(
                     (i_max - i_min, rand_width, rand_height)) \
                     .permute(0, 3, 1, 2) \
                     .cuda()
 
+                # gen fake data
                 x_fake = gen(rand_fake)
 
+                # pass real data and gen data to discriminator
                 out_real = disc(x_real)
                 out_fake = disc(x_fake)
 
+                # compute discriminator loss
                 disc_loss = networks.wasserstein_discriminator_loss(
                     out_real, out_fake
                 )
 
+                # reset grad
                 optim_gen.zero_grad()
                 optim_disc.zero_grad()
 
+                # backward and optim step
                 disc_loss.backward()
                 optim_disc.step()
 
@@ -187,8 +191,6 @@ def main() -> None:
 
                 # train generator
                 if iter_idx % 5 == 0:
-                    gen.train()
-                    disc.eval()
 
                     rand_fake = multi_norm.sample(
                         (i_max - i_min, rand_width, rand_height)) \
