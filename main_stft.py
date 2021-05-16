@@ -67,7 +67,7 @@ def main() -> None:
     gen_lr = 1e-5
 
     nb_epoch = 1000
-    batch_size = 4
+    batch_size = 8
 
     output_dir = args.out_path
 
