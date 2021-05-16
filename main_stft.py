@@ -122,6 +122,7 @@ def main() -> None:
         metric_window = 20
         error_tp = [0. for _ in range(metric_window)]
         error_tn = [0. for _ in range(metric_window)]
+        error_gen = [0. for _ in range(metric_window)]
 
         disc_loss_sum = [0. for _ in range(metric_window)]
         gen_loss_sum = [0. for _ in range(metric_window)]
@@ -210,6 +211,9 @@ def main() -> None:
                         [p.grad.norm() for p in gen.parameters()]
                     ).mean()
 
+                    del error_gen[0]
+                    error_gen.append(out_fake.item())
+
                     del gen_loss_sum[0]
                     gen_loss_sum.append(gen_loss.item())
 
@@ -219,6 +223,7 @@ def main() -> None:
                     f"gen_loss = {mean(gen_loss_sum):.6f}, "
                     f"e_tp = {mean(error_tp):.5f}, "
                     f"e_tn = {mean(error_tn):.5f}, "
+                    f"e_gen = {mean(error_gen):.5f}"
                 )
 
                 # log metrics
