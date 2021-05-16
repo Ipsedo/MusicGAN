@@ -233,12 +233,12 @@ class STFTGenerator(nn.Module):
         ])"""
 
         channel_list = [
-            (rand_channels, 256),
-            (256, 192),
-            (192, 128),
+            (rand_channels, 128),
             (128, 96),
-            (96, 64),
-            (64, 32),
+            (96, 72),
+            (72, 64),
+            (64, 48),
+            (48, 32),
             (32, 16)
         ]
 
@@ -317,7 +317,8 @@ class ConvBlock(nn.Module):
                     kernel_size // 2
                 )
             ),
-            nn.SELU()
+            nn.SELU(),
+            nn.BatchNorm2d(out_channels)
         )
 
     def forward(self, x: th.Tensor) -> th.Tensor:
@@ -337,11 +338,11 @@ class STFTDiscriminator(nn.Module):
         conv_channels = [
             (in_channels, 16),
             (16, 32),
-            (32, 64),
-            (64, 96),
-            (96, 128),
-            (128, 192),
-            (192, 256)
+            (32, 48),
+            (48, 64),
+            (64, 72),
+            (72, 96),
+            (96, 128)
         ]
 
         kernel_size = 3
