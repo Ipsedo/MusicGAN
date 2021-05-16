@@ -218,7 +218,7 @@ class TransConvBlock(nn.Module):
                 )
             ),
             nn.LeakyReLU(1e-1),
-            PixelNorm()
+            nn.BatchNorm2d(out_channels)
         )
 
     def forward(self, x: th.Tensor) -> th.Tensor:
