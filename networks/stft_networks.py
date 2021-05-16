@@ -185,6 +185,18 @@ class GeneratorBlock(nn.Module):
         return self.__conv_block(x)
 
 
+class PixelNorm(nn.Module):
+    def __init__(self):
+        super(PixelNorm, self).__init__()
+
+    def forward(self, x: th.Tensor) -> th.Tensor:
+        x_square = x ** 2
+        sum_square = x_square.sum(dim=1)
+        x_norm = (sum_square / x.size()[1]) ** 0.5
+        x_res = x / x_norm.unsqueeze(1)
+        return x_res
+
+
 class TransConvBlock(nn.Module):
     def __init__(
             self,
@@ -206,7 +218,7 @@ class TransConvBlock(nn.Module):
                 )
             ),
             nn.LeakyReLU(1e-1),
-            nn.BatchNorm2d(out_channels)
+            PixelNorm()
         )
 
     def forward(self, x: th.Tensor) -> th.Tensor:
