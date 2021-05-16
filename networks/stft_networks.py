@@ -205,7 +205,8 @@ class TransConvBlock(nn.Module):
                     (kernel_size - stride) // 2
                 )
             ),
-            nn.LeakyReLU(1e-1)
+            nn.LeakyReLU(1e-1),
+            nn.BatchNorm2d(out_channels)
         )
 
     def forward(self, x: th.Tensor) -> th.Tensor:
@@ -233,12 +234,12 @@ class STFTGenerator(nn.Module):
         ])"""
 
         channel_list = [
-            (rand_channels, 256),
-            (256, 128),
-            (128, 96),
-            (96, 72),
-            (72, 64),
-            (64, 32),
+            (rand_channels, 112),
+            (112, 96),
+            (96, 80),
+            (80, 64),
+            (64, 48),
+            (48, 32),
             (32, 16)
         ]
 
@@ -317,7 +318,8 @@ class ConvBlock(nn.Module):
                     kernel_size // 2
                 )
             ),
-            nn.LeakyReLU(1e-1)
+            nn.LeakyReLU(1e-1),
+            nn.BatchNorm2d(out_channels)
         )
 
     def forward(self, x: th.Tensor) -> th.Tensor:
@@ -337,11 +339,11 @@ class STFTDiscriminator(nn.Module):
         conv_channels = [
             (in_channels, 16),
             (16, 32),
-            (32, 64),
-            (64, 72),
-            (72, 96),
-            (96, 128),
-            (128, 256)
+            (32, 48),
+            (48, 64),
+            (64, 80),
+            (80, 96),
+            (96, 112)
         ]
 
         kernel_size = 3
@@ -364,9 +366,9 @@ class STFTDiscriminator(nn.Module):
                    nb_freq // stride ** nb_layer
 
         self.__clf = nn.Sequential(
-            nn.Linear(out_size, 2560),
+            nn.Linear(out_size, 1024),
             nn.LeakyReLU(1e-1),
-            nn.Linear(2560, 1)
+            nn.Linear(1024, 1)
         )
 
     def forward(self, x: th.Tensor) -> th.Tensor:
