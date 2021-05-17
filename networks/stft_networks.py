@@ -414,7 +414,7 @@ class STFTDiscriminator(nn.Module):
 
         gradients = gradients[0].view(batch_size, -1)
         gradients_norm = gradients.norm(2, dim=1)
-        gradient_penalty = ((gradients_norm - 1.) ** 2.).mean()
+        gradient_penalty = ((gradients_norm - 1) ** 2.).mean()
 
         # seems ok after 2 epoch
         grad_pen_factor = 1000.
