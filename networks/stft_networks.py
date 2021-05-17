@@ -349,13 +349,13 @@ class STFTDiscriminator(nn.Module):
         stride = 2
 
         conv_channels = [
-            (in_channels, 16),
-            (16, 32),
-            (32, 48),
-            (48, 64),
+            (in_channels, 32),
+            (32, 64),
             (64, 80),
             (80, 96),
-            (96, 112)
+            (96, 128),
+            (128, 192),
+            (192, 256)
         ]
 
         kernel_size = 3
@@ -378,9 +378,9 @@ class STFTDiscriminator(nn.Module):
                    nb_freq // stride ** nb_layer
 
         self.__clf = nn.Sequential(
-            nn.Linear(out_size, 1280),
+            nn.Linear(out_size, 2560),
             nn.LeakyReLU(1e-1),
-            nn.Linear(1280, 1)
+            nn.Linear(2560, 1)
         )
 
     def forward(self, x: th.Tensor) -> th.Tensor:
@@ -414,7 +414,7 @@ class STFTDiscriminator(nn.Module):
 
         gradients = gradients[0].view(batch_size, -1)
         gradients_norm = gradients.norm(2, dim=1)
-        gradient_penalty = ((gradients_norm - 1.) ** 2.).mean()
+        gradient_penalty = ((gradients_norm - 1) ** 2.).mean()
 
         grad_pen_factor = 1000.
 
