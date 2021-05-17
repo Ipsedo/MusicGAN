@@ -247,13 +247,13 @@ class STFTGenerator(nn.Module):
         ])"""
 
         channel_list = [
-            (rand_channels, 256),
-            (256, 192),
-            (192, 128),
-            (128, 96),
+            (rand_channels, 128),
+            (128, 112),
+            (112, 96),
             (96, 80),
             (80, 64),
-            (64, 32)
+            (64, 48),
+            (48, 32)
         ]
 
         self.__gen = nn.Sequential(*[
@@ -345,17 +345,16 @@ class STFTDiscriminator(nn.Module):
     ):
         super(STFTDiscriminator, self).__init__()
 
-        nb_layer = 7
+        nb_layer = 6
         stride = 2
 
         conv_channels = [
-            (in_channels, 32),
-            (32, 64),
-            (64, 80),
-            (80, 96),
-            (96, 128),
-            (128, 192),
-            (192, 256)
+            (in_channels, 16),
+            (16, 24),
+            (24, 32),
+            (32, 40),
+            (40, 48),
+            (48, 64)
         ]
 
         kernel_size = 3
@@ -417,7 +416,7 @@ class STFTDiscriminator(nn.Module):
         gradient_penalty = ((gradients_norm - 1.) ** 2.).mean()
 
         # seems ok after 2 epoch
-        grad_pen_factor = 1000.
+        grad_pen_factor = 10.
 
         return grad_pen_factor * gradient_penalty
 
