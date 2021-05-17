@@ -1,5 +1,6 @@
 import torch as th
 import torch.nn as nn
+import torch.autograd as th_autograd
 
 
 # Generator
@@ -246,10 +247,10 @@ class STFTGenerator(nn.Module):
         ])"""
 
         channel_list = [
-            (rand_channels, 144),
-            (144, 128),
-            (128, 112),
-            (112, 96),
+            (rand_channels, 256),
+            (256, 192),
+            (192, 128),
+            (128, 96),
             (96, 80),
             (80, 64),
             (64, 32)
@@ -352,9 +353,9 @@ class STFTDiscriminator(nn.Module):
             (32, 64),
             (64, 80),
             (80, 96),
-            (96, 112),
-            (112, 128),
-            (128, 144)
+            (96, 128),
+            (128, 192),
+            (192, 256)
         ]
 
         kernel_size = 3
@@ -377,9 +378,9 @@ class STFTDiscriminator(nn.Module):
                    nb_freq // stride ** nb_layer
 
         self.__clf = nn.Sequential(
-            nn.Linear(out_size, 1536),
+            nn.Linear(out_size, 2560),
             nn.LeakyReLU(1e-1),
-            nn.Linear(1536, 1)
+            nn.Linear(2560, 1)
         )
 
     def forward(self, x: th.Tensor) -> th.Tensor:
@@ -389,6 +390,40 @@ class STFTDiscriminator(nn.Module):
         out_clf = self.__clf(out)
 
         return out_clf
+
+    def gradient_penalty(
+            self, x_real: th.Tensor,
+            x_gen: th.Tensor
+    ) -> th.Tensor:
+        device = "cuda" if next(self.parameters()).is_cuda else "cpu"
+
+        batch_size = x_real.size()[0]
+        eps = th.rand(batch_size, 1, 1, 1, device=device)\
+            .expand_as(x_real)
+
+        x_interpolated = eps * x_real + (1 - eps) * x_gen
+        x_interpolated.requires_grad_(True)
+
+        out_interpolated = self(x_interpolated)
+
+        gradients = th_autograd.grad(
+            out_interpolated, x_interpolated,
+            grad_outputs=th.ones(out_interpolated.size(), device=device),
+            create_graph=True, retain_graph=True
+        )
+
+        gradients = gradients[0]
+
+        gradients_norm = gradients\
+            .view(batch_size, -1)\
+            .norm(2, dim=1)
+
+        weight_target = 1e-2
+        grad_pen_factor = 1000.
+
+        gradient_penalty = ((gradients_norm - weight_target) ** 2).mean()
+
+        return grad_pen_factor * gradient_penalty
 
 
 if __name__ == '__main__':

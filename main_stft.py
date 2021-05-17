@@ -6,6 +6,7 @@ import torch as th
 import glob
 from os import mkdir
 from os.path import join, exists, isdir
+import sys
 
 import mlflow
 
@@ -63,11 +64,11 @@ def main() -> None:
     rand_width = 2
     rand_height = 4
 
-    disc_lr = 1e-6
-    gen_lr = 1e-6
+    disc_lr = 1e-5
+    gen_lr = 1e-5
 
     nb_epoch = 1000
-    batch_size = 8
+    batch_size = 4
 
     output_dir = args.out_path
 
@@ -95,7 +96,16 @@ def main() -> None:
         disc.parameters(), lr=disc_lr
     )
 
+    # read audio
     data = read_audio.to_tensor_stft(wavs_path, sample_rate)
+
+    # shuffle data
+    for i in tqdm(range(data.size(0) - 1)):
+        j = i + random.randint(0, sys.maxsize) // (
+                sys.maxsize // (data.size(0) - i) + 1
+        )
+        data[i, :, :, :], data[j, :, :, :] = \
+            data[j, :, :, :], data[i, :, :, :]
 
     nb_batch = data.size()[0] // batch_size
 
@@ -142,11 +152,6 @@ def main() -> None:
 
                 # train discriminator
 
-                # clip weight
-                weight_limit = 1e-2
-                for p in disc.parameters():
-                    p.data.clamp_(-weight_limit, weight_limit)
-
                 # sample real data
                 x_real = data[i_min:i_max, :, :, :].cuda()
 
@@ -167,6 +172,9 @@ def main() -> None:
                 disc_loss = networks.wasserstein_discriminator_loss(
                     out_real, out_fake
                 )
+
+                # compute gradient penalty
+                disc_loss += disc.gradient_penalty(x_real, x_fake)
 
                 # reset grad
                 optim_gen.zero_grad()
@@ -192,23 +200,30 @@ def main() -> None:
                 # train generator
                 if iter_idx % 5 == 0:
 
+                    # sample random data
                     rand_fake = multi_norm.sample(
                         (i_max - i_min, rand_width, rand_height)) \
                         .permute(0, 3, 1, 2) \
                         .cuda()
 
+                    # generate fake data
                     x_fake = gen(rand_fake)
+
+                    # pass to discriminator
                     out_fake = disc(x_fake)
 
+                    # compute generator loss
                     gen_loss = networks.wasserstein_generator_loss(out_fake)
 
+                    # reset gradient
                     optim_gen.zero_grad()
                     optim_disc.zero_grad()
 
+                    # backward and optim step
                     gen_loss.backward()
                     optim_gen.step()
 
-                    # metrics
+                    # generator metrics
                     gen_grad_norm = th.tensor(
                         [p.grad.norm() for p in gen.parameters()]
                     ).mean()
@@ -219,6 +234,7 @@ def main() -> None:
                     del gen_loss_sum[0]
                     gen_loss_sum.append(gen_loss.item())
 
+                # update tqdm bar
                 tqdm_bar.set_description(
                     f"Epoch {e:02} - disc, "
                     f"disc_loss = {mean(disc_loss_sum):.6f}, "
