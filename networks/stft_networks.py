@@ -222,8 +222,6 @@ class TransConvBlock(nn.Module):
             nn.BatchNorm2d(out_channels)
         )
 
-        nn.init.xavier_normal_(self.__tr_conv_block[0].weight)
-
     def forward(self, x: th.Tensor) -> th.Tensor:
         return self.__tr_conv_block(x)
 
@@ -300,8 +298,6 @@ class STFTGenerator(nn.Module):
             nn.Tanh()
         )
 
-        nn.init.xavier_normal_(self.__conv_out[0].weight)
-
     def forward(self, x: th.Tensor) -> th.Tensor:
         out = self.__gen(x)
 
@@ -337,8 +333,6 @@ class ConvBlock(nn.Module):
             ),
             nn.LeakyReLU(1e-1)
         )
-
-        nn.init.normal_(self.__conv[0].weight)
 
     def forward(self, x: th.Tensor) -> th.Tensor:
         return self.__conv(x)
@@ -387,9 +381,6 @@ class STFTDiscriminator(nn.Module):
             nn.LeakyReLU(1e-1),
             nn.Linear(2560, 1)
         )
-
-        nn.init.xavier_normal_(self.__clf[0].weight)
-        nn.init.xavier_normal_(self.__clf[2].weight)
 
     def forward(self, x: th.Tensor) -> th.Tensor:
         out_conv = self.__conv(x)
