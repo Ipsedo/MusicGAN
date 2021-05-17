@@ -388,6 +388,9 @@ class STFTDiscriminator(nn.Module):
             nn.Linear(2560, 1)
         )
 
+        nn.init.xavier_normal_(self.__clf[0].weight)
+        nn.init.xavier_normal_(self.__clf[2].weight)
+
     def forward(self, x: th.Tensor) -> th.Tensor:
         out_conv = self.__conv(x)
         out = out_conv.flatten(1, -1)
