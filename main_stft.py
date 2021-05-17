@@ -64,7 +64,7 @@ def main() -> None:
     rand_width = 2
     rand_height = 4
 
-    disc_lr = 1e-5
+    disc_lr = 5e-5
     gen_lr = 1e-5
 
     nb_epoch = 1000
@@ -134,8 +134,9 @@ def main() -> None:
         error_tn = [0. for _ in range(metric_window)]
         error_gen = [0. for _ in range(metric_window)]
 
-        disc_loss_sum = [0. for _ in range(metric_window)]
-        gen_loss_sum = [0. for _ in range(metric_window)]
+        disc_loss_list = [0. for _ in range(metric_window)]
+        grad_pen_list = [0. for _ in range(metric_window)]
+        gen_loss_list = [0. for _ in range(metric_window)]
 
         for e in range(nb_epoch):
 
@@ -174,14 +175,17 @@ def main() -> None:
                 )
 
                 # compute gradient penalty
-                disc_loss += disc.gradient_penalty(x_real, x_fake)
+                grad_pen = disc.gradient_penalty(x_real, x_fake)
+
+                # add gradient penalty
+                disc_loss_gp = disc_loss + grad_pen
 
                 # reset grad
                 optim_gen.zero_grad()
                 optim_disc.zero_grad()
 
                 # backward and optim step
-                disc_loss.backward()
+                disc_loss_gp.backward()
                 optim_disc.step()
 
                 # discriminator metrics
@@ -194,8 +198,10 @@ def main() -> None:
                     [p.grad.norm() for p in disc.parameters()]
                 ).mean()
 
-                del disc_loss_sum[0]
-                disc_loss_sum.append(disc_loss.item())
+                del disc_loss_list[0]
+                del grad_pen_list[0]
+                disc_loss_list.append(disc_loss.item())
+                grad_pen_list.append(grad_pen.item())
 
                 # train generator
                 if iter_idx % 5 == 0:
@@ -231,14 +237,15 @@ def main() -> None:
                     del error_gen[0]
                     error_gen.append(out_fake.mean().item())
 
-                    del gen_loss_sum[0]
-                    gen_loss_sum.append(gen_loss.item())
+                    del gen_loss_list[0]
+                    gen_loss_list.append(gen_loss.item())
 
                 # update tqdm bar
                 tqdm_bar.set_description(
                     f"Epoch {e:02} - disc, "
-                    f"disc_loss = {mean(disc_loss_sum):.6f}, "
-                    f"gen_loss = {mean(gen_loss_sum):.6f}, "
+                    f"disc_loss = {mean(disc_loss_list):.6f}, "
+                    f"gen_loss = {mean(gen_loss_list):.6f}, "
+                    f"disc_grad_pen = {mean(grad_pen_list):.2f}, "
                     f"e_tp = {mean(error_tp):.5f}, "
                     f"e_tn = {mean(error_tn):.5f}, "
                     f"e_gen = {mean(error_gen):.5f}"

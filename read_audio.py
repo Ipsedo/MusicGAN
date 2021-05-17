@@ -144,19 +144,19 @@ def to_tensor_stft(
         magn = th.stack(magn.split(nb_vec, dim=0), dim=0)
         phase = th.stack(phase.split(nb_vec, dim=0), dim=0)
 
-        max_magn = magn.max()
-        min_magn = magn.min()
-        max_phase = phase.max()
-        min_phase = phase.min()
+        max_magn = th.amax(magn, dim=(1, 2))[:, None, None]
+        min_magn = th.amin(magn, dim=(1, 2))[:, None, None]
+        max_phase = th.amax(phase, dim=(1, 2))[:, None, None]
+        min_phase = th.amin(phase, dim=(1, 2))[:, None, None]
 
         magn = (magn - min_magn) / (max_magn - min_magn)
         phase = (phase - min_phase) / (max_phase - min_phase)
 
         data[curr_batch:curr_batch + magn.size()[0], 0, :, :] = \
-            magn * 2. - 1.
+            magn * 1.6 - 0.8
 
         data[curr_batch:curr_batch + phase.size()[0], 1, :, :] = \
-            phase * 2. - 1.
+            phase * 1.6 - 0.8
 
         curr_batch += phase.size()[0]
 
@@ -173,7 +173,7 @@ def stft_to_wav(x: th.Tensor, wav_path: str, sample_rate: int):
 
     phases = phases * np.pi % (2 * np.pi)
 
-    magn = (x[:, :, 0] + 1) / 2
+    magn = (x[:, :, 0] + 0.8) / 1.6
     magn = th.exp(magn) - 1
 
     real = magn * th.cos(phases)
@@ -189,7 +189,7 @@ def stft_to_wav(x: th.Tensor, wav_path: str, sample_rate: int):
 
 
 if __name__ == '__main__':
-    w_p = "/home/samuel/Documents/MusicGAN/out/train_stft/gen_epoch_0_ID1.wav"
+    w_p = "/home/samuel/Documents/MusicGAN/res/Herzeleid/Rammstein - Herzeleid - 01 - Wollt ihr das Bett in Flammen sehen..wav"
     w_p = glob.glob(w_p)
 
     """print(N_SEC)
