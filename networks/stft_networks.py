@@ -236,24 +236,14 @@ class STFTGenerator(nn.Module):
 
         nb_layer = 7
 
-        """self.__gen = nn.Sequential(*[
-            ResidualTransConv(
-                rand_channels if i == 0 else residual_channel,
-                hidden_channel,
-                residual_channel,
-                5, 6, 2
-            )
-            for i in range(nb_layer)
-        ])"""
-
         channel_list = [
-            (rand_channels, 128),
-            (128, 112),
-            (112, 96),
+            (rand_channels, 160),
+            (160, 128),
+            (128, 96),
             (96, 80),
             (80, 64),
-            (64, 48),
-            (48, 32)
+            (64, 32),
+            (32, 16)
         ]
 
         self.__gen = nn.Sequential(*[
@@ -264,28 +254,6 @@ class STFTGenerator(nn.Module):
             )
             for i in range(nb_layer)
         ])
-
-        """self.__gen = nn.Sequential(*[
-            GatedActUnit(
-                channel_list[i][0],
-                channel_list[i][1],
-                channel_list[i][2],
-                kernel_sizes[i][0],
-                kernel_sizes[i][1],
-                strides[i]
-            )
-            for i in range(nb_layer)
-        ])"""
-
-        """self.__gen = nn.Sequential(*[
-            GeneratorBlock(
-                channel_list[i][0],
-                channel_list[i][1],
-                channel_list[i][2],
-                5, 6, 4
-            )
-            for i in range(nb_layer)
-        ])"""
 
         self.__conv_out = nn.Sequential(
             nn.Conv2d(
@@ -345,25 +313,26 @@ class STFTDiscriminator(nn.Module):
     ):
         super(STFTDiscriminator, self).__init__()
 
-        nb_layer = 6
+        nb_layer = 7
         stride = 2
 
         conv_channels = [
             (in_channels, 16),
-            (16, 24),
-            (24, 32),
-            (32, 40),
-            (40, 48),
-            (48, 64)
+            (16, 32),
+            (32, 64),
+            (64, 80),
+            (80, 96),
+            (96, 128),
+            (128, 160),
         ]
 
-        kernel_size = 3
+        kernel_size = [5, 5, 5, 3, 3, 3, 3]
 
         self.__conv = nn.Sequential(*[
             ConvBlock(
                 conv_channels[i][0],
                 conv_channels[i][1],
-                kernel_size,
+                kernel_size[i],
                 stride
             )
             for i in range(nb_layer)
@@ -377,9 +346,9 @@ class STFTDiscriminator(nn.Module):
                    nb_freq // stride ** nb_layer
 
         self.__clf = nn.Sequential(
-            nn.Linear(out_size, 2560),
+            nn.Linear(out_size, 2048),
             nn.LeakyReLU(1e-1),
-            nn.Linear(2560, 1)
+            nn.Linear(2048, 1)
         )
 
     def forward(self, x: th.Tensor) -> th.Tensor:
@@ -397,8 +366,7 @@ class STFTDiscriminator(nn.Module):
         device = "cuda" if next(self.parameters()).is_cuda else "cpu"
 
         batch_size = x_real.size()[0]
-        eps = th.rand(batch_size, 1, 1, 1, device=device)\
-            .expand_as(x_real)
+        eps = th.rand(batch_size, 1, 1, 1, device=device)
 
         x_interpolated = eps * x_real + (1 - eps) * x_gen
         x_interpolated.requires_grad_(True)
@@ -415,8 +383,7 @@ class STFTDiscriminator(nn.Module):
         gradients_norm = gradients.norm(2, dim=1)
         gradient_penalty = ((gradients_norm - 1.) ** 2.).mean()
 
-        # seems ok after 2 epoch
-        grad_pen_factor = 10.
+        grad_pen_factor = 100.
 
         return grad_pen_factor * gradient_penalty
 
