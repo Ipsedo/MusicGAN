@@ -167,11 +167,11 @@ def stft_to_wav(x: th.Tensor, wav_path: str, sample_rate: int):
     x = x.permute(0, 2, 3, 1)
     x = x.flatten(0, 1)
 
-    phases = x[:, :, 1]
+    phases = (x[:, :, 1] + 0.8) / 1.6 * 2. * np.pi - np.pi
     for i in range(phases.shape[0] - 1):
         phases[i + 1, :] = phases[i + 1, :] + phases[i, :]
 
-    phases = phases * np.pi % (2 * np.pi)
+    phases = phases % (2 * np.pi)
 
     magn = (x[:, :, 0] + 0.8) / 1.6
     magn = th.exp(magn) - 1
@@ -189,7 +189,8 @@ def stft_to_wav(x: th.Tensor, wav_path: str, sample_rate: int):
 
 
 if __name__ == '__main__':
-    w_p = "/home/samuel/Documents/MusicGAN/out/train_stft/gen_epoch_39_ID0.wav"
+    #w_p = "/home/samuel/Documents/MusicGAN/out/train_stft/gen_epoch_55_ID1.wav"
+    w_p = "/home/samuel/Documents/MusicGAN/res/mozart_symphonie_flac/12 - Symphony No. 33 in B Flat Major, K319 - III. Menuetto.flac"
     w_p = glob.glob(w_p)
 
     """print(N_SEC)
