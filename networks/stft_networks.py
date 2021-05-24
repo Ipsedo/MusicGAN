@@ -176,23 +176,13 @@ class STFTGenerator(nn.Module):
 
         nb_layer = 7
 
-        """channel_list = [
-            (rand_channels, 224),
-            (224, 192),
-            (192, 160),
-            (160, 128),
-            (128, 96),
-            (96, 64),
-            (64, 32)
-        ]"""
-
         channel_list = [
             (rand_channels, 256),
-            (256, 256),
-            (256, 128),
-            (128, 128),
-            (128, 64),
-            (64, 64),
+            (256, 224),
+            (224, 192),
+            (192, 128),
+            (128, 96),
+            (96, 64),
             (64, 32)
         ]
 
@@ -266,24 +256,14 @@ class STFTDiscriminator(nn.Module):
         nb_layer = 7
         stride = 2
 
-        """conv_channels = [
+        conv_channels = [
             (in_channels, 32),
             (32, 64),
             (64, 96),
             (96, 128),
-            (128, 160),
-            (160, 192),
-            (192, 224)
-        ]"""
-
-        conv_channels = [
-            (in_channels, 32),
-            (32, 64),
-            (64, 64),
-            (64, 128),
-            (128, 128),
-            (128, 256),
-            (256, 256)
+            (128, 192),
+            (192, 224),
+            (224, 256)
         ]
 
         kernel_size = 3
@@ -306,9 +286,9 @@ class STFTDiscriminator(nn.Module):
                    nb_freq // stride ** nb_layer
 
         self.__clf = nn.Sequential(
-            nn.Linear(out_size, 2560),
+            nn.Linear(out_size, 3072),
             nn.LeakyReLU(1e-1),
-            nn.Linear(2560, 1)
+            nn.Linear(3072, 1)
         )
 
     def forward(self, x: th.Tensor) -> th.Tensor:
