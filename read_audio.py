@@ -189,8 +189,7 @@ def stft_to_wav(x: th.Tensor, wav_path: str, sample_rate: int):
 
 
 if __name__ == '__main__':
-    #w_p = "/home/samuel/Documents/MusicGAN/out/train_stft/gen_epoch_55_ID1.wav"
-    w_p = "/home/samuel/Documents/MusicGAN/res/mozart_symphonie_flac/12 - Symphony No. 33 in B Flat Major, K319 - III. Menuetto.flac"
+    w_p = "/home/samuel/Documents/MusicGAN/out/train_stft/gen_epoch_7_ID1.wav"
     w_p = glob.glob(w_p)
 
     """print(N_SEC)
