@@ -40,6 +40,12 @@ def main() -> None:
         type=str
     )
 
+    parser.add_argument('--gen', type=str, required=False)
+    parser.add_argument('--gen-optim', type=str, required=False)
+
+    parser.add_argument('--disc', type=str, required=False)
+    parser.add_argument('--disc-optim', type=str, required=False)
+
     args = parser.parse_args()
 
     exp_name = "MusicGAN"
@@ -83,7 +89,15 @@ def main() -> None:
         rand_channel, 2
     )
 
+    # From saved state dict
+    if args.gen is not None:
+        gen.load_state_dict(th.load(args.gen))
+
     disc = networks.STFTDiscriminator(2)
+
+    # From saved state dict
+    if args.disc is not None:
+        disc.load_state_dict(th.load(args.disc))
 
     gen.cuda()
     disc.cuda()
@@ -92,9 +106,15 @@ def main() -> None:
         gen.parameters(), lr=gen_lr
     )
 
+    if args.gen_optim is not None:
+        optim_gen.load_state_dict(th.load(args.gen_optim))
+
     optim_disc = th.optim.Adam(
         disc.parameters(), lr=disc_lr
     )
+
+    if args.disc_optim is not None:
+        optim_disc.load_state_dict(th.load(args.disc_optim))
 
     # read audio
     data = read_audio.to_tensor_stft(wavs_path, sample_rate)
