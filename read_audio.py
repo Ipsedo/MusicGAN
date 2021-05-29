@@ -189,7 +189,7 @@ def stft_to_wav(x: th.Tensor, wav_path: str, sample_rate: int):
 
 
 if __name__ == '__main__':
-    w_p = "/home/samuel/Documents/MusicGAN/out/train_stft/gen_epoch_7_ID1.wav"
+    w_p = "/home/samuel/Documents/MusicGAN/out/train_stft_mozart_symphonies/gen_epoch_0_ID1.wav"
     w_p = glob.glob(w_p)
 
     """print(N_SEC)
