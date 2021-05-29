@@ -85,7 +85,7 @@ def main() -> None:
             f"\"{output_dir}\" is not a directory !"
         )
 
-    gen = networks.STFTGenerator(
+    gen = networks.Generator(
         rand_channel, 2
     )
 
@@ -93,7 +93,7 @@ def main() -> None:
     if args.gen is not None:
         gen.load_state_dict(th.load(args.gen))
 
-    disc = networks.STFTDiscriminator(2)
+    disc = networks.Discriminator(2)
 
     # From saved state dict
     if args.disc is not None:
