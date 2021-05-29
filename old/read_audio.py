@@ -156,3 +156,53 @@ def wavelet_to_wav(data: th.Tensor, wav_path: str) -> None:
     raw_audio = pywt.idwt(data[:, :, 0], data[:, :, 1], "db1",
                           axis=-1).flatten()
     scipy.io.wavfile.write(wav_path, SAMPLE_RATE, raw_audio)
+
+###########
+# Ticks
+###########
+
+def to_tensor_ticks(
+        wav_paths: List[str],
+        sample_rate: int,
+        channels: int,
+        per_batch_sample: int
+) -> th.Tensor:
+    nb_batch = 0
+
+    for wav_p in tqdm(wav_paths):
+        # sample_rate, raw_audio = scipy.io.wavfile.read(wav_p)
+        raw_audio, curr_sample_rate = sf.read(wav_p)
+
+        assert sample_rate == curr_sample_rate, \
+            f"Needed = {sample_rate}Hz, " \
+            f"actual = {curr_sample_rate}Hz"
+
+        nb_batch += raw_audio.shape[0] // per_batch_sample
+
+    data = th.empty(nb_batch, channels, per_batch_sample)
+
+    actual_batch = 0
+
+    for wav_p in tqdm(wav_paths):
+        raw_audio, _ = sf.read(wav_p)
+
+        to_keep = raw_audio.shape[0] - raw_audio.shape[0] % per_batch_sample
+
+        raw_audio = raw_audio[:to_keep, :].mean(axis=-1)[:, None] \
+            if channels == 1 else raw_audio[:to_keep, :]
+
+        raw_audio_splitted = np.stack(
+            np.split(raw_audio, raw_audio.shape[0] // per_batch_sample, axis=0),
+            axis=0)
+
+        data[actual_batch:actual_batch + raw_audio_splitted.shape[0]] = \
+            th.from_numpy(raw_audio_splitted).permute(0, 2, 1)
+
+        actual_batch += raw_audio_splitted.shape[0]
+
+    return data
+
+
+def ticks_to_wav(data: th.Tensor, wav_path: str, sample_rate: int) -> None:
+    raw_audio = data.permute(0, 2, 1).flatten(0, 1).contiguous().numpy()
+    scipy.io.wavfile.write(wav_path, sample_rate, raw_audio)
