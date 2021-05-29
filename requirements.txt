@@ -1,5 +1,4 @@
 mlflow
-soundfile
 scipy
 tqdm
 torch
