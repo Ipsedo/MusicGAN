@@ -66,15 +66,15 @@ def main() -> None:
 
     sample_rate = 44100
 
-    rand_channel = 64
+    rand_channel = 128
     rand_width = 1
     rand_height = 2
 
-    disc_lr = 5e-4
-    gen_lr = 5e-4
+    disc_lr = 5e-5
+    gen_lr = 5e-5
 
     nb_epoch = 1000
-    batch_size = 8
+    batch_size = 4
 
     output_dir = args.out_path
 
