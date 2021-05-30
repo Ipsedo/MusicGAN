@@ -11,49 +11,32 @@ class PixelNorm(nn.Module):
         return x / norm.unsqueeze(1)
 
 
-class TransConvBlock(nn.Module):
+class TransConvBlock(nn.Sequential):
     def __init__(
             self,
             in_channels: int,
             out_channels: int,
     ):
-        super(TransConvBlock, self).__init__()
-
-        self.__tr_conv_block = nn.Sequential(
-            nn.ConvTranspose2d(
-                in_channels, out_channels,
-                stride=(2, 2),
-                kernel_size=(4, 4),
-                padding=(1, 1)
-            ),
-            nn.LeakyReLU(1e-1),
-            PixelNorm()
-        )
-
-    def forward(self, x: th.Tensor) -> th.Tensor:
-        return self.__tr_conv_block(x)
-
-
-class GenBlock(nn.Sequential):
-    def __init__(
-            self,
-            in_channels: int,
-            out_channels: int
-    ):
-        super(GenBlock, self).__init__(
+        super(TransConvBlock, self).__init__(
             nn.Conv2d(
                 in_channels,
-                out_channels,
+                in_channels,
                 kernel_size=(3, 3),
-                stride=(1, 1),
-                padding=(1, 1)
+                padding=(1, 1),
+                stride=(1, 1)
             ),
             nn.LeakyReLU(1e-1),
             PixelNorm(),
-            nn.Upsample(
-                scale_factor=2,
-                mode="bilinear"
-            )
+            nn.ConvTranspose2d(
+                in_channels,
+                out_channels,
+                stride=(2, 2),
+                kernel_size=(3, 3),
+                padding=(1, 1),
+                output_padding=(1, 1)
+            ),
+            nn.LeakyReLU(1e-1),
+            PixelNorm()
         )
 
 

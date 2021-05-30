@@ -2,23 +2,20 @@ import torch as th
 import torch.nn as nn
 import torch.autograd as th_autograd
 
-from functools import reduce
-import operator as op
-
 
 class ConvBlock(nn.Module):
     def __init__(
             self,
             in_channels: int,
-            out_channels: int,
-            stride: int
+            out_channels: int
     ):
         super(ConvBlock, self).__init__()
 
         self.__conv = nn.Sequential(
             nn.Conv2d(
-                in_channels, out_channels,
-                stride=(stride, stride),
+                in_channels,
+                out_channels,
+                stride=(2, 2),
                 kernel_size=(3, 3),
                 padding=(1, 1)
             ),
@@ -47,15 +44,14 @@ class Discriminator(nn.Module):
             (224, 256)
         ]
 
-        strides = [2, 2, 2, 2, 2, 2, 2, 1]
+        stride = 2
 
         nb_layer = 8
 
         self.__conv = nn.Sequential(*[
             ConvBlock(
                 conv_channels[i][0],
-                conv_channels[i][1],
-                strides[i]
+                conv_channels[i][1]
             )
             for i in range(nb_layer)
         ])
@@ -63,16 +59,14 @@ class Discriminator(nn.Module):
         nb_time = 256
         nb_freq = 512
 
-        down_sampling = reduce(op.mul, strides)
-
         out_size = conv_channels[-1][1] * \
-                   nb_time // down_sampling * \
-                   nb_freq // down_sampling
+                   nb_time // stride ** nb_layer * \
+                   nb_freq // stride ** nb_layer
 
         self.__clf = nn.Sequential(
-            nn.Linear(out_size, 3072),
+            nn.Linear(out_size, 768),
             nn.LeakyReLU(1e-1),
-            nn.Linear(3072, 1)
+            nn.Linear(768, 1)
         )
 
     def forward(self, x: th.Tensor) -> th.Tensor:
