@@ -18,15 +18,6 @@ class TransConvBlock(nn.Sequential):
             out_channels: int,
     ):
         super(TransConvBlock, self).__init__(
-            nn.Conv2d(
-                in_channels,
-                in_channels,
-                kernel_size=(3, 3),
-                padding=(1, 1),
-                stride=(1, 1)
-            ),
-            nn.LeakyReLU(1e-1),
-            PixelNorm(),
             nn.ConvTranspose2d(
                 in_channels,
                 out_channels,
