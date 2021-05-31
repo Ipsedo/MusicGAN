@@ -70,8 +70,8 @@ def main() -> None:
     rand_width = 1
     rand_height = 2
 
-    disc_lr = 1e-4
-    gen_lr = 1e-4
+    disc_lr = 2e-4
+    gen_lr = 2e-4
 
     nb_epoch = 1000
     batch_size = 4
@@ -89,29 +89,32 @@ def main() -> None:
         rand_channel, 2
     )
 
-    # From saved state dict
-    if args.gen is not None:
-        gen.load_state_dict(th.load(args.gen))
-
     disc = networks.Discriminator(2)
-
-    # From saved state dict
-    if args.disc is not None:
-        disc.load_state_dict(th.load(args.disc))
 
     gen.cuda()
     disc.cuda()
 
+    betas = (0.5, 0.599)
+
     optim_gen = th.optim.Adam(
-        gen.parameters(), lr=gen_lr
+        gen.parameters(), lr=gen_lr,
+        betas=betas
     )
+
+    optim_disc = th.optim.Adam(
+        disc.parameters(), lr=disc_lr,
+        betas=betas
+    )
+
+    # Load models & optimizers
+    if args.gen is not None:
+        gen.load_state_dict(th.load(args.gen))
+
+    if args.disc is not None:
+        disc.load_state_dict(th.load(args.disc))
 
     if args.gen_optim is not None:
         optim_gen.load_state_dict(th.load(args.gen_optim))
-
-    optim_disc = th.optim.Adam(
-        disc.parameters(), lr=disc_lr
-    )
 
     if args.disc_optim is not None:
         optim_disc.load_state_dict(th.load(args.disc_optim))
@@ -141,7 +144,8 @@ def main() -> None:
         "batch_size": batch_size,
         "disc_lr": disc_lr,
         "gen_lr": gen_lr,
-        "sample_rate": sample_rate
+        "sample_rate": sample_rate,
+        "adam_betas": betas
     })
 
     mlflow.log_param("cov_mat", cov_mat.tolist())
@@ -225,7 +229,6 @@ def main() -> None:
 
                 # train generator
                 if iter_idx % 5 == 0:
-
                     # sample random data
                     rand_fake = multi_norm.sample(
                         (i_max - i_min, rand_width, rand_height)) \

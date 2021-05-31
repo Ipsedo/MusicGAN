@@ -19,7 +19,7 @@ class ConvBlock(nn.Module):
                 kernel_size=(3, 3),
                 padding=(1, 1)
             ),
-            nn.LeakyReLU(1e-1)
+            nn.LeakyReLU(2e-1)
         )
 
     def forward(self, x: th.Tensor) -> th.Tensor:
@@ -63,11 +63,7 @@ class Discriminator(nn.Module):
                    nb_time // stride ** nb_layer * \
                    nb_freq // stride ** nb_layer
 
-        self.__clf = nn.Sequential(
-            nn.Linear(out_size, 768),
-            nn.LeakyReLU(1e-1),
-            nn.Linear(768, 1)
-        )
+        self.__clf = nn.Linear(out_size, 1)
 
     def forward(self, x: th.Tensor) -> th.Tensor:
         out_conv = self.__conv(x)

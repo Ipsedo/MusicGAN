@@ -7,7 +7,7 @@ class PixelNorm(nn.Module):
         super(PixelNorm, self).__init__()
 
     def forward(self, x: th.Tensor) -> th.Tensor:
-        norm = th.sqrt((x ** 2).sum(dim=1))
+        norm = th.sqrt(th.pow(x, 2.).mean(dim=1))
         return x / norm.unsqueeze(1)
 
 
@@ -26,7 +26,7 @@ class TransConvBlock(nn.Sequential):
                 padding=(1, 1),
                 output_padding=(1, 1)
             ),
-            nn.LeakyReLU(1e-1),
+            nn.LeakyReLU(2e-1),
             nn.BatchNorm2d(out_channels)
         )
 
