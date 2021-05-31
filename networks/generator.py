@@ -27,7 +27,7 @@ class TransConvBlock(nn.Sequential):
                 output_padding=(1, 1)
             ),
             nn.LeakyReLU(1e-1),
-            PixelNorm()
+            nn.BatchNorm2d(out_channels)
         )
 
 
