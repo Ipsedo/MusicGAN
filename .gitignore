@@ -1,7 +1,6 @@
 __pycache__/
 .idea/
 res/
-*.wav
 mlruns/
 venv/
 env/
