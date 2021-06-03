@@ -41,7 +41,7 @@ def to_tensor_stft(
     nperseg = 1022
     stride = 256
 
-    nb_vec = 256
+    nb_vec = 512
 
     nb_batch = 0
 
@@ -137,7 +137,11 @@ def stft_to_wav(x: th.Tensor, wav_path: str, sample_rate: int):
 
 
 if __name__ == '__main__':
-    w_p = "/home/samuel/Documents/MusicGAN/out/train_stft_mozart_symphonies/gen_epoch_0_ID2.wav"
+    w_p = "/home/samuel/Documents/MusicGAN/out/train_stft_mozart_symphonies_batchnorm/gen_epoch_0_ID0.wav"
+    #w_p = "/home/samuel/Documents/MusicGAN/out/train_stft_mozart_symphonies_onlylrelu/gen_epoch_2_ID1.wav"
+    #w_p = "/home/samuel/Documents/MusicGAN/out/train_stft_mozart_symphonies_pixelnorm/gen_epoch_0_ID0.wav"
+    #w_p = "/home/samuel/Documents/MusicGAN/out/train_stft_led_zeppelin/gen_epoch_12_ID0.wav"
+    #w_p = "/home/samuel/Documents/MusicGAN/res/mozart_symphonie_flac/02 - Symphony No. 20 in D Major, K133 - II. Andante.flac"
     w_p = glob.glob(w_p)
 
     """print(N_SEC)
@@ -187,7 +191,7 @@ if __name__ == '__main__':
 
     stft_to_wav(out, "out.wav", 44100)
 
-    idx = 5
+    idx = 2
 
     real, imag = out[idx, 0, :, :].numpy(), out[idx, 1, :, :].numpy()
 

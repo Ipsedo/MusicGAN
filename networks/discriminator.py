@@ -34,6 +34,7 @@ class Discriminator(nn.Module):
         super(Discriminator, self).__init__()
 
         conv_channels = [
+            (in_channels, 32),
             (32, 64),
             (64, 96),
             (96, 128),
@@ -46,32 +47,17 @@ class Discriminator(nn.Module):
 
         stride = 2
 
-        nb_layer = 8
+        nb_layer = 9
 
-        # first conv with stride 1
-        # be symmetric with generator
-        convs = [
-            nn.Conv2d(
-                in_channels, 32,
-                kernel_size=(3, 3),
-                stride=(1, 1),
-                padding=(1, 1)
-            ),
-            nn.LeakyReLU(2e-1)
-        ]
-
-        # conv layers
-        convs += [
+        self.__conv = nn.Sequential(*[
             ConvBlock(
                 conv_channels[i][0],
                 conv_channels[i][1]
             )
             for i in range(nb_layer)
-        ]
+        ])
 
-        self.__conv = nn.Sequential(*convs)
-
-        nb_time = 256
+        nb_time = 512
         nb_freq = 512
 
         out_size = conv_channels[-1][1] * \
@@ -112,6 +98,6 @@ class Discriminator(nn.Module):
         gradients_norm = gradients.norm(2, dim=1)
         gradient_penalty = ((gradients_norm - 1.) ** 2.).mean()
 
-        grad_pen_factor = 100.
+        grad_pen_factor = 10.
 
         return grad_pen_factor * gradient_penalty

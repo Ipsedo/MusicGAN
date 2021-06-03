@@ -2,7 +2,7 @@ import torch as th
 from networks import Generator, Discriminator
 
 if __name__ == '__main__':
-    rand_data = th.rand(5, 8, 1, 2)
+    rand_data = th.rand(5, 8, 1, 1)
 
     # rs = ResidualTransConv(8, 24, 16, 3, 4, 2)
     """gu = GatedActUnit(

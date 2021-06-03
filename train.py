@@ -66,15 +66,15 @@ def main() -> None:
 
     sample_rate = 44100
 
-    rand_channel = 128
+    rand_channel = 256
     rand_width = 1
-    rand_height = 2
+    rand_height = 1
 
     disc_lr = 2e-4
     gen_lr = 2e-4
 
     nb_epoch = 1000
-    batch_size = 4
+    batch_size = 8
 
     output_dir = args.out_path
 
@@ -94,7 +94,7 @@ def main() -> None:
     gen.cuda()
     disc.cuda()
 
-    betas = (0.5, 0.599)
+    betas = (0.9, 0.999)
 
     optim_gen = th.optim.Adam(
         gen.parameters(), lr=gen_lr,

@@ -16,6 +16,7 @@ class TransConvBlock(nn.Sequential):
             self,
             in_channels: int,
             out_channels: int,
+            last_layer: bool
     ):
         super(TransConvBlock, self).__init__(
             nn.ConvTranspose2d(
@@ -25,10 +26,14 @@ class TransConvBlock(nn.Sequential):
                 kernel_size=(3, 3),
                 padding=(1, 1),
                 output_padding=(1, 1)
-            ),
-            nn.LeakyReLU(2e-1),
-            nn.BatchNorm2d(out_channels)
+            )
         )
+
+        if last_layer:
+            self.add_module("1", nn.Tanh())
+        else:
+            self.add_module("1", nn.LeakyReLU(2e-1))
+            self.add_module("2", nn.BatchNorm2d(out_channels))
 
 
 class Generator(nn.Module):
@@ -39,7 +44,7 @@ class Generator(nn.Module):
     ):
         super(Generator, self).__init__()
 
-        nb_layer = 8
+        nb_layer = 9
 
         channel_list = [
             (rand_channels, 256),
@@ -49,31 +54,20 @@ class Generator(nn.Module):
             (160, 128),
             (128, 96),
             (96, 64),
-            (64, 32)
+            (64, 32),
+            (32, out_channel)
         ]
 
         self.__gen = nn.Sequential(*[
             TransConvBlock(
                 channel_list[i][0],
-                channel_list[i][1]
+                channel_list[i][1],
+                i == nb_layer - 1
             )
             for i in range(nb_layer)
         ])
 
-        self.__conv_out = nn.Sequential(
-            nn.Conv2d(
-                channel_list[-1][1],
-                out_channel,
-                kernel_size=(3, 3),
-                stride=(1, 1),
-                padding=(1, 1)
-            ),
-            nn.Tanh()
-        )
-
     def forward(self, x: th.Tensor) -> th.Tensor:
         out = self.__gen(x)
-
-        out = self.__conv_out(out)
 
         return out
