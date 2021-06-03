@@ -66,49 +66,55 @@ class ResidualTransConv(nn.Module):
 
 
 # Gate Unit
-class GatedActUnit(nn.Module):
+class GatedUnit(nn.Module):
     def __init__(
             self,
-            input_channels: int,
+            in_channels: int,
             hidden_channels: int,
-            output_channels: int,
+            out_channels: int
     ):
-        super(GatedActUnit, self).__init__()
+        super(GatedUnit, self).__init__()
 
-        self.__filter_conv = nn.Conv2d(
-            input_channels,
-            hidden_channels,
-            kernel_size=(3, 3),
-            stride=(1, 1),
-            padding=(1, 1)
+        self.__conv = nn.Sequential(
+            nn.Conv2d(
+                in_channels,
+                hidden_channels,
+                kernel_size=(3, 3),
+                stride=(1, 1),
+                padding=(1, 1)
+            ),
+            nn.Tanh()
         )
 
-        self.__gate_conv = nn.Conv2d(
-            input_channels,
-            hidden_channels,
-            kernel_size=(3, 3),
-            stride=(1, 1),
-            padding=(1, 1)
+        self.__gate = nn.Sequential(
+            nn.Conv2d(
+                in_channels,
+                hidden_channels,
+                kernel_size=(3, 3),
+                stride=(1, 1),
+                padding=(1, 1)
+            ),
+            nn.Sigmoid()
         )
 
-        self.__tr_conv = nn.Sequential(
+        self.__upsample = nn.Sequential(
             nn.ConvTranspose2d(
                 hidden_channels,
-                output_channels,
+                out_channels,
                 kernel_size=(3, 3),
                 stride=(2, 2),
                 padding=(1, 1),
                 output_padding=(1, 1)
             ),
-            nn.LeakyReLU(1e-1)
+            nn.LeakyReLU(2e-1)
         )
 
     def forward(self, x: th.Tensor) -> th.Tensor:
-        out_f = self.__filter_conv(x)
-        out_g = self.__gate_conv(x)
+        out_conv = self.__conv(x)
+        out_gate = self.__gate(x)
 
-        out = th.tanh(out_f) * th.sigmoid(out_g)
+        out = out_conv * out_gate
 
-        out = self.__tr_conv(out)
+        out = self.__upsample(out)
 
         return out
