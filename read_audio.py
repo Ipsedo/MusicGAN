@@ -16,6 +16,9 @@ from tqdm import tqdm
 
 import glob
 
+from os.path import exists, join, isdir
+from os import mkdir
+
 
 ##########
 # STFT
@@ -137,7 +140,7 @@ def stft_to_wav(x: th.Tensor, wav_path: str, sample_rate: int):
 
 
 if __name__ == '__main__':
-    w_p = "/home/samuel/Documents/MusicGAN/out/train_stft_mozart_symphonies_batchnorm/gen_epoch_0_ID0.wav"
+    w_p = "/home/samuel/Documents/MusicGAN/out/train_stft_mozart_symphonies_batchnorm/gen_epoch_1_ID1.wav"
     #w_p = "/home/samuel/Documents/MusicGAN/out/train_stft_mozart_symphonies_onlylrelu/gen_epoch_2_ID1.wav"
     #w_p = "/home/samuel/Documents/MusicGAN/out/train_stft_mozart_symphonies_pixelnorm/gen_epoch_0_ID0.wav"
     #w_p = "/home/samuel/Documents/MusicGAN/out/train_stft_led_zeppelin/gen_epoch_12_ID0.wav"
@@ -189,7 +192,14 @@ if __name__ == '__main__':
 
     print(out.size())
 
-    stft_to_wav(out, "out.wav", 44100)
+    out_path = join(".", "out")
+    if not exists(out_path):
+        mkdir(out_path)
+    elif exists(out_path) and not isdir(out_path):
+        raise NotADirectoryError(f"\"{out_path}\" is not a directory")
+
+    out_wav_path = join(out_path, "read_audio_out.wav")
+    stft_to_wav(out, out_wav_path, 44100)
 
     idx = 2
 
