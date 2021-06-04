@@ -44,11 +44,10 @@ class Generator(nn.Module):
     ):
         super(Generator, self).__init__()
 
-        nb_layer = 9
+        nb_layer = 8
 
         channel_list = [
-            (rand_channels, 256),
-            (256, 224),
+            (rand_channels, 224),
             (224, 192),
             (192, 160),
             (160, 128),

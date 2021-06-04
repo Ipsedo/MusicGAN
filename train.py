@@ -66,9 +66,9 @@ def main() -> None:
 
     sample_rate = 44100
 
-    rand_channel = 256
-    rand_width = 1
-    rand_height = 1
+    rand_channel = 64
+    rand_width = 2
+    rand_height = 2
 
     disc_lr = 2e-4
     gen_lr = 2e-4

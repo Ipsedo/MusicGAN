@@ -140,7 +140,7 @@ def stft_to_wav(x: th.Tensor, wav_path: str, sample_rate: int):
 
 
 if __name__ == '__main__':
-    w_p = "/home/samuel/Documents/MusicGAN/out/train_stft_mozart_symphonies_batchnorm/gen_epoch_1_ID1.wav"
+    w_p = "/home/samuel/Documents/MusicGAN/out/train_stft_mozart_symphonies_batchnorm/gen_epoch_19_ID0.wav"
     #w_p = "/home/samuel/Documents/MusicGAN/out/train_stft_mozart_symphonies_onlylrelu/gen_epoch_2_ID1.wav"
     #w_p = "/home/samuel/Documents/MusicGAN/out/train_stft_mozart_symphonies_pixelnorm/gen_epoch_0_ID0.wav"
     #w_p = "/home/samuel/Documents/MusicGAN/out/train_stft_led_zeppelin/gen_epoch_12_ID0.wav"
@@ -201,7 +201,7 @@ if __name__ == '__main__':
     out_wav_path = join(out_path, "read_audio_out.wav")
     stft_to_wav(out, out_wav_path, 44100)
 
-    idx = 2
+    idx = 4
 
     real, imag = out[idx, 0, :, :].numpy(), out[idx, 1, :, :].numpy()
 
