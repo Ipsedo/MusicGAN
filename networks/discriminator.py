@@ -15,8 +15,8 @@ class ConvBlock(nn.Module):
             nn.Conv2d(
                 in_channels,
                 out_channels,
-                stride=(2, 2),
                 kernel_size=(3, 3),
+                stride=(2, 2),
                 padding=(1, 1)
             ),
             nn.LeakyReLU(2e-1)
@@ -98,6 +98,6 @@ class Discriminator(nn.Module):
         gradients_norm = gradients.norm(2, dim=1)
         gradient_penalty = ((gradients_norm - 1.) ** 2.).mean()
 
-        grad_pen_factor = 100.
+        grad_pen_factor = 10.
 
         return grad_pen_factor * gradient_penalty
