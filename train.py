@@ -67,14 +67,12 @@ def main() -> None:
     sample_rate = 44100
 
     rand_channel = 64
-    rand_width = 2
-    rand_height = 2
 
     disc_lr = 2e-4
     gen_lr = 2e-4
 
     nb_epoch = 1000
-    batch_size = 8
+    batch_size = 4
 
     output_dir = args.out_path
 
@@ -86,7 +84,7 @@ def main() -> None:
         )
 
     gen = networks.Generator(
-        rand_channel, 2
+        rand_channel
     )
 
     disc = networks.Discriminator(2)
@@ -182,8 +180,7 @@ def main() -> None:
 
                 # sample fake data
                 rand_fake = multi_norm.sample(
-                    (i_max - i_min, rand_width, rand_height)) \
-                    .permute(0, 3, 1, 2) \
+                    (i_max - i_min,)) \
                     .cuda()
 
                 # gen fake data
@@ -231,8 +228,7 @@ def main() -> None:
                 if iter_idx % 5 == 0:
                     # sample random data
                     rand_fake = multi_norm.sample(
-                        (i_max - i_min, rand_width, rand_height)) \
-                        .permute(0, 3, 1, 2) \
+                        (i_max - i_min,)) \
                         .cuda()
 
                     # generate fake data
@@ -294,11 +290,10 @@ def main() -> None:
                 for gen_idx in range(3):
                     # 10 seconds
                     rand_fake = multi_norm.sample(
-                        (1, rand_width * 10, rand_height)) \
-                        .permute(0, 3, 1, 2) \
+                        (1,)) \
                         .cuda()
 
-                    x_fake = gen(rand_fake)
+                    x_fake = gen(rand_fake, 10)
 
                     read_audio.stft_to_wav(
                         x_fake.detach().cpu(),
