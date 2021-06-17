@@ -46,13 +46,12 @@ class AdaptiveInstanceNorm(nn.Module):
             x: th.Tensor,
             y: th.Tensor
     ) -> th.Tensor:
-
         batch_size = x.size()[0]
-
         in_channels = x.size()[1]
 
         # (Nb, 2 * Nc, 1, 1)
-        style = self.__style(y).view(batch_size, -1, 1, 1)
+        style = self.__style(y) \
+            .view(batch_size, -1, 1, 1)
 
         mean = x.view(batch_size, in_channels, -1) \
             .mean(dim=2) \
@@ -62,8 +61,7 @@ class AdaptiveInstanceNorm(nn.Module):
             .std(dim=2) \
             .view(batch_size, in_channels, 1, 1)
 
-        y_b, y_s = style[:, :in_channels], \
-                   style[:, in_channels:]
+        y_b, y_s = style.chunk(2, 1)
 
         x_norm = (x - mean) / std
 
@@ -176,7 +174,6 @@ class InputBlock(nn.Module):
             style: th.Tensor,
             nb_input: int = 1
     ) -> th.Tensor:
-
         batch_size = style.size()[0]
 
         out_input = th.cat([
@@ -206,6 +203,7 @@ class Generator(nn.Module):
             (96, 64),
             (64, 32)
         ]
+
         in_sizes = (2, 2)
 
         # Input layer
@@ -241,13 +239,24 @@ class Generator(nn.Module):
 
         for _ in range(4):
             tmp_style_layers.append(
-                nn.Linear(style_channels, style_channels)
+                nn.Linear(
+                    style_channels,
+                    style_channels
+                )
             )
-            tmp_style_layers.append(nn.LeakyReLU(2e-1))
+            tmp_style_layers.append(
+                nn.LeakyReLU(2e-1)
+            )
 
-        self.__style_layers = nn.Sequential(*tmp_style_layers)
+        self.__style_layers = nn.Sequential(
+            *tmp_style_layers
+        )
 
-    def forward(self, style: th.Tensor, nb_input: int = 1) -> th.Tensor:
+    def forward(
+            self,
+            style: th.Tensor,
+            nb_input: int = 1
+    ) -> th.Tensor:
         style = self.__style_layers(style)
 
         out = self.__input_block(style, nb_input)
