@@ -21,14 +21,14 @@ class ConstantLayer(nn.Module):
 
         return constant
 
+    def __repr__(self):
+        return f"ConstantLayer(" \
+               f"{self.__constant.size()[1]}, " \
+               f"size=({self.__constant.size()[2]}, " \
+               f"{self.__constant.size()[3]}))"
 
-class PixelNorm(nn.Module):
-    def __init__(self):
-        super(PixelNorm, self).__init__()
-
-    def forward(self, x: th.Tensor) -> th.Tensor:
-        norm = th.sqrt(th.pow(x, 2.).mean(dim=1))
-        return x / norm.unsqueeze(1)
+    def __str__(self):
+        return self.__repr__()
 
 
 class AdaptiveInstanceNorm(nn.Module):
@@ -46,19 +46,38 @@ class AdaptiveInstanceNorm(nn.Module):
             x: th.Tensor,
             y: th.Tensor
     ) -> th.Tensor:
-        # (Nb, 2 * Nc, 1, 1)
-        style = self.__style(y) \
-            .unsqueeze(2) \
-            .unsqueeze(2)
+
+        batch_size = x.size()[0]
 
         in_channels = x.size()[1]
 
-        beta, gamma = style[:, :in_channels], \
-                      style[:, in_channels:]
+        # (Nb, 2 * Nc, 1, 1)
+        style = self.__style(y).view(batch_size, -1, 1, 1)
 
-        out = x * gamma + beta
+        mean = x.view(batch_size, in_channels, -1) \
+            .mean(dim=2) \
+            .view(batch_size, in_channels, 1, 1)
+
+        std = x.view(batch_size, in_channels, -1) \
+            .std(dim=2) \
+            .view(batch_size, in_channels, 1, 1)
+
+        y_b, y_s = style[:, :in_channels], \
+                   style[:, in_channels:]
+
+        x_norm = (x - mean) / std
+
+        out = x_norm * y_s + y_b
 
         return out
+
+    def __repr__(self):
+        return f"AdaptiveInstanceNorm(" \
+               f"style_channels={self.__style.weight.size()[1]}, " \
+               f"in_channels={self.__style.weight.size()[0] // 2})"
+
+    def __str__(self):
+        return self.__repr__()
 
 
 class NoiseLayer(nn.Module):
@@ -76,76 +95,45 @@ class NoiseLayer(nn.Module):
             self,
             x: th.Tensor
     ) -> th.Tensor:
-        device = "cuda" if x.is_cuda else "cpu"
-
-        noise = th.randn(x.size()[0], 1, x.size()[2], x.size()[3],
-                         device=device)
+        noise = th.randn(
+            x.size()[0], 1, x.size()[2], x.size()[3],
+            device=x.device
+        )
 
         out = x + self.__weights * noise
 
         return out
 
+    def __repr__(self):
+        return f"NoiseLayer({self.__weights.size()[1]})"
 
-class Conv2D3x3(nn.Module):
-    def __init__(self, in_channels: int, out_channels: int):
-        super(Conv2D3x3, self).__init__()
-
-        self.__conv = nn.Conv2d(
-            in_channels,
-            out_channels,
-            (3, 3),
-            stride=(1, 1),
-            padding=(1, 1)
-        )
-
-    def forward(
-            self, x: th.Tensor
-    ) -> th.Tensor:
-        out = self.__conv(x)
-
-        return out
+    def __str__(self):
+        return self.__repr__()
 
 
-class GeneratorBlock(nn.Module):
+class Block(nn.Module):
     def __init__(
             self,
             in_channels: int,
-            hidden_channels: int,
             out_channels: int,
-            style_channels: int,
-            last_layer: bool
+            style_channels: int
     ):
-        super(GeneratorBlock, self).__init__()
+        super(Block, self).__init__()
 
-        self.__up_sample = nn.Upsample(scale_factor=2)
-
-        self.__conv_1 = nn.Conv2d(
+        self.__conv_tr = nn.ConvTranspose2d(
             in_channels,
-            hidden_channels,
-            (3, 3),
-            stride=(1, 1),
-            padding=(1, 1)
-        )
-
-        self.__noise_1 = NoiseLayer(
-            hidden_channels
-        )
-
-        self.__adain_1 = AdaptiveInstanceNorm(
-            hidden_channels, style_channels
-        )
-
-        self.__conv_2 = nn.Conv2d(
-            hidden_channels,
             out_channels,
-            (3, 3),
-            stride=(1, 1),
-            padding=(1, 1)
+            stride=(2, 2),
+            kernel_size=(3, 3),
+            padding=(1, 1),
+            output_padding=(1, 1)
         )
 
-        self.__noise_2 = NoiseLayer(out_channels)
+        self.__noise = NoiseLayer(
+            out_channels
+        )
 
-        self.__adain_2 = AdaptiveInstanceNorm(
+        self.__adain = AdaptiveInstanceNorm(
             out_channels, style_channels
         )
 
@@ -154,24 +142,17 @@ class GeneratorBlock(nn.Module):
             x: th.Tensor,
             style: th.Tensor
     ) -> th.Tensor:
-        out_up_sample = self.__up_sample(x)
+        out_conv = self.__conv_tr(x)
+        out_noise = self.__noise(out_conv)
+        out_adain = self.__adain(out_noise, style)
 
-        out_conv_1 = self.__conv_1(out_up_sample)
-        out_noise_1 = self.__noise_1(out_conv_1)
-        out_adain_1 = self.__adain_1(out_noise_1, style)
-
-        out_conv_2 = self.__conv_2(out_adain_1)
-        out_noise_2 = self.__noise_2(out_conv_2)
-        out_adain_2 = self.__adain_2(out_noise_2, style)
-
-        return out_adain_2
+        return out_adain
 
 
 class InputBlock(nn.Module):
     def __init__(
             self,
             in_channels: int,
-            out_channels: int,
             in_sizes: Tuple[int, int],
             style_channels: int
     ):
@@ -182,42 +163,31 @@ class InputBlock(nn.Module):
             in_sizes
         )
 
-        self.__noise_1 = NoiseLayer(
+        self.__noise = NoiseLayer(
             in_channels
         )
 
-        self.__adain_1 = AdaptiveInstanceNorm(
+        self.__adain = AdaptiveInstanceNorm(
             in_channels, style_channels
         )
 
-        self.__conv = nn.Conv2d(
-            in_channels,
-            out_channels,
-            (3, 3),
-            stride=(1, 1),
-            padding=(1, 1)
-        )
+    def forward(
+            self,
+            style: th.Tensor,
+            nb_input: int = 1
+    ) -> th.Tensor:
 
-        self.__noise_2 = NoiseLayer(out_channels)
-
-        self.__adain_2 = AdaptiveInstanceNorm(
-            out_channels, style_channels
-        )
-
-    def forward(self, style: th.Tensor, nb_input: int = 1) -> th.Tensor:
         batch_size = style.size()[0]
 
         out_input = th.cat([
-            self.__input(batch_size) for _ in range(nb_input)], dim=2)
+            self.__input(batch_size)
+            for _ in range(nb_input)
+        ], dim=2)
 
-        out_noise_1 = self.__noise_1(out_input)
-        out_adain_1 = self.__adain_1(out_noise_1, style)
+        out_noise = self.__noise(out_input)
+        out_adain = self.__adain(out_noise, style)
 
-        out_conv = self.__conv(out_adain_1)
-        out_noise_2 = self.__noise_2(out_conv)
-        out_adain_2 = self.__adain_2(out_noise_2, style)
-
-        return out_adain_2
+        return out_adain
 
 
 class Generator(nn.Module):
@@ -236,48 +206,55 @@ class Generator(nn.Module):
             (96, 64),
             (64, 32)
         ]
-        in_sizes = (4, 4)
+        in_sizes = (2, 2)
 
-        self.__input = InputBlock(
+        # Input layer
+        self.__input_block = InputBlock(
             channels[0][0],
-            channels[0][1],
             in_sizes,
             style_channels
         )
 
+        # Generator layers
         self.__gen_blocks = nn.ModuleList([
-            GeneratorBlock(
-                c[0], c[0], c[1],
-                style_channels,
-                i == len(channels) - 1
+            Block(
+                c[0], c[1],
+                style_channels
             )
-            for i, c in enumerate(channels[1:])
+            for c in channels
         ])
 
-        self.__style_layers = nn.Sequential(*[
-            nn.Linear(style_channels, style_channels)
-            for _ in range(4)
-        ])
-
-        self.__last_layers = nn.Sequential(
-            nn.Upsample(scale_factor=2),
-            nn.Conv2d(
+        # Output layer
+        self.__last_block = nn.Sequential(
+            nn.ConvTranspose2d(
                 channels[-1][1], 2,
-                (3, 3),
-                stride=(1, 1),
-                padding=(1, 1)
+                stride=(2, 2),
+                kernel_size=(3, 3),
+                padding=(1, 1),
+                output_padding=(1, 1)
             ),
             nn.Tanh()
         )
 
+        # Style network
+        tmp_style_layers = []
+
+        for _ in range(4):
+            tmp_style_layers.append(
+                nn.Linear(style_channels, style_channels)
+            )
+            tmp_style_layers.append(nn.LeakyReLU(2e-1))
+
+        self.__style_layers = nn.Sequential(*tmp_style_layers)
+
     def forward(self, style: th.Tensor, nb_input: int = 1) -> th.Tensor:
         style = self.__style_layers(style)
 
-        out = self.__input(style, nb_input)
+        out = self.__input_block(style, nb_input)
 
         for gen_block in self.__gen_blocks:
             out = gen_block(out, style)
 
-        out = self.__last_layers(out)
+        out = self.__last_block(out)
 
         return out

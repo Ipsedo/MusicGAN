@@ -6,15 +6,17 @@ if __name__ == '__main__':
     style_channels = 256
 
     gen = Generator(style_channels)
+    disc = Discriminator(2)
 
     z = th.randn(batch_size, style_channels)
 
     print(gen)
+    print(disc)
 
     out = gen(z)
 
     print(out.size())
 
-    out_2 = gen(z, 10)
+    out = disc(out)
 
-    print(out_2.size())
+    print(out.size())
