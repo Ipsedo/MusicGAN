@@ -64,7 +64,7 @@ def main() -> None:
     gen_lr = 2e-4
 
     nb_epoch = 1000
-    batch_size = 16
+    batch_size = 8
 
     output_dir = args.out_path
 
@@ -116,7 +116,7 @@ def main() -> None:
         audio_dataset,
         batch_size=batch_size,
         shuffle=True,
-        num_workers=4,
+        num_workers=10,
         drop_last=True
     )
 
