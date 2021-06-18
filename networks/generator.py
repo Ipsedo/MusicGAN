@@ -254,10 +254,10 @@ class Generator(nn.Module):
 
     def forward(
             self,
-            style: th.Tensor,
+            z: th.Tensor,
             nb_input: int = 1
     ) -> th.Tensor:
-        style = self.__style_layers(style)
+        style = self.__style_layers(z)
 
         out = self.__input_block(style, nb_input)
 

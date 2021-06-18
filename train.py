@@ -1,12 +1,11 @@
+import audio
 import networks
-import read_audio
 
 import torch as th
+from torch.utils.data import DataLoader
 
-import glob
 from os import mkdir
 from os.path import join, exists, isdir
-import sys
 
 import mlflow
 
@@ -34,8 +33,8 @@ def main() -> None:
     )
 
     parser.add_argument(
-        "-i", "--input-musics",
-        dest="input_musics",
+        "-i", "--input-dataset",
+        dest="input_dataset",
         required=True,
         type=str
     )
@@ -51,18 +50,11 @@ def main() -> None:
     exp_name = "MusicGAN"
     mlflow.set_experiment(exp_name)
 
-    wavs_path = glob.glob(
-        args.input_musics
-    )
-
-    if len(wavs_path) == 0:
-        raise Exception(
-            "Empty train sounds."
-        )
+    assert isdir(args.input_dataset)
 
     mlflow.start_run(run_name=args.run)
 
-    mlflow.log_param("input_musics", wavs_path)
+    mlflow.log_param("input_dataset", args.input_dataset)
 
     sample_rate = 44100
 
@@ -72,7 +64,7 @@ def main() -> None:
     gen_lr = 2e-4
 
     nb_epoch = 1000
-    batch_size = 4
+    batch_size = 16
 
     output_dir = args.out_path
 
@@ -117,18 +109,16 @@ def main() -> None:
     if args.disc_optim is not None:
         optim_disc.load_state_dict(th.load(args.disc_optim))
 
-    # read audio
-    data = read_audio.to_tensor_stft(wavs_path, sample_rate)
+    # create DataSet
+    audio_dataset = audio.AudioDataset(args.input_dataset)
 
-    # shuffle data
-    for i in tqdm(range(data.size(0) - 1)):
-        j = i + random.randint(0, sys.maxsize) // (
-                sys.maxsize // (data.size(0) - i) + 1
-        )
-        data[i, :, :, :], data[j, :, :, :] = \
-            data[j, :, :, :], data[i, :, :, :]
-
-    nb_batch = data.size()[0] // batch_size
+    data_loader = DataLoader(
+        audio_dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=4,
+        drop_last=True
+    )
 
     mean_vec = th.zeros(rand_channel)  # th.randn(rand_channel)
     rand_mat = th.randn(rand_channel, rand_channel)
@@ -162,25 +152,17 @@ def main() -> None:
 
         for e in range(nb_epoch):
 
-            # shuffle tensor
-            batch_idx_list = list(range(nb_batch))
-            random.shuffle(batch_idx_list)
-            tqdm_bar = tqdm(batch_idx_list)
+            tqdm_bar = tqdm(data_loader)
 
-            iter_idx = 0
-
-            for b_idx in tqdm_bar:
-                i_min = b_idx * batch_size
-                i_max = (b_idx + 1) * batch_size
-
+            for iter_idx, x_real in enumerate(tqdm_bar):
                 # train discriminator
 
-                # sample real data
-                x_real = data[i_min:i_max, :, :, :].cuda()
+                # pass data to cuda
+                x_real = x_real.cuda().to(th.float)
 
                 # sample fake data
                 rand_fake = multi_norm.sample(
-                    (i_max - i_min,)) \
+                    (batch_size,)) \
                     .cuda()
 
                 # gen fake data
@@ -228,7 +210,7 @@ def main() -> None:
                 if iter_idx % 5 == 0:
                     # sample random data
                     rand_fake = multi_norm.sample(
-                        (i_max - i_min,)) \
+                        (batch_size,)) \
                         .cuda()
 
                     # generate fake data
@@ -282,8 +264,6 @@ def main() -> None:
                     },
                         step=e)
 
-                iter_idx += 1
-
             # Generate sound
             with th.no_grad():
 
@@ -295,7 +275,7 @@ def main() -> None:
 
                     x_fake = gen(rand_fake, 10)
 
-                    read_audio.stft_to_wav(
+                    audio.magn_phase_to_wav(
                         x_fake.detach().cpu(),
                         join(output_dir, f"gen_epoch_{e}_ID{gen_idx}.wav"),
                         sample_rate

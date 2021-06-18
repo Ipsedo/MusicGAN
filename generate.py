@@ -1,5 +1,5 @@
 from networks import Generator
-from read_audio import stft_to_wav
+from create_dataset import stft_to_wav
 
 import torch as th
 
