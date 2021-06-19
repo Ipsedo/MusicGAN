@@ -52,21 +52,15 @@ class Block(nn.Module):
                 stride=(2, 2),
                 padding=(1, 1),
                 output_padding=(1, 1)
-            )
+            ),
+            nn.BatchNorm2d(out_channels)
         )
 
         if last_layer:
             self.__block.add_module(
-                "2", nn.Tanh()
+                "3", nn.Tanh()
             )
         else:
-            self.__block.add_module(
-                "2", nn.InstanceNorm2d(
-                    out_channels,
-                    affine=True
-                )
-            )
-
             self.__block.add_module(
                 "3", nn.LeakyReLU(2e-1)
             )
