@@ -66,7 +66,7 @@ def main() -> None:
     gen_lr = 2e-3
 
     nb_epoch = 1000
-    batch_size = 8
+    batch_size = 16
 
     output_dir = args.out_path
 
@@ -118,7 +118,7 @@ def main() -> None:
         audio_dataset,
         batch_size=batch_size,
         shuffle=True,
-        num_workers=10,
+        num_workers=8,
         drop_last=True
     )
 
@@ -145,11 +145,16 @@ def main() -> None:
         grad_pen_list = [0. for _ in range(metric_window)]
         gen_loss_list = [0. for _ in range(metric_window)]
 
+        iter_idx = 0
+        save_idx = 0
+
+        save_every = 1000
+
         for e in range(nb_epoch):
 
             tqdm_bar = tqdm(data_loader)
 
-            for iter_idx, x_real in enumerate(tqdm_bar):
+            for x_real in tqdm_bar:
                 # train discriminator
 
                 # pass data to cuda
@@ -234,7 +239,9 @@ def main() -> None:
 
                 # update tqdm bar
                 tqdm_bar.set_description(
-                    f"Epoch {e:02} - disc, "
+                    f"Epoch {e:02} "
+                    f"[{iter_idx // save_every:03}: "
+                    f"{iter_idx % save_every:03} / {save_every}], "
                     f"disc_loss = {mean(disc_loss_list):.6f}, "
                     f"gen_loss = {mean(gen_loss_list):.6f}, "
                     f"disc_grad_pen = {mean(grad_pen_list):.2f}, "
@@ -255,59 +262,64 @@ def main() -> None:
                     },
                         step=e)
 
-            # Generate sound
-            with th.no_grad():
+                if iter_idx % save_every == 0:
 
-                for gen_idx in range(3):
-                    z = th.randn(1, rand_channel, width * 5, height).cuda()
+                    # Generate sound
+                    with th.no_grad():
 
-                    x_fake = gen(z)
+                        for gen_idx in range(3):
+                            z = th.randn(1, rand_channel, width * 5, height).cuda()
 
-                    audio.magn_phase_to_wav(
-                        x_fake.detach().cpu(),
-                        join(output_dir, f"gen_epoch_{e}_ID{gen_idx}.wav"),
-                        sample_rate
+                            x_fake = gen(z)
+
+                            audio.magn_phase_to_wav(
+                                x_fake.detach().cpu(),
+                                join(output_dir, f"sound_{save_idx}_ID{gen_idx}.wav"),
+                                sample_rate
+                            )
+
+                            # log gen sound
+                            mlflow.log_artifact(
+                                join(output_dir, f"sound_{save_idx}_ID{gen_idx}.wav")
+                            )
+
+                    # Save discriminator
+                    th.save(
+                        disc.state_dict(),
+                        join(output_dir, f"disc_{save_idx}.pt")
+                    )
+                    th.save(
+                        optim_disc.state_dict(),
+                        join(output_dir, f"optim_disc_{save_idx}.pt")
                     )
 
-                    # log gen sound
+                    # save generator
+                    th.save(
+                        gen.state_dict(),
+                        join(output_dir, f"gen_{save_idx}.pt")
+                    )
+                    th.save(
+                        optim_gen.state_dict(),
+                        join(output_dir, f"optim_gen_{save_idx}.pt")
+                    )
+
+                    # log models & optim to mlflow
                     mlflow.log_artifact(
-                        join(output_dir, f"gen_epoch_{e}_ID{gen_idx}.wav")
+                        join(output_dir, f"gen_{save_idx}.pt")
+                    )
+                    mlflow.log_artifact(
+                        join(output_dir, f"optim_gen_{save_idx}.pt")
+                    )
+                    mlflow.log_artifact(
+                        join(output_dir, f"disc_{save_idx}.pt")
+                    )
+                    mlflow.log_artifact(
+                        join(output_dir, f"optim_disc_{save_idx}.pt")
                     )
 
-            # Save discriminator
-            th.save(
-                disc.state_dict(),
-                join(output_dir, f"disc_epoch_{e}.pt")
-            )
-            th.save(
-                optim_disc.state_dict(),
-                join(output_dir, f"optim_disc_epoch_{e}.pt")
-            )
+                    save_idx += 1
 
-            # save generator
-            th.save(
-                gen.state_dict(),
-                join(output_dir, f"gen_epoch_{e}.pt")
-            )
-            th.save(
-                optim_gen.state_dict(),
-                join(output_dir, f"optim_gen_epoch_{e}.pt")
-            )
-
-            # log models & optim to mlflow
-            mlflow.log_artifact(
-                join(output_dir, f"gen_epoch_{e}.pt")
-            )
-            mlflow.log_artifact(
-                join(output_dir, f"optim_gen_epoch_{e}.pt")
-            )
-            mlflow.log_artifact(
-                join(output_dir, f"disc_epoch_{e}.pt")
-            )
-            mlflow.log_artifact(
-                join(output_dir, f"optim_disc_epoch_{e}.pt")
-            )
-
+                iter_idx += 1
 
 if __name__ == '__main__':
     main()
