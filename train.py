@@ -12,7 +12,6 @@ import mlflow
 import argparse
 from tqdm import tqdm
 
-import random
 from statistics import mean
 
 
@@ -58,7 +57,7 @@ def main() -> None:
 
     sample_rate = 44100
 
-    rand_channel = 64 + 32
+    rand_channel = 64
     height = 2
     width = 2
 
@@ -119,8 +118,7 @@ def main() -> None:
         batch_size=batch_size,
         shuffle=True,
         num_workers=8,
-        drop_last=True,
-        pin_memory=True
+        drop_last=True
     )
 
     mlflow.log_params({
