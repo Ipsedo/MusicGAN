@@ -2,39 +2,6 @@ import torch as th
 import torch.nn as nn
 
 
-class NoiseLayer(nn.Module):
-    def __init__(
-            self,
-            channels: int
-    ):
-        super(NoiseLayer, self).__init__()
-
-        self.__weights = nn.Parameter(
-            th.zeros(1, channels, 1, 1)
-        )
-
-    def forward(
-            self,
-            x: th.Tensor
-    ) -> th.Tensor:
-        noise = th.randn(
-            x.size()[0], 1,
-            x.size()[2], x.size()[3],
-            device=x.device
-        )
-
-        out = x + self.__weights * noise
-
-        return out
-
-    def __repr__(self):
-        return f"NoiseLayer" \
-               f"({self.__weights.size()[1]})"
-
-    def __str__(self):
-        return self.__repr__()
-
-
 class Block(nn.Module):
     def __init__(
             self,
