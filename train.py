@@ -119,7 +119,8 @@ def main() -> None:
         batch_size=batch_size,
         shuffle=True,
         num_workers=8,
-        drop_last=True
+        drop_last=True,
+        pin_memory=True
     )
 
     mlflow.log_params({
@@ -165,8 +166,9 @@ def main() -> None:
                     batch_size,
                     rand_channel,
                     height,
-                    width
-                ).cuda()
+                    width,
+                    device="cuda"
+                )
 
                 # gen fake data
                 x_fake = gen(z)
@@ -216,8 +218,9 @@ def main() -> None:
                         batch_size,
                         rand_channel,
                         height,
-                        width
-                    ).cuda()
+                        width,
+                        device="cuda"
+                    )
 
                     # generate fake data
                     x_fake = gen(z)
@@ -279,8 +282,9 @@ def main() -> None:
                         for gen_idx in range(3):
                             z = th.randn(
                                 1, rand_channel,
-                                height * 5, width
-                            ).cuda()
+                                height * 5, width,
+                                device="cuda"
+                            )
 
                             x_fake = gen(z)
 
