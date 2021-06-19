@@ -1,5 +1,6 @@
 import torch as th
 import torch.nn as nn
+import torch.nn.functional as F
 
 from typing import Tuple, List
 
@@ -96,60 +97,129 @@ class NoiseLayer(nn.Module):
     ):
         super(NoiseLayer, self).__init__()
 
-        self.__weights = nn.Parameter(
-            th.zeros(1, channels, 1, 1)
-        )
+        self.__channels = channels
+
+        self.__to_noise = nn.Linear(1, channels)
 
     def forward(
             self,
             x: th.Tensor
     ) -> th.Tensor:
         noise = th.randn(
-            x.size()[0], 1, x.size()[2], x.size()[3],
+            x.size()[0], x.size()[2], x.size()[3], 1,
             device=x.device
         )
 
-        out = x + self.__weights * noise
+        out = x + self.__to_noise(noise).permute(0, 3, 1, 2)
 
         return out
 
     def __repr__(self):
-        return f"NoiseLayer({self.__weights.size()[1]})"
+        return f"NoiseLayer({self.__channels})"
+
+
+class Conv2DMod(nn.Module):
+    def __init__(
+            self,
+            in_channels: int,
+            out_channels: int,
+            style_channels: int,
+            epsilon: float = 1e-8
+    ):
+        super(Conv2DMod, self).__init__()
+
+        self.__in_channels = in_channels
+        self.__out_channels = out_channels
+        self.__style_channels = style_channels
+
+        self.__kernel_size = 3
+        self.__stride = 1
+        self.__dilation = 1
+
+        self.__weights = nn.Parameter(th.randn(
+            out_channels, in_channels,
+            self.__kernel_size,
+            self.__kernel_size
+        ))
+
+        self.__biais = nn.Parameter(th.zeros(
+            out_channels
+        ))
+
+        self.__style = nn.Linear(style_channels, in_channels)
+
+        self.__epsilon = epsilon
+
+    def forward(self, x: th.Tensor, y: th.Tensor) -> th.Tensor:
+        batch_size = x.size()[0]
+        width, height = x.size()[2], x.size()[3]
+        in_c, out_c = self.__weights.size()[1], \
+                      self.__weights.size()[0]
+
+        # y = (nb, style)
+        style = self.__style(y)
+
+        # weight = (out, in, ker, ker)
+        # style = (nb, in)
+
+        # (1, out, in, ker, ker)
+        weights = self.__weights.unsqueeze(0)
+        # (nb, 1, in, 1, 1)
+        style = style.view(batch_size, 1, -1, 1, 1)
+
+        w_mod = weights * style
+
+        w_std = th.sqrt(
+            w_mod.pow(2.).sum(
+                dim=(2, 3, 4),
+                keepdim=True
+            ) +
+            self.__epsilon
+        )
+
+        w_demod = w_mod / w_std
+
+        weights = w_demod.view(
+            batch_size * out_c,
+            in_c,
+            self.__kernel_size,
+            self.__kernel_size
+        )
+
+        x = x.view(1, -1, width, height)
+
+        out = F.conv2d(
+            x, weights,
+            None,
+            padding="same",
+            groups=batch_size
+        )
+
+        out = out.view(batch_size, out_c, width, height)
+
+        out = out + self.__biais.view(1, -1, 1, 1)
+
+        return out
+
+    def __repr__(self):
+        return f"Conv2DStyle(" \
+               f"{self.__in_channels}, " \
+               f"{self.__out_channels}, " \
+               f"kernel_size=(3, 3), " \
+               f"stride=(1, 1), " \
+               f"padding=(1, 1), " \
+               f"style_channels={self.__style_channels}" \
+               f")"
 
     def __str__(self):
         return self.__repr__()
-
-
-class BlockEnd(nn.Module):
-    def __init__(
-            self,
-            out_channels: int,
-            style_channels: int
-    ):
-        super(BlockEnd, self).__init__()
-
-        self.__noise = NoiseLayer(out_channels)
-
-        self.__adain = AdaptiveInstanceNorm(
-            out_channels, style_channels
-        )
-
-    def forward(
-            self,
-            x: th.Tensor,
-            style: th.Tensor
-    ) -> th.Tensor:
-        out = self.__noise(x)
-
-        out = self.__adain(out, style)
-
-        return out
 
 
 class InputBlock(nn.Module):
     def __init__(
             self,
             in_channels: int,
+            out_channels: int,
             in_sizes: Tuple[int, int],
             style_channels: int
     ):
@@ -160,10 +230,13 @@ class InputBlock(nn.Module):
             in_sizes
         )
 
-        self.__end = BlockEnd(
+        self.__conv_style = Conv2DMod(
             in_channels,
+            out_channels,
             style_channels
         )
+
+        self.__noise = NoiseLayer(out_channels)
 
     def forward(
             self,
@@ -177,7 +250,8 @@ class InputBlock(nn.Module):
             for _ in range(nb_input)
         ], dim=2)
 
-        out = self.__end(out, style)
+        out = self.__conv_style(out, style)
+        out = self.__noise(out)
 
         return out
 
@@ -187,32 +261,36 @@ class Block(nn.Module):
             self,
             in_channels: int,
             out_channels: int,
-            style_channels: int
+            style_channels: int,
+            last_layer: bool
     ):
         super(Block, self).__init__()
 
-        self.__conv = nn.ConvTranspose2d(
-            in_channels,
-            out_channels,
-            stride=(2, 2),
-            kernel_size=(3, 3),
-            padding=(1, 1),
-            output_padding=(1, 1)
+        self.__up_sample = nn.Upsample(
+            scale_factor=2,
+            mode="bilinear",
+            align_corners=True
         )
 
-        self.__end = BlockEnd(
+        self.__conv = Conv2DMod(
+            in_channels,
             out_channels,
             style_channels
         )
+
+        self.__end = NoiseLayer(out_channels) \
+            if not last_layer else nn.Tanh()
 
     def forward(
             self,
             x: th.Tensor,
             style: th.Tensor,
     ) -> th.Tensor:
-        out = self.__conv(x)
+        out = self.__up_sample(x)
 
-        out = self.__end(out, style)
+        out = self.__conv(out, style)
+
+        out = self.__end(out)
 
         return out
 
@@ -243,12 +321,14 @@ class Generator(nn.Module):
             (160, 128),
             (128, 96),
             (96, 64),
-            (64, 32)
+            (64, 32),
+            (32, 2)
         ]
 
         self.__sizes = (2, 2)
 
         self.__input = InputBlock(
+            channels[0][0],
             channels[0][0],
             self.__sizes,
             style_channels
@@ -258,21 +338,11 @@ class Generator(nn.Module):
         self.__gen_blocks = nn.ModuleList([
             Block(
                 c[0], c[1],
-                style_channels
+                style_channels,
+                i == len(channels) - 1
             )
-            for c in channels
+            for i, c in enumerate(channels)
         ])
-
-        self.__output = nn.Sequential(
-            nn.ConvTranspose2d(
-                channels[-1][1], 2,
-                stride=(2, 2),
-                kernel_size=(3, 3),
-                padding=(1, 1),
-                output_padding=(1, 1)
-            ),
-            nn.Tanh()
-        )
 
         self.__style_network = nn.Sequential(*[
             LinearLayer(style_channels, style_channels)
@@ -300,8 +370,6 @@ class Generator(nn.Module):
 
         for m in self.__gen_blocks:
             out = m(out, style)
-
-        out = self.__output(out)
 
         return out
 

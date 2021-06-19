@@ -11,7 +11,7 @@ if __name__ == '__main__':
     print(gen)
     print(disc)
 
-    out = gen(5, 1)
+    out = gen(5, 2)
 
     print(out.size())
 
