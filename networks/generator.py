@@ -61,18 +61,14 @@ class Block(nn.Module):
             )
         else:
             self.__block.add_module(
-                "2", NoiseLayer(out_channels)
-            )
-
-            self.__block.add_module(
-                "3", nn.InstanceNorm2d(
+                "2", nn.InstanceNorm2d(
                     out_channels,
                     affine=True
                 )
             )
 
             self.__block.add_module(
-                "4", nn.LeakyReLU(2e-1)
+                "3", nn.LeakyReLU(2e-1)
             )
 
     def forward(
@@ -92,8 +88,7 @@ class Generator(nn.Module):
         super(Generator, self).__init__()
 
         channels = [
-            (rand_channels, 256),
-            (256, 224),
+            (rand_channels, 224),
             (224, 192),
             (192, 160),
             (160, 128),

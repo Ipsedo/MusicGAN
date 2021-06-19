@@ -58,9 +58,9 @@ def main() -> None:
 
     sample_rate = 44100
 
-    rand_channel = 128
-    height = 1
-    width = 1
+    rand_channel = 64 + 32
+    height = 2
+    width = 2
 
     disc_lr = 1e-3
     gen_lr = 1e-3
@@ -262,15 +262,14 @@ def main() -> None:
 
                 # log metrics
                 if iter_idx % 200 == 0:
-                    mlflow.log_metrics({
+                    mlflow.log_metrics(step=e, metrics={
                         "disc_loss": disc_loss.item(),
                         "gen_loss": gen_loss.item(),
                         "batch_tp_error": error_tp[-1],
                         "batch_tn_error": error_tn[-1],
                         "disc_grad_norm_mean": disc_grad_norm.item(),
                         "gen_grad_norm_mean": gen_grad_norm.item()
-                    },
-                        step=e)
+                    })
 
                 if iter_idx % save_every == 0:
 
