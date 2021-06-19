@@ -3,15 +3,17 @@ from networks import Generator, Discriminator
 
 if __name__ == '__main__':
     batch_size = 5
-    style_channels = 32
+    rand_channels = 32
 
-    gen = Generator(style_channels)
+    gen = Generator(rand_channels)
     disc = Discriminator(2)
 
     print(gen)
     print(disc)
 
-    out = gen(5, 1)
+    rand = th.randn(5, rand_channels, 2, 2)
+
+    out = gen(rand)
 
     print(out.size())
 

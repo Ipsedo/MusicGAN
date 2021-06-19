@@ -42,7 +42,7 @@ class Discriminator(nn.Module):
             (160, 192),
             (192, 224),
             (224, 256),
-            (256, 256)
+            (256, 288)
         ]
 
         stride = 2

@@ -58,7 +58,9 @@ def main() -> None:
 
     sample_rate = 44100
 
-    rand_channel = 256
+    rand_channel = 32
+    width = 2
+    height = 2
 
     disc_lr = 2e-3
     gen_lr = 2e-3
@@ -127,7 +129,9 @@ def main() -> None:
         "disc_lr": disc_lr,
         "gen_lr": gen_lr,
         "sample_rate": sample_rate,
-        "adam_betas": betas
+        "adam_betas": betas,
+        "width": width,
+        "height": height
     })
 
     with mlflow.start_run(run_name="train", nested=True):
@@ -151,8 +155,11 @@ def main() -> None:
                 # pass data to cuda
                 x_real = x_real.cuda().to(th.float)
 
+                # sample random latent data
+                z = th.randn(batch_size, rand_channel, width, height).cuda()
+
                 # gen fake data
-                x_fake = gen(batch_size)
+                x_fake = gen(z)
 
                 # pass real data and gen data to discriminator
                 out_real = disc(x_real)
@@ -194,8 +201,11 @@ def main() -> None:
 
                 # train generator
                 if iter_idx % 5 == 0:
+                    # sample random latent data
+                    z = th.randn(batch_size, rand_channel, width, height).cuda()
+
                     # generate fake data
-                    x_fake = gen(batch_size)
+                    x_fake = gen(z)
 
                     # pass to discriminator
                     out_fake = disc(x_fake)
@@ -249,8 +259,9 @@ def main() -> None:
             with th.no_grad():
 
                 for gen_idx in range(3):
+                    z = th.randn(1, rand_channel, width * 5, height).cuda()
 
-                    x_fake = gen(1, 5)
+                    x_fake = gen(z)
 
                     audio.magn_phase_to_wav(
                         x_fake.detach().cpu(),
