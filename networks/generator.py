@@ -1,8 +1,6 @@
 import torch as th
 import torch.nn as nn
 
-from typing import Tuple
-
 
 class NoiseLayer(nn.Module):
     def __init__(
@@ -61,7 +59,9 @@ class Block(nn.Module):
         else:
             self.__block.add_module("2", nn.LeakyReLU(2e-1))
             self.__block.add_module("3", NoiseLayer(out_channels))
-            self.__block.add_module("4", nn.InstanceNorm2d(out_channels))
+            self.__block.add_module("4", nn.InstanceNorm2d(
+                out_channels, affine=True
+            ))
 
     def forward(
             self,
@@ -106,7 +106,3 @@ class Generator(nn.Module):
         out = self.__gen_blocks(z)
 
         return out
-
-    @property
-    def nb_layer(self):
-        return self.__gen_blocks.__len__() - 1
