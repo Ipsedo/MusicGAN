@@ -25,11 +25,11 @@ class Block(nn.Module):
 
         if last_layer:
             self.__block.add_module(
-                "3", nn.Tanh()
+                "2", nn.Tanh()
             )
         else:
             self.__block.add_module(
-                "3", nn.LeakyReLU(2e-1)
+                "2", nn.LeakyReLU(2e-1)
             )
 
     def forward(
