@@ -16,37 +16,23 @@ class AudioDataset(Dataset):
 
         assert isdir(dataset_path)
 
-        all_magn = [
+        all_files = [
             f for f in tqdm(listdir(dataset_path))
             if isfile(join(dataset_path, f)) and
-               f.startswith("magn")
+               f.startswith("magn_phase")
         ]
 
-        all_phase = [
-            f for f in tqdm(listdir(dataset_path))
-            if isfile(join(dataset_path, f)) and
-               f.startswith("phase")
-        ]
-
-        assert len(all_magn) == len(all_phase)
-
-        self.__all_magn = sorted(all_magn)
-        self.__all_phase = sorted(all_phase)
+        self.__all_files = sorted(all_files)
 
         self.__dataset_path = dataset_path
 
     def __getitem__(self, index: int):
-        magn = th.load(join(
+        magn_phase = th.load(join(
             self.__dataset_path,
-            self.__all_magn[index]
+            self.__all_files[index]
         ))
 
-        phase = th.load(join(
-            self.__dataset_path,
-            self.__all_phase[index]
-        ))
-
-        return th.stack([magn, phase], dim=0)
+        return magn_phase
 
     def __len__(self):
-        return len(self.__all_magn)
+        return len(self.__all_files)

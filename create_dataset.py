@@ -56,10 +56,10 @@ if __name__ == '__main__':
             s_magn = magn[s_idx].to(th.float64)
             s_phase = phase[s_idx].to(th.float64)
 
-            magn_path = join(out_path, f"magn_{idx}.pt")
-            phase_path = join(out_path, f"phase_{idx}.pt")
+            magn_phase_path = join(out_path, f"magn_phase_{idx}.pt")
 
-            th.save(s_magn, magn_path)
-            th.save(s_phase, phase_path)
+            magn_phase = th.stack([s_magn, s_phase], dim=0)
+
+            th.save(magn_phase, magn_phase_path)
 
             idx += 1
