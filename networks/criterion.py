@@ -10,7 +10,7 @@ def generator_loss(y_fake: th.Tensor) -> th.Tensor:
 
 
 def wasserstein_discriminator_loss(y_real: th.Tensor,
-                                  y_fake: th.Tensor) -> th.Tensor:
+                                   y_fake: th.Tensor) -> th.Tensor:
     return -(th.mean(y_real) - th.mean(y_fake))
 
 

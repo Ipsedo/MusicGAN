@@ -59,8 +59,8 @@ def main() -> None:
     sample_rate = 44100
 
     rand_channel = 32
-    width = 2
     height = 2
+    width = 2
 
     disc_lr = 2e-3
     gen_lr = 2e-3
@@ -161,7 +161,12 @@ def main() -> None:
                 x_real = x_real.cuda().to(th.float)
 
                 # sample random latent data
-                z = th.randn(batch_size, rand_channel, width, height).cuda()
+                z = th.randn(
+                    batch_size,
+                    rand_channel,
+                    height,
+                    width
+                ).cuda()
 
                 # gen fake data
                 x_fake = gen(z)
@@ -207,7 +212,12 @@ def main() -> None:
                 # train generator
                 if iter_idx % 5 == 0:
                     # sample random latent data
-                    z = th.randn(batch_size, rand_channel, width, height).cuda()
+                    z = th.randn(
+                        batch_size,
+                        rand_channel,
+                        height,
+                        width
+                    ).cuda()
 
                     # generate fake data
                     x_fake = gen(z)
@@ -268,19 +278,24 @@ def main() -> None:
                     with th.no_grad():
 
                         for gen_idx in range(3):
-                            z = th.randn(1, rand_channel, width * 5, height).cuda()
+                            z = th.randn(
+                                1, rand_channel,
+                                height * 5, width
+                            ).cuda()
 
                             x_fake = gen(z)
 
                             audio.magn_phase_to_wav(
                                 x_fake.detach().cpu(),
-                                join(output_dir, f"sound_{save_idx}_ID{gen_idx}.wav"),
+                                join(output_dir,
+                                     f"sound_{save_idx}_ID{gen_idx}.wav"),
                                 sample_rate
                             )
 
                             # log gen sound
                             mlflow.log_artifact(
-                                join(output_dir, f"sound_{save_idx}_ID{gen_idx}.wav")
+                                join(output_dir,
+                                     f"sound_{save_idx}_ID{gen_idx}.wav")
                             )
 
                     # Save discriminator
@@ -320,6 +335,7 @@ def main() -> None:
                     save_idx += 1
 
                 iter_idx += 1
+
 
 if __name__ == '__main__':
     main()

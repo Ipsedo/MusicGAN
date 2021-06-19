@@ -66,7 +66,6 @@ def stft_to_phase_magn(
         complex_values: th.Tensor,
         nb_vec: int = 512
 ) -> Tuple[th.Tensor, th.Tensor]:
-
     magn = th.abs(complex_values)
     phase = th.angle(complex_values)
 

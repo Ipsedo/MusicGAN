@@ -32,13 +32,24 @@ def main() -> None:
     gen = Generator(args.rand_channel)
     gen.load_state_dict(th.load(args.gen_dict_state))
 
+    height = 2
+    width = 2
+
     with th.no_grad():
         print("Pass rand data to generator...")
-        gen_sound = gen(args.nb_music, args.nb_vec)
+
+        z = th.randn(
+            args.nb_music,
+            args.rand_channel,
+            height * args.nb_vec,
+            width
+        )
+
+        gen_sound = gen(z)
 
         print("Saving sound...")
         for i in tqdm(range(gen_sound.size()[0])):
-            out_sound_path = join(args.out_dir, f"gen_{i}.wav")
+            out_sound_path = join(args.out_dir, f"sound_{i}.wav")
 
             audio.magn_phase_to_wav(
                 gen_sound[i, None, :, :, :].detach(),
