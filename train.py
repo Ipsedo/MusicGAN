@@ -1,12 +1,11 @@
+import audio
 import networks
-import read_audio
 
 import torch as th
+from torch.utils.data import DataLoader
 
-import glob
 from os import mkdir
 from os.path import join, exists, isdir
-import sys
 
 import mlflow
 
@@ -34,8 +33,8 @@ def main() -> None:
     )
 
     parser.add_argument(
-        "-i", "--input-musics",
-        dest="input_musics",
+        "-i", "--input-dataset",
+        dest="input_dataset",
         required=True,
         type=str
     )
@@ -51,30 +50,23 @@ def main() -> None:
     exp_name = "MusicGAN"
     mlflow.set_experiment(exp_name)
 
-    wavs_path = glob.glob(
-        args.input_musics
-    )
-
-    if len(wavs_path) == 0:
-        raise Exception(
-            "Empty train sounds."
-        )
+    assert isdir(args.input_dataset)
 
     mlflow.start_run(run_name=args.run)
 
-    mlflow.log_param("input_musics", wavs_path)
+    mlflow.log_param("input_dataset", args.input_dataset)
 
     sample_rate = 44100
 
-    rand_channel = 32
-    rand_width = 2
-    rand_height = 4
+    rand_channel = 64 + 32
+    height = 2
+    width = 2
 
-    disc_lr = 1e-4
-    gen_lr = 1e-4
+    disc_lr = 1e-3
+    gen_lr = 1e-3
 
     nb_epoch = 1000
-    batch_size = 4
+    batch_size = 16
 
     output_dir = args.out_path
 
@@ -85,55 +77,50 @@ def main() -> None:
             f"\"{output_dir}\" is not a directory !"
         )
 
-    gen = networks.STFTGenerator(
-        rand_channel, 2
+    gen = networks.Generator(
+        rand_channel
     )
 
-    # From saved state dict
-    if args.gen is not None:
-        gen.load_state_dict(th.load(args.gen))
-
-    disc = networks.STFTDiscriminator(2)
-
-    # From saved state dict
-    if args.disc is not None:
-        disc.load_state_dict(th.load(args.disc))
+    disc = networks.Discriminator(2)
 
     gen.cuda()
     disc.cuda()
 
+    betas = (0.9, 0.999)
+
     optim_gen = th.optim.Adam(
-        gen.parameters(), lr=gen_lr
+        gen.parameters(), lr=gen_lr,
+        betas=betas
     )
+
+    optim_disc = th.optim.Adam(
+        disc.parameters(), lr=disc_lr,
+        betas=betas
+    )
+
+    # Load models & optimizers
+    if args.gen is not None:
+        gen.load_state_dict(th.load(args.gen))
+
+    if args.disc is not None:
+        disc.load_state_dict(th.load(args.disc))
 
     if args.gen_optim is not None:
         optim_gen.load_state_dict(th.load(args.gen_optim))
 
-    optim_disc = th.optim.Adam(
-        disc.parameters(), lr=disc_lr
-    )
-
     if args.disc_optim is not None:
         optim_disc.load_state_dict(th.load(args.disc_optim))
 
-    # read audio
-    data = read_audio.to_tensor_stft(wavs_path, sample_rate)
+    # create DataSet
+    audio_dataset = audio.AudioDataset(args.input_dataset)
 
-    # shuffle data
-    for i in tqdm(range(data.size(0) - 1)):
-        j = i + random.randint(0, sys.maxsize) // (
-                sys.maxsize // (data.size(0) - i) + 1
-        )
-        data[i, :, :, :], data[j, :, :, :] = \
-            data[j, :, :, :], data[i, :, :, :]
-
-    nb_batch = data.size()[0] // batch_size
-
-    mean_vec = th.zeros(rand_channel)  # th.randn(rand_channel)
-    rand_mat = th.randn(rand_channel, rand_channel)
-    cov_mat = th.eye(rand_channel,
-                     rand_channel)  # rand_mat.t().matmul(rand_mat)
-    multi_norm = th.distributions.MultivariateNormal(mean_vec, cov_mat)
+    data_loader = DataLoader(
+        audio_dataset,
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=8,
+        drop_last=True
+    )
 
     mlflow.log_params({
         "rand_channel": rand_channel,
@@ -141,11 +128,11 @@ def main() -> None:
         "batch_size": batch_size,
         "disc_lr": disc_lr,
         "gen_lr": gen_lr,
-        "sample_rate": sample_rate
+        "sample_rate": sample_rate,
+        "adam_betas": betas,
+        "width": width,
+        "height": height
     })
-
-    mlflow.log_param("cov_mat", cov_mat.tolist())
-    mlflow.log_param("mean_vec", mean_vec.tolist())
 
     with mlflow.start_run(run_name="train", nested=True):
 
@@ -158,32 +145,31 @@ def main() -> None:
         grad_pen_list = [0. for _ in range(metric_window)]
         gen_loss_list = [0. for _ in range(metric_window)]
 
+        iter_idx = 0
+        save_idx = 0
+
+        save_every = 1000
+
         for e in range(nb_epoch):
 
-            # shuffle tensor
-            batch_idx_list = list(range(nb_batch))
-            random.shuffle(batch_idx_list)
-            tqdm_bar = tqdm(batch_idx_list)
+            tqdm_bar = tqdm(data_loader)
 
-            iter_idx = 0
-
-            for b_idx in tqdm_bar:
-                i_min = b_idx * batch_size
-                i_max = (b_idx + 1) * batch_size
-
+            for x_real in tqdm_bar:
                 # train discriminator
 
-                # sample real data
-                x_real = data[i_min:i_max, :, :, :].cuda()
+                # pass data to cuda
+                x_real = x_real.cuda().to(th.float)
 
-                # sample fake data
-                rand_fake = multi_norm.sample(
-                    (i_max - i_min, rand_width, rand_height)) \
-                    .permute(0, 3, 1, 2) \
-                    .cuda()
+                # sample random latent data
+                z = th.randn(
+                    batch_size,
+                    rand_channel,
+                    height,
+                    width
+                ).cuda()
 
                 # gen fake data
-                x_fake = gen(rand_fake)
+                x_fake = gen(z)
 
                 # pass real data and gen data to discriminator
                 out_real = disc(x_real)
@@ -225,15 +211,16 @@ def main() -> None:
 
                 # train generator
                 if iter_idx % 5 == 0:
-
-                    # sample random data
-                    rand_fake = multi_norm.sample(
-                        (i_max - i_min, rand_width, rand_height)) \
-                        .permute(0, 3, 1, 2) \
-                        .cuda()
+                    # sample random latent data
+                    z = th.randn(
+                        batch_size,
+                        rand_channel,
+                        height,
+                        width
+                    ).cuda()
 
                     # generate fake data
-                    x_fake = gen(rand_fake)
+                    x_fake = gen(z)
 
                     # pass to discriminator
                     out_fake = disc(x_fake)
@@ -262,7 +249,9 @@ def main() -> None:
 
                 # update tqdm bar
                 tqdm_bar.set_description(
-                    f"Epoch {e:02} - disc, "
+                    f"Epoch {e:02} "
+                    f"[{iter_idx // save_every:03}: "
+                    f"{iter_idx % save_every:03} / {save_every}], "
                     f"disc_loss = {mean(disc_loss_list):.6f}, "
                     f"gen_loss = {mean(gen_loss_list):.6f}, "
                     f"disc_grad_pen = {mean(grad_pen_list):.2f}, "
@@ -273,74 +262,78 @@ def main() -> None:
 
                 # log metrics
                 if iter_idx % 200 == 0:
-                    mlflow.log_metrics({
+                    mlflow.log_metrics(step=e, metrics={
                         "disc_loss": disc_loss.item(),
                         "gen_loss": gen_loss.item(),
                         "batch_tp_error": error_tp[-1],
                         "batch_tn_error": error_tn[-1],
                         "disc_grad_norm_mean": disc_grad_norm.item(),
                         "gen_grad_norm_mean": gen_grad_norm.item()
-                    },
-                        step=e)
+                    })
+
+                if iter_idx % save_every == 0:
+
+                    # Generate sound
+                    with th.no_grad():
+
+                        for gen_idx in range(3):
+                            z = th.randn(
+                                1, rand_channel,
+                                height * 5, width
+                            ).cuda()
+
+                            x_fake = gen(z)
+
+                            audio.magn_phase_to_wav(
+                                x_fake.detach().cpu(),
+                                join(output_dir,
+                                     f"sound_{save_idx}_ID{gen_idx}.wav"),
+                                sample_rate
+                            )
+
+                            # log gen sound
+                            mlflow.log_artifact(
+                                join(output_dir,
+                                     f"sound_{save_idx}_ID{gen_idx}.wav")
+                            )
+
+                    # Save discriminator
+                    th.save(
+                        disc.state_dict(),
+                        join(output_dir, f"disc_{save_idx}.pt")
+                    )
+                    th.save(
+                        optim_disc.state_dict(),
+                        join(output_dir, f"optim_disc_{save_idx}.pt")
+                    )
+
+                    # save generator
+                    th.save(
+                        gen.state_dict(),
+                        join(output_dir, f"gen_{save_idx}.pt")
+                    )
+                    th.save(
+                        optim_gen.state_dict(),
+                        join(output_dir, f"optim_gen_{save_idx}.pt")
+                    )
+
+                    # log models & optim to mlflow
+                    mlflow.log_artifact(
+                        join(output_dir, f"gen_{save_idx}.pt")
+                    )
+                    mlflow.log_artifact(
+                        join(output_dir, f"optim_gen_{save_idx}.pt")
+                    )
+                    mlflow.log_artifact(
+                        join(output_dir, f"disc_{save_idx}.pt")
+                    )
+                    mlflow.log_artifact(
+                        join(output_dir, f"optim_disc_{save_idx}.pt")
+                    )
+
+                    save_idx += 1
 
                 iter_idx += 1
-
-            # Generate sound
-            with th.no_grad():
-
-                for gen_idx in range(3):
-                    # 10 seconds
-                    rand_fake = multi_norm.sample(
-                        (1, rand_width * 10, rand_height)) \
-                        .permute(0, 3, 1, 2) \
-                        .cuda()
-
-                    x_fake = gen(rand_fake)
-
-                    read_audio.stft_to_wav(
-                        x_fake.detach().cpu(),
-                        join(output_dir, f"gen_epoch_{e}_ID{gen_idx}.wav"),
-                        sample_rate
-                    )
-
-                    # log gen sound
-                    mlflow.log_artifact(
-                        join(output_dir, f"gen_epoch_{e}_ID{gen_idx}.wav")
-                    )
-
-            # Save discriminator
-            th.save(
-                disc.state_dict(),
-                join(output_dir, f"disc_epoch_{e}.pt")
-            )
-            th.save(
-                optim_disc.state_dict(),
-                join(output_dir, f"optim_disc_epoch_{e}.pt")
-            )
-
-            # save generator
-            th.save(
-                gen.state_dict(),
-                join(output_dir, f"gen_epoch_{e}.pt")
-            )
-            th.save(
-                optim_gen.state_dict(),
-                join(output_dir, f"optim_gen_epoch_{e}.pt")
-            )
-
-            # log models & optim to mlflow
-            mlflow.log_artifact(
-                join(output_dir, f"gen_epoch_{e}.pt")
-            )
-            mlflow.log_artifact(
-                join(output_dir, f"optim_gen_epoch_{e}.pt")
-            )
-            mlflow.log_artifact(
-                join(output_dir, f"disc_epoch_{e}.pt")
-            )
-            mlflow.log_artifact(
-                join(output_dir, f"optim_disc_epoch_{e}.pt")
-            )
 
 
 if __name__ == '__main__':

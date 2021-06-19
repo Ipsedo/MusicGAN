@@ -1,5 +1,5 @@
-from networks import STFTGenerator
-from read_audio import stft_to_wav
+from networks import Generator
+import audio
 
 import torch as th
 
@@ -15,6 +15,7 @@ def main() -> None:
     parser = argparse.ArgumentParser("Generate sound")
 
     parser.add_argument("gen_dict_state", type=str)
+    parser.add_argument("rand_channels", type=int)
     parser.add_argument("nb_vec", type=int)
     parser.add_argument("nb_music", type=int)
 
@@ -22,31 +23,39 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    rand_channel = 32
-
-    nb_height = 4
-    nb_width = args.nb_vec
-
     if not exists(args.out_dir):
         mkdir(args.out_dir)
     elif exists(args.out_dir) and not isdir(args.out_dir):
         raise NotADirectoryError(f"\"{args.out_dir}\" is not a directory")
 
     print("Load model...")
-    gen = STFTGenerator(rand_channel, 2)
+    gen = Generator(args.rand_channel)
     gen.load_state_dict(th.load(args.gen_dict_state))
 
-    rand_data = th.randn(args.nb_music, rand_channel, nb_width, nb_height)
+    height = 2
+    width = 2
 
     with th.no_grad():
         print("Pass rand data to generator...")
-        gen_sound = gen(rand_data)
+
+        z = th.randn(
+            args.nb_music,
+            args.rand_channel,
+            height * args.nb_vec,
+            width
+        )
+
+        gen_sound = gen(z)
 
         print("Saving sound...")
         for i in tqdm(range(gen_sound.size()[0])):
-            out_sound_path = join(args.out_dir, f"gen_{i}.wav")
+            out_sound_path = join(args.out_dir, f"sound_{i}.wav")
 
-            stft_to_wav(gen_sound[i, None, :, :, :].detach(), out_sound_path, 44100)
+            audio.magn_phase_to_wav(
+                gen_sound[i, None, :, :, :].detach(),
+                out_sound_path,
+                44100
+            )
 
 
 if __name__ == '__main__':
