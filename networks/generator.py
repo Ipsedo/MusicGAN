@@ -20,17 +20,12 @@ class Block(nn.Module):
                 padding=(1, 1),
                 output_padding=(1, 1)
             ),
-            nn.BatchNorm2d(out_channels)
-        )
 
-        if last_layer:
-            self.__block.add_module(
-                "2", nn.Tanh()
-            )
-        else:
-            self.__block.add_module(
-                "2", nn.LeakyReLU(2e-1)
-            )
+            nn.BatchNorm2d(out_channels),
+
+            nn.Tanh() if last_layer
+            else nn.LeakyReLU(2e-1)
+        )
 
     def forward(
             self,
