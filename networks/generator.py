@@ -18,7 +18,8 @@ class Block(nn.Module):
                 kernel_size=(3, 3),
                 stride=(2, 2),
                 padding=(1, 1),
-                output_padding=(1, 1)
+                output_padding=(1, 1),
+                bias=False
             ),
 
             nn.BatchNorm2d(out_channels),

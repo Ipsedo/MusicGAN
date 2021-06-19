@@ -17,7 +17,8 @@ class ConvBlock(nn.Module):
                 out_channels,
                 kernel_size=(3, 3),
                 stride=(2, 2),
-                padding=(1, 1)
+                padding=(1, 1),
+                bias=False
             ),
             nn.BatchNorm2d(out_channels),
             nn.LeakyReLU(2e-1)
