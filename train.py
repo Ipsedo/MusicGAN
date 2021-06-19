@@ -60,8 +60,8 @@ def main() -> None:
 
     rand_channel = 256
 
-    disc_lr = 2e-4
-    gen_lr = 2e-4
+    disc_lr = 2e-3
+    gen_lr = 2e-3
 
     nb_epoch = 1000
     batch_size = 8
@@ -120,12 +120,6 @@ def main() -> None:
         drop_last=True
     )
 
-    mean_vec = th.zeros(rand_channel)  # th.randn(rand_channel)
-    rand_mat = th.randn(rand_channel, rand_channel)
-    cov_mat = th.eye(rand_channel,
-                     rand_channel)  # rand_mat.t().matmul(rand_mat)
-    multi_norm = th.distributions.MultivariateNormal(mean_vec, cov_mat)
-
     mlflow.log_params({
         "rand_channel": rand_channel,
         "nb_epoch": nb_epoch,
@@ -135,9 +129,6 @@ def main() -> None:
         "sample_rate": sample_rate,
         "adam_betas": betas
     })
-
-    mlflow.log_param("cov_mat", cov_mat.tolist())
-    mlflow.log_param("mean_vec", mean_vec.tolist())
 
     with mlflow.start_run(run_name="train", nested=True):
 
@@ -160,13 +151,8 @@ def main() -> None:
                 # pass data to cuda
                 x_real = x_real.cuda().to(th.float)
 
-                # sample fake data
-                rand_fake = multi_norm.sample(
-                    (batch_size,)) \
-                    .cuda()
-
                 # gen fake data
-                x_fake = gen(rand_fake)
+                x_fake = gen(batch_size)
 
                 # pass real data and gen data to discriminator
                 out_real = disc(x_real)
@@ -208,13 +194,8 @@ def main() -> None:
 
                 # train generator
                 if iter_idx % 5 == 0:
-                    # sample random data
-                    rand_fake = multi_norm.sample(
-                        (batch_size,)) \
-                        .cuda()
-
                     # generate fake data
-                    x_fake = gen(rand_fake)
+                    x_fake = gen(batch_size)
 
                     # pass to discriminator
                     out_fake = disc(x_fake)
@@ -268,12 +249,8 @@ def main() -> None:
             with th.no_grad():
 
                 for gen_idx in range(3):
-                    # 10 seconds
-                    rand_fake = multi_norm.sample(
-                        (1,)) \
-                        .cuda()
 
-                    x_fake = gen(rand_fake, 10)
+                    x_fake = gen(1, 5)
 
                     audio.magn_phase_to_wav(
                         x_fake.detach().cpu(),

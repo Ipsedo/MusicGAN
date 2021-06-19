@@ -33,7 +33,7 @@ def main() -> None:
         raise NotADirectoryError(f"\"{args.out_dir}\" is not a directory")
 
     print("Load model...")
-    gen = Generator(rand_channel, 2)
+    gen = Generator(rand_channel)
     gen.load_state_dict(th.load(args.gen_dict_state))
 
     rand_data = th.randn(args.nb_music, rand_channel, nb_width, nb_height)
