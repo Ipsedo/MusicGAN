@@ -53,10 +53,11 @@ def wav_to_stft(
         raw_audio_mono,
         pad=0, window=hann_window,
         n_fft=nperseg, hop_length=stride, win_length=nperseg,
-        power=None, normalized=True
+        power=None, normalized=True,
+        return_complex=True
     )
 
-    complex_values = complex_values.permute(1, 0, 2)
+    complex_values = complex_values.permute(1, 0)
 
     return complex_values
 
@@ -65,7 +66,9 @@ def stft_to_phase_magn(
         complex_values: th.Tensor,
         nb_vec: int = 512
 ) -> Tuple[th.Tensor, th.Tensor]:
-    magn, phase = th_audio_f.magphase(complex_values)
+
+    magn = th.abs(complex_values)
+    phase = th.angle(complex_values)
 
     magn = th.log(magn + 1)
 
