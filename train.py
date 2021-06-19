@@ -58,12 +58,12 @@ def main() -> None:
 
     sample_rate = 44100
 
-    rand_channel = 32
-    height = 2
-    width = 2
+    rand_channel = 128
+    height = 1
+    width = 1
 
-    disc_lr = 2e-3
-    gen_lr = 2e-3
+    disc_lr = 1e-3
+    gen_lr = 1e-3
 
     nb_epoch = 1000
     batch_size = 16

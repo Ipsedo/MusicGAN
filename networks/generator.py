@@ -18,7 +18,8 @@ class NoiseLayer(nn.Module):
             x: th.Tensor
     ) -> th.Tensor:
         noise = th.randn(
-            x.size()[0], 1, x.size()[2], x.size()[3],
+            x.size()[0], 1,
+            x.size()[2], x.size()[3],
             device=x.device
         )
 
@@ -27,7 +28,8 @@ class NoiseLayer(nn.Module):
         return out
 
     def __repr__(self):
-        return f"NoiseLayer({self.__weights.size()[1]})"
+        return f"NoiseLayer" \
+               f"({self.__weights.size()[1]})"
 
     def __str__(self):
         return self.__repr__()
@@ -37,7 +39,6 @@ class Block(nn.Module):
     def __init__(
             self,
             in_channels: int,
-            hidden_channels: int,
             out_channels: int,
             last_layer: bool
     ):
@@ -46,22 +47,33 @@ class Block(nn.Module):
         self.__block = nn.Sequential(
             nn.ConvTranspose2d(
                 in_channels,
-                hidden_channels,
-                stride=(2, 2),
+                out_channels,
                 kernel_size=(3, 3),
+                stride=(2, 2),
                 padding=(1, 1),
                 output_padding=(1, 1)
             )
         )
 
         if last_layer:
-            self.__block.add_module("2", nn.Tanh())
+            self.__block.add_module(
+                "2", nn.Tanh()
+            )
         else:
-            self.__block.add_module("2", nn.LeakyReLU(2e-1))
-            self.__block.add_module("3", NoiseLayer(out_channels))
-            self.__block.add_module("4", nn.InstanceNorm2d(
-                out_channels, affine=True
-            ))
+            self.__block.add_module(
+                "2", NoiseLayer(out_channels)
+            )
+
+            self.__block.add_module(
+                "3", nn.InstanceNorm2d(
+                    out_channels,
+                    affine=True
+                )
+            )
+
+            self.__block.add_module(
+                "4", nn.LeakyReLU(2e-1)
+            )
 
     def forward(
             self,
@@ -80,7 +92,8 @@ class Generator(nn.Module):
         super(Generator, self).__init__()
 
         channels = [
-            (rand_channels, 224),
+            (rand_channels, 256),
+            (256, 224),
             (224, 192),
             (192, 160),
             (160, 128),
@@ -93,7 +106,7 @@ class Generator(nn.Module):
         # Generator layers
         self.__gen_blocks = nn.Sequential(*[
             Block(
-                c[0], c[1], c[1],
+                c[0], c[1],
                 i == len(channels) - 1
             )
             for i, c in enumerate(channels)
