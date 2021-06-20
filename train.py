@@ -61,11 +61,11 @@ def main() -> None:
     height = 2
     width = 2
 
-    disc_lr = 1e-3
-    gen_lr = 1e-3
+    disc_lr = 5e-4
+    gen_lr = 5e-4
 
     nb_epoch = 1000
-    batch_size = 16
+    batch_size = 8
 
     output_dir = args.out_path
 
