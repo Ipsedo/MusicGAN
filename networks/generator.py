@@ -27,8 +27,7 @@ class AdaIN(nn.Module):
 
         self.__to_style = nn.Linear(
             style_channels,
-            2 * channels,
-            bias=False
+            2 * channels
         )
 
         self.__inst_norm = nn.InstanceNorm2d(
