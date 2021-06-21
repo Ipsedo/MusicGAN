@@ -60,6 +60,7 @@ def main() -> None:
     rand_channel = 64
     height = 2
     width = 2
+    style_rand_channel = 256
 
     disc_lr = 5e-4
     gen_lr = 5e-4
@@ -77,7 +78,8 @@ def main() -> None:
         )
 
     gen = networks.Generator(
-        rand_channel
+        rand_channel,
+        style_rand_channel
     )
 
     disc = networks.Discriminator(2)
@@ -123,6 +125,7 @@ def main() -> None:
 
     mlflow.log_params({
         "rand_channel": rand_channel,
+        "style_rand_channel": style_rand_channel,
         "nb_epoch": nb_epoch,
         "batch_size": batch_size,
         "disc_lr": disc_lr,
@@ -168,8 +171,14 @@ def main() -> None:
                     device="cuda"
                 )
 
+                z_style = th.randn(
+                    batch_size,
+                    style_rand_channel,
+                    device="cuda"
+                )
+
                 # gen fake data
-                x_fake = gen(z)
+                x_fake = gen(z, z_style)
 
                 # pass real data and gen data to discriminator
                 out_real = disc(x_real)
@@ -220,8 +229,14 @@ def main() -> None:
                         device="cuda"
                     )
 
+                    z_style = th.randn(
+                        batch_size,
+                        style_rand_channel,
+                        device="cuda"
+                    )
+
                     # generate fake data
-                    x_fake = gen(z)
+                    x_fake = gen(z, z_style)
 
                     # pass to discriminator
                     out_fake = disc(x_fake)
@@ -284,7 +299,13 @@ def main() -> None:
                                 device="cuda"
                             )
 
-                            x_fake = gen(z)
+                            z_style = th.randn(
+                                1,
+                                style_rand_channel,
+                                device="cuda"
+                            )
+
+                            x_fake = gen(z, z_style)
 
                             audio.magn_phase_to_wav(
                                 x_fake.detach().cpu(),
