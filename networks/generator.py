@@ -142,13 +142,29 @@ class LinearBlock(nn.Sequential):
         )
 
 
+class ToMagnPhaseLayer(nn.Sequential):
+    def __init__(self, in_channels: int):
+        super(ToMagnPhaseLayer, self).__init__(
+            nn.Conv2d(
+                in_channels, 2,
+                kernel_size=(3,3),
+                stride=(1, 1),
+                padding=(1, 1)
+            ),
+            nn.Tanh()
+        )
+
+
 class Generator(nn.Module):
     def __init__(
             self,
             rand_channels: int,
-            style_channels: int
+            style_channels: int,
+            start_layer: int = 0
     ):
         super(Generator, self).__init__()
+
+        self.__start_layer = start_layer
 
         channels = [
             (rand_channels, 224),
@@ -161,8 +177,10 @@ class Generator(nn.Module):
             (32, 2)
         ]
 
+        assert 0 <= start_layer < len(channels)
+
         # Generator layers
-        self.__gen_blocks = nn.Sequential(*[
+        self.__gen_blocks = nn.ModuleList([
             Block(
                 c[0], c[1],
                 style_channels
@@ -171,6 +189,12 @@ class Generator(nn.Module):
                 c[0], c[1]
             )
             for i, c in enumerate(channels)
+        ])
+
+        # for progressive gan
+        self.__end_blocks = nn.ModuleList([
+            ToMagnPhaseLayer(c[0])
+            for c in channels[1:]
         ])
 
         self.__style_network = nn.Sequential(*[
@@ -187,7 +211,27 @@ class Generator(nn.Module):
 
         out = z
 
-        for m in self.__gen_blocks:
+        for i, m in enumerate(self.__gen_blocks):
             out = m(out, style)
 
+            if i >= self.__start_layer:
+                break
+
+        if self.__start_layer < len(self.__gen_blocks) - 1:
+            out = self.__end_blocks[self.__start_layer](out)
+
         return out
+
+    def next_layer(self) -> None:
+        self.__start_layer += 1
+
+        if self.__start_layer >= len(self.__gen_blocks):
+            self.__start_layer = len(self.__gen_blocks) - 1
+
+    @property
+    def nb_layer(self) -> int:
+        return len(self.__gen_blocks)
+
+    @property
+    def curr_layer(self) -> int:
+        return self.__start_layer
