@@ -16,6 +16,37 @@ class PixelNorm(nn.Module):
 
         return x / norm
 
+    def __repr__(self):
+        return f"PixelNorm(eps={self.__epsilon})"
+
+    def __str__(self):
+        return self.__repr__()
+
+
+class NoiseLayer(nn.Module):
+    def __init__(self, channels: int):
+        super(NoiseLayer, self).__init__()
+
+        self.__channels = channels
+
+        self.__to_noise = nn.Linear(1, channels, bias=False)
+
+    def forward(self, x: th.Tensor) -> th.Tensor:
+        device = "cuda" if next(self.parameters()).is_cuda else "cpu"
+        b, c, w, h = x.size()
+
+        rand_per_pixel = th.randn(b, w, h, 1, device=device)
+
+        out = x + self.__to_noise(rand_per_pixel).permute(0, 3, 1, 2)
+
+        return out
+
+    def __repr__(self):
+        return f"NoiseLayer({self.__channels})"
+
+    def __str__(self):
+        return self.__repr__()
+
 
 class AdaIN(nn.Module):
     def __init__(
@@ -84,24 +115,31 @@ class Block(nn.Module):
             out_channels
         )
 
-        self.__lrelu = nn.LeakyReLU(2e-1)
+        self.__pn = PixelNorm()
+
+        self.__noise = NoiseLayer(out_channels)
 
         self.__adain = AdaIN(
             out_channels, style_channels
         )
+
+        self.__lrelu = nn.LeakyReLU(2e-1)
 
     def forward(
             self,
             x: th.Tensor,
             style: th.Tensor
     ) -> th.Tensor:
-        out_conv = self.__conv(x)
+        out = self.__conv(x)
+        out = self.__pn(out)
 
-        out_adain = self.__adain(out_conv, style)
+        out = self.__noise(out)
 
-        out_lrelu = self.__lrelu(out_adain)
+        out = self.__adain(out, style)
 
-        return out_lrelu
+        out = self.__lrelu(out)
+
+        return out
 
 
 class EndBlock(nn.Module):
@@ -147,7 +185,7 @@ class ToMagnPhaseLayer(nn.Sequential):
         super(ToMagnPhaseLayer, self).__init__(
             nn.Conv2d(
                 in_channels, 2,
-                kernel_size=(3,3),
+                kernel_size=(3, 3),
                 stride=(1, 1),
                 padding=(1, 1)
             ),

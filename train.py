@@ -78,8 +78,8 @@ def main() -> None:
     width = 2
     style_rand_channel = 256
 
-    disc_lr = 5e-4
-    gen_lr = 5e-4
+    disc_lr = 1e-3
+    gen_lr = 1e-3
 
     nb_epoch = 1000
     batch_size = 8
@@ -108,16 +108,12 @@ def main() -> None:
     gen.cuda()
     disc.cuda()
 
-    betas = (0.9, 0.999)
-
     optim_gen = th.optim.Adam(
-        gen.parameters(), lr=gen_lr,
-        betas=betas
+        gen.parameters(), lr=gen_lr
     )
 
     optim_disc = th.optim.Adam(
-        disc.parameters(), lr=disc_lr,
-        betas=betas
+        disc.parameters(), lr=disc_lr
     )
 
     # Load models & optimizers
@@ -152,7 +148,6 @@ def main() -> None:
         "disc_lr": disc_lr,
         "gen_lr": gen_lr,
         "sample_rate": sample_rate,
-        "adam_betas": betas,
         "width": width,
         "height": height
     })
