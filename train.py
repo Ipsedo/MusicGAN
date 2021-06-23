@@ -2,6 +2,7 @@ import audio
 import networks
 
 import torch as th
+from torchvision.transforms import Compose, Resize, Normalize
 from torch.utils.data import DataLoader
 
 from os import mkdir
@@ -9,10 +10,25 @@ from os.path import join, exists, isdir
 
 import mlflow
 
+import matplotlib.pyplot as plt
+
 import argparse
 from tqdm import tqdm
 
 from statistics import mean
+
+
+def get_transform(layer: int) -> Compose:
+    size = 512
+    downscale_factor = 7 - layer
+
+    target_size = int(size / 2 ** downscale_factor)
+
+    compose = Compose([
+        Resize(target_size)
+    ])
+
+    return compose
 
 
 def main() -> None:
@@ -77,12 +93,17 @@ def main() -> None:
             f"\"{output_dir}\" is not a directory !"
         )
 
+    curr_layer = 0
+
     gen = networks.Generator(
         rand_channel,
-        style_rand_channel
+        style_rand_channel,
+        start_layer=curr_layer
     )
 
-    disc = networks.Discriminator(2)
+    disc = networks.Discriminator(
+        2, start_layer=7 - curr_layer
+    )
 
     gen.cuda()
     disc.cuda()
@@ -136,6 +157,8 @@ def main() -> None:
         "height": height
     })
 
+    transform = get_transform(curr_layer)
+
     with mlflow.start_run(run_name="train", nested=True):
 
         metric_window = 20
@@ -151,6 +174,7 @@ def main() -> None:
         save_idx = 0
 
         save_every = 1000
+        grow_every = 100000
 
         for e in range(nb_epoch):
 
@@ -161,6 +185,7 @@ def main() -> None:
 
                 # pass data to cuda
                 x_real = x_real.cuda().to(th.float)
+                x_real = transform(x_real)
 
                 # sample random latent data
                 z = th.randn(
@@ -209,10 +234,6 @@ def main() -> None:
                 del error_tn[0]
                 del error_tp[0]
 
-                disc_grad_norm = th.tensor(
-                    [p.grad.norm() for p in disc.parameters()]
-                ).mean()
-
                 del disc_loss_list[0]
                 del grad_pen_list[0]
                 disc_loss_list.append(disc_loss.item())
@@ -253,10 +274,6 @@ def main() -> None:
                     optim_gen.step()
 
                     # generator metrics
-                    gen_grad_norm = th.tensor(
-                        [p.grad.norm() for p in gen.parameters()]
-                    ).mean()
-
                     del error_gen[0]
                     error_gen.append(out_fake.mean().item())
 
@@ -282,9 +299,7 @@ def main() -> None:
                         "disc_loss": disc_loss.item(),
                         "gen_loss": gen_loss.item(),
                         "batch_tp_error": error_tp[-1],
-                        "batch_tn_error": error_tn[-1],
-                        "disc_grad_norm_mean": disc_grad_norm.item(),
-                        "gen_grad_norm_mean": gen_grad_norm.item()
+                        "batch_tn_error": error_tn[-1]
                     })
 
                 if iter_idx % save_every == 0:
@@ -292,10 +307,10 @@ def main() -> None:
                     # Generate sound
                     with th.no_grad():
 
-                        for gen_idx in range(3):
+                        for gen_idx in range(1):
                             z = th.randn(
                                 1, rand_channel,
-                                height * 5, width,
+                                height, width,
                                 device="cuda"
                             )
 
@@ -307,17 +322,39 @@ def main() -> None:
 
                             x_fake = gen(z, z_style)
 
-                            audio.magn_phase_to_wav(
-                                x_fake.detach().cpu(),
-                                join(output_dir,
-                                     f"sound_{save_idx}_ID{gen_idx}.wav"),
-                                sample_rate
-                            )
+                            magn = x_fake[0, 0, :, :].detach().cpu().numpy()
+                            phase = x_fake[0, 1, :, :].detach().cpu().numpy()
 
-                            # log gen sound
+                            fig, ax = plt.subplots()
+                            ax.matshow(magn / (magn.max() - magn.min()),
+                                       cmap='plasma')
+                            plt.title("gen magn " + str(save_idx) +
+                                      " grow=" + str(curr_layer))
+                            fig.savefig(
+                                join(output_dir,
+                                     f"magn_{save_idx}_ID{gen_idx}.png")
+                            )
+                            plt.close()
+
+                            fig, ax = plt.subplots()
+                            ax.matshow(phase / (phase.max() - phase.min()),
+                                       cmap='plasma')
+                            plt.title("gen phase " + str(save_idx) +
+                                      " grow=" + str(curr_layer))
+                            fig.savefig(
+                                join(output_dir,
+                                     f"phase_{save_idx}_ID{gen_idx}.png")
+                            )
+                            plt.close()
+
                             mlflow.log_artifact(
                                 join(output_dir,
-                                     f"sound_{save_idx}_ID{gen_idx}.wav")
+                                     f"magn_{save_idx}_ID{gen_idx}.png")
+                            )
+
+                            mlflow.log_artifact(
+                                join(output_dir,
+                                     f"phase_{save_idx}_ID{gen_idx}.png")
                             )
 
                     # Save discriminator
@@ -357,6 +394,15 @@ def main() -> None:
                     save_idx += 1
 
                 iter_idx += 1
+
+                if iter_idx % grow_every == grow_every - 1:
+                    curr_layer += 1
+                    transform = get_transform(curr_layer)
+
+                    gen.next_layer()
+                    disc.next_layer()
+
+                    print("up_layer", gen.curr_layer, "/", gen.nb_layer)
 
 
 if __name__ == '__main__':
