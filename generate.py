@@ -29,7 +29,7 @@ def main() -> None:
         raise NotADirectoryError(f"\"{args.out_dir}\" is not a directory")
 
     print("Load model...")
-    gen = Generator(args.rand_channel)
+    gen = Generator(args.rand_channel, 7)
     gen.load_state_dict(th.load(args.gen_dict_state))
 
     height = 2

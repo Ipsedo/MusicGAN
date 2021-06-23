@@ -101,7 +101,7 @@ class Discriminator(nn.Module):
         out = x
 
         if self.__curr_layer >= 1:
-            # -2 -> -1 disc has one layer more then gen
+            # -1 disc has one layer more then gen
             out = self.___start_blocks[self.__curr_layer - 1](out)
 
         for i in range(self.__curr_layer, len(self.__conv_blocks)):
