@@ -117,8 +117,6 @@ class Block(nn.Module):
 
         self.__pn = PixelNorm()
 
-        self.__noise = NoiseLayer(out_channels)
-
         self.__adain = AdaIN(
             out_channels, style_channels
         )
@@ -132,8 +130,6 @@ class Block(nn.Module):
     ) -> th.Tensor:
         out = self.__conv(x)
         out = self.__pn(out)
-
-        out = self.__noise(out)
 
         out = self.__adain(out, style)
 
