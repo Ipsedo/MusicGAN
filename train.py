@@ -78,8 +78,8 @@ def main() -> None:
     width = 2
     style_rand_channel = 256
 
-    disc_lr = 1e-4
-    gen_lr = 1e-4
+    disc_lr = 2e-5
+    gen_lr = 2e-5
 
     nb_epoch = 1000
     batch_size = 8
