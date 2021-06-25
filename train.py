@@ -392,6 +392,10 @@ def main() -> None:
 
                 if iter_idx % grow_every == grow_every - 1:
                     curr_layer += 1
+
+                    if curr_layer > 7:
+                        curr_layer = 7
+
                     transform = get_transform(curr_layer)
 
                     gen.next_layer()
