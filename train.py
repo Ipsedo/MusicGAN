@@ -78,8 +78,8 @@ def main() -> None:
     width = 2
     style_rand_channel = 256
 
-    disc_lr = 2e-5
-    gen_lr = 2e-5
+    disc_lr = 1e-4
+    gen_lr = 1e-4
 
     nb_epoch = 1000
     batch_size = 8
@@ -169,7 +169,7 @@ def main() -> None:
         save_idx = 0
 
         save_every = 1000
-        grow_every = 100000
+        grow_every = 50000
 
         for e in range(nb_epoch):
 
@@ -394,6 +394,7 @@ def main() -> None:
                     curr_layer += 1
 
                     if curr_layer > 7:
+                        print("finish")
                         curr_layer = 7
 
                     transform = get_transform(curr_layer)

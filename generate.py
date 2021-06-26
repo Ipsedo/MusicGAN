@@ -29,7 +29,7 @@ def main() -> None:
         raise NotADirectoryError(f"\"{args.out_dir}\" is not a directory")
 
     print("Load model...")
-    gen = Generator(args.rand_channel, 7)
+    gen = Generator(args.rand_channels, 256, 6)
     gen.load_state_dict(th.load(args.gen_dict_state))
 
     height = 2
@@ -40,12 +40,14 @@ def main() -> None:
 
         z = th.randn(
             args.nb_music,
-            args.rand_channel,
+            args.rand_channels,
             height * args.nb_vec,
             width
         )
 
-        gen_sound = gen(z)
+        z_style = th.randn(args.nb_music, 256)
+
+        gen_sound = gen(z, z_style)
 
         print("Saving sound...")
         for i in tqdm(range(gen_sound.size()[0])):
