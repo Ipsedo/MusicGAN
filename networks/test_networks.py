@@ -6,13 +6,13 @@ if __name__ == '__main__':
     rand_channels = 64
     style_channels = 256
 
-    gen = Generator(rand_channels, style_channels, 0)
+    gen = Generator(rand_channels, style_channels, 1)
     disc = Discriminator(2, 7)
 
     print(gen)
     print(disc)
 
-    for i in range(gen.nb_layer+3):
+    for i in range(gen.down_sample + 3):
         rand = th.randn(5, rand_channels, 2, 2)
 
         print("input_size :", rand.size())

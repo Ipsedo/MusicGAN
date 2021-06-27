@@ -97,7 +97,7 @@ def main() -> None:
     gen = networks.Generator(
         rand_channel,
         style_rand_channel,
-        start_layer=0
+        start_layer=1
     )
 
     disc = networks.Discriminator(
@@ -168,7 +168,7 @@ def main() -> None:
         save_idx = 0
 
         save_every = 1000
-        grow_every = 10000
+        grow_every = 50000
 
         for e in range(nb_epoch):
 
