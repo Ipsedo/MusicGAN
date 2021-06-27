@@ -6,17 +6,17 @@ if __name__ == '__main__':
     rand_channels = 64
     style_channels = 256
 
-    gen = Generator(rand_channels, style_channels, 1).cuda()
-    disc = Discriminator(2).cuda()
+    gen = Generator(rand_channels, style_channels, 0)
+    disc = Discriminator(2, 7)
 
     print(gen)
     print(disc)
 
     for i in range(gen.nb_layer+3):
-        rand = th.randn(5, rand_channels, 2, 2).cuda()
+        rand = th.randn(5, rand_channels, 2, 2)
 
         print("input_size :", rand.size())
-        style_rand = th.randn(5, style_channels).cuda()
+        style_rand = th.randn(5, style_channels)
 
         out = gen(rand, style_rand)
 

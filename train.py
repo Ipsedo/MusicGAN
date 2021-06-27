@@ -18,9 +18,8 @@ from tqdm import tqdm
 from statistics import mean
 
 
-def get_transform(layer: int) -> Compose:
+def get_transform(downscale_factor: int) -> Compose:
     size = 512
-    downscale_factor = 7 - layer + 1
 
     target_size = int(size / 2 ** downscale_factor)
 
@@ -94,6 +93,7 @@ def main() -> None:
         )
 
     curr_layer = 1
+    scale_factor = 8
 
     gen = networks.Generator(
         rand_channel,
@@ -152,7 +152,7 @@ def main() -> None:
         "height": height
     })
 
-    transform = get_transform(curr_layer)
+    transform = get_transform(scale_factor)
 
     with mlflow.start_run(run_name="train", nested=True):
 
@@ -392,12 +392,13 @@ def main() -> None:
 
                 if iter_idx % grow_every == grow_every - 1:
                     curr_layer += 1
+                    scale_factor -= 1
 
                     if curr_layer > 7:
                         print("finish")
                         curr_layer = 7
 
-                    transform = get_transform(curr_layer)
+                    transform = get_transform(scale_factor)
 
                     gen.next_layer()
                     disc.next_layer()
