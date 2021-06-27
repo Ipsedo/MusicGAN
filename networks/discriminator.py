@@ -3,15 +3,13 @@ import torch.nn as nn
 import torch.autograd as th_autograd
 
 
-class ConvBlock(nn.Module):
+class ConvBlock(nn.Sequential):
     def __init__(
             self,
             in_channels: int,
             out_channels: int
     ):
-        super(ConvBlock, self).__init__()
-
-        self.__conv = nn.Sequential(
+        super(ConvBlock, self).__init__(
             nn.Conv2d(
                 in_channels,
                 out_channels,
@@ -23,15 +21,10 @@ class ConvBlock(nn.Module):
             nn.LeakyReLU(2e-1)
         )
 
-    def forward(self, x: th.Tensor) -> th.Tensor:
-        return self.__conv(x)
 
-
-class MagPhaseLayer(nn.Module):
+class MagPhaseLayer(nn.Sequential):
     def __init__(self, out_channels: int):
-        super(MagPhaseLayer, self).__init__()
-
-        self.__conv = nn.Sequential(
+        super(MagPhaseLayer, self).__init__(
             nn.Conv2d(
                 2, out_channels,
                 kernel_size=(3, 3),
@@ -40,9 +33,6 @@ class MagPhaseLayer(nn.Module):
             ),
             nn.LeakyReLU(2e-1)
         )
-
-    def forward(self, x: th.Tensor) -> th.Tensor:
-        return self.__conv(x)
 
 
 class Discriminator(nn.Module):
