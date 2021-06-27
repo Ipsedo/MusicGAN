@@ -1,6 +1,8 @@
 import torch as th
 import torch.nn as nn
 
+from typing import Tuple
+
 
 class PixelNorm(nn.Module):
     def __init__(self, epsilon: float = 1e-8):
@@ -101,22 +103,40 @@ class AdaIN(nn.Module):
         )"""
 
 
-class GenConv2d(nn.Sequential):
-    def __init__(self, in_channels: int, out_channels: int):
-        super(GenConv2d, self).__init__(
-            nn.Upsample(
+class GenConv2d(nn.Module):
+    def __init__(
+            self,
+            in_channels: int,
+            out_channels: int,
+            up_sample: bool
+    ):
+        super(GenConv2d, self).__init__()
+
+        self.__is_up_sample = up_sample
+        if up_sample:
+            self.__up_sample = nn.Upsample(
                 scale_factor=2.,
                 mode="bilinear",
                 align_corners=True
-            ),
-            nn.Conv2d(
-                in_channels,
-                out_channels,
-                kernel_size=(3, 3),
-                stride=(1, 1),
-                padding=(1, 1)
             )
+
+        self.__conv = nn.Conv2d(
+            in_channels,
+            out_channels,
+            kernel_size=(3, 3),
+            stride=(1, 1),
+            padding=(1, 1)
         )
+
+    def forward(self, x: th.Tensor) -> th.Tensor:
+        out = x
+
+        if self.__is_up_sample:
+            out = self.__up_sample(out)
+
+        out = self.__conv(out)
+
+        return out
 
 
 class Block(nn.Module):
@@ -124,64 +144,51 @@ class Block(nn.Module):
             self,
             in_channels: int,
             out_channels: int,
-            style_channels: int
+            style_channels: int,
+            up_sample: bool,
+            end_block: bool
     ):
         super(Block, self).__init__()
 
         self.__conv = GenConv2d(
             in_channels,
-            out_channels
+            out_channels,
+            up_sample
         )
 
-        self.__pn = PixelNorm()
+        self.__end_block = end_block
 
-        self.__noise = NoiseLayer(out_channels)
+        if end_block:
+            self.__tanh = nn.Tanh()
+        else:
+            self.__pn = PixelNorm()
 
-        self.__adain = AdaIN(
-            out_channels, style_channels
-        )
+            self.__noise = NoiseLayer(out_channels)
 
-        self.__lrelu = nn.LeakyReLU(2e-1)
+            self.__adain = AdaIN(
+                out_channels, style_channels
+            )
+
+            self.__lrelu = nn.LeakyReLU(2e-1)
 
     def forward(
             self,
             x: th.Tensor,
             style: th.Tensor
-    ) -> th.Tensor:
+    ) -> Tuple[th.Tensor, th.Tensor]:
         out = self.__conv(x)
-        out = self.__pn(out)
 
-        out = self.__noise(out)
+        if self.__end_block:
+            out = self.__tanh(out)
 
-        out = self.__adain(out, style)
+        else:
+            out = self.__pn(out)
 
-        out = self.__lrelu(out)
+            out = self.__noise(out)
 
-        return out
+            out = self.__adain(out, style)
 
-
-class EndBlock(nn.Module):
-    def __init__(
-            self,
-            in_channels: int,
-            out_channels: int
-    ):
-        super(EndBlock, self).__init__()
-
-        self.__block = nn.Sequential(
-            GenConv2d(
-                in_channels,
-                out_channels
-            ),
-            nn.Tanh()
-        )
-
-    def forward(
-            self,
-            x: th.Tensor,
-            unused=None
-    ) -> th.Tensor:
-        out = self.__block(x)
+            out = self.__lrelu(out)
 
         return out
 
@@ -216,14 +223,15 @@ class Generator(nn.Module):
             self,
             rand_channels: int,
             style_channels: int,
-            start_layer: int = 0
+            start_layer: int = 1
     ):
         super(Generator, self).__init__()
 
         self.__start_layer = start_layer
 
         channels = [
-            (rand_channels, 224),
+            (rand_channels, 256),
+            (256, 224),
             (224, 192),
             (192, 160),
             (160, 128),
@@ -233,16 +241,15 @@ class Generator(nn.Module):
             (32, 2)
         ]
 
-        assert 0 <= start_layer < len(channels)
+        assert 1 <= start_layer < len(channels)
 
         # Generator layers
         self.__gen_blocks = nn.ModuleList([
             Block(
                 c[0], c[1],
-                style_channels
-            ) if i != len(channels) - 1
-            else EndBlock(
-                c[0], c[1]
+                style_channels,
+                i != 0,
+                i == len(channels) - 1
             )
             for i, c in enumerate(channels)
         ])
@@ -250,7 +257,7 @@ class Generator(nn.Module):
         # for progressive gan
         self.__end_blocks = nn.ModuleList([
             ToMagnPhaseLayer(c[0])
-            for c in channels[1:]
+            for c in channels[2:]
         ])
 
         self.__style_network = nn.Sequential(*[
@@ -267,14 +274,12 @@ class Generator(nn.Module):
 
         out = z
 
-        for i, m in enumerate(self.__gen_blocks):
+        for i in range(self.curr_layer + 1):
+            m = self.__gen_blocks[i]
             out = m(out, style)
 
-            if i >= self.__start_layer:
-                break
-
-        if self.__start_layer < len(self.__gen_blocks) - 1:
-            out = self.__end_blocks[self.__start_layer](out)
+        if self.curr_layer < len(self.__gen_blocks) - 1:
+            out = self.__end_blocks[self.curr_layer - 1](out)
 
         return out
 

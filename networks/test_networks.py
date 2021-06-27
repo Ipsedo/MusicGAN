@@ -6,7 +6,7 @@ if __name__ == '__main__':
     rand_channels = 64
     style_channels = 256
 
-    gen = Generator(rand_channels, style_channels, 0).cuda()
+    gen = Generator(rand_channels, style_channels, 1).cuda()
     disc = Discriminator(2).cuda()
 
     print(gen)
