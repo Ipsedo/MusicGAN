@@ -168,7 +168,7 @@ def main() -> None:
         save_idx = 0
 
         save_every = 1000
-        grow_every = 50000
+        grow_every = 10000
 
         for e in range(nb_epoch):
 
@@ -301,7 +301,7 @@ def main() -> None:
                     # Generate sound
                     with th.no_grad():
 
-                        for gen_idx in range(1):
+                        for gen_idx in range(3):
                             z = th.randn(
                                 1, rand_channel,
                                 height, width,
@@ -390,11 +390,10 @@ def main() -> None:
                 iter_idx += 1
 
                 if iter_idx % grow_every == grow_every - 1:
-                    scale_factor -= 1
-
-                    if curr_layer > 7:
+                    if gen.curr_layer > 7:
                         print("finish")
-                        curr_layer = 7
+                    else:
+                        scale_factor -= 1
 
                     transform = get_transform(scale_factor)
 
