@@ -7,7 +7,7 @@ if __name__ == '__main__':
     style_channels = 256
 
     gen = Generator(rand_channels, style_channels, 0)
-    disc = Discriminator(2)
+    disc = Discriminator(2, 7)
 
     print(gen)
     print(disc)

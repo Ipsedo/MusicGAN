@@ -18,9 +18,8 @@ from tqdm import tqdm
 from statistics import mean
 
 
-def get_transform(layer: int) -> Compose:
+def get_transform(downscale_factor: int) -> Compose:
     size = 512
-    downscale_factor = 7 - layer
 
     target_size = int(size / 2 ** downscale_factor)
 
@@ -93,16 +92,16 @@ def main() -> None:
             f"\"{output_dir}\" is not a directory !"
         )
 
-    curr_layer = 0
+    scale_factor = 7
 
     gen = networks.Generator(
         rand_channel,
         style_rand_channel,
-        start_layer=curr_layer
+        start_layer=0
     )
 
     disc = networks.Discriminator(
-        2, start_layer=7 - curr_layer
+        2, start_layer=7
     )
 
     gen.cuda()
@@ -152,7 +151,7 @@ def main() -> None:
         "height": height
     })
 
-    transform = get_transform(curr_layer)
+    transform = get_transform(scale_factor)
 
     with mlflow.start_run(run_name="train", nested=True):
 
@@ -169,7 +168,7 @@ def main() -> None:
         save_idx = 0
 
         save_every = 1000
-        grow_every = 50000
+        grow_every = 10000
 
         for e in range(nb_epoch):
 
@@ -302,7 +301,7 @@ def main() -> None:
                     # Generate sound
                     with th.no_grad():
 
-                        for gen_idx in range(1):
+                        for gen_idx in range(3):
                             z = th.randn(
                                 1, rand_channel,
                                 height, width,
@@ -324,7 +323,7 @@ def main() -> None:
                             ax.matshow(magn / (magn.max() - magn.min()),
                                        cmap='plasma')
                             plt.title("gen magn " + str(save_idx) +
-                                      " grow=" + str(curr_layer))
+                                      " grow=" + str(gen.curr_layer))
                             fig.savefig(
                                 join(output_dir,
                                      f"magn_{save_idx}_ID{gen_idx}.png")
@@ -335,7 +334,7 @@ def main() -> None:
                             ax.matshow(phase / (phase.max() - phase.min()),
                                        cmap='plasma')
                             plt.title("gen phase " + str(save_idx) +
-                                      " grow=" + str(curr_layer))
+                                      " grow=" + str(gen.curr_layer))
                             fig.savefig(
                                 join(output_dir,
                                      f"phase_{save_idx}_ID{gen_idx}.png")
@@ -391,13 +390,12 @@ def main() -> None:
                 iter_idx += 1
 
                 if iter_idx % grow_every == grow_every - 1:
-                    curr_layer += 1
-
-                    if curr_layer > 7:
+                    if gen.curr_layer > 7:
                         print("finish")
-                        curr_layer = 7
+                    else:
+                        scale_factor -= 1
 
-                    transform = get_transform(curr_layer)
+                    transform = get_transform(scale_factor)
 
                     gen.next_layer()
                     disc.next_layer()

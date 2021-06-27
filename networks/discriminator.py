@@ -3,17 +3,24 @@ import torch.nn as nn
 import torch.autograd as th_autograd
 
 
-class ConvBlock(nn.Module):
+class ConvBlock(nn.Sequential):
     def __init__(
             self,
             in_channels: int,
+            hidden_channels: int,
             out_channels: int
     ):
-        super(ConvBlock, self).__init__()
-
-        self.__conv = nn.Sequential(
+        super(ConvBlock, self).__init__(
             nn.Conv2d(
                 in_channels,
+                hidden_channels,
+                kernel_size=(3, 3),
+                stride=(1, 1),
+                padding=(1, 1)
+            ),
+            nn.LeakyReLU(2e-1),
+            nn.Conv2d(
+                hidden_channels,
                 out_channels,
                 kernel_size=(3, 3),
                 stride=(2, 2),
@@ -22,15 +29,10 @@ class ConvBlock(nn.Module):
             nn.LeakyReLU(2e-1)
         )
 
-    def forward(self, x: th.Tensor) -> th.Tensor:
-        return self.__conv(x)
 
-
-class MagPhaseLayer(nn.Module):
+class MagPhaseLayer(nn.Sequential):
     def __init__(self, out_channels: int):
-        super(MagPhaseLayer, self).__init__()
-
-        self.__conv = nn.Sequential(
+        super(MagPhaseLayer, self).__init__(
             nn.Conv2d(
                 2, out_channels,
                 kernel_size=(3, 3),
@@ -39,9 +41,6 @@ class MagPhaseLayer(nn.Module):
             ),
             nn.LeakyReLU(2e-1)
         )
-
-    def forward(self, x: th.Tensor) -> th.Tensor:
-        return self.__conv(x)
 
 
 class Discriminator(nn.Module):
@@ -55,15 +54,15 @@ class Discriminator(nn.Module):
         assert 0 <= start_layer <= 7
 
         conv_channels = [
-            (in_channels, 32),  # 512
-            (32, 64),  # 256
-            (64, 96),  # 128
-            (96, 128),  # 64
-            (128, 160),  # 32
-            (160, 192),  # 16
-            (192, 224),  # 8
-            (224, 256),  # 4
-            (256, 288)  # 2
+            (in_channels, 32, 32),  # 512
+            (32, 64, 64),  # 256
+            (64, 96, 96),  # 128
+            (96, 128, 128),  # 64
+            (128, 160, 160),  # 32
+            (160, 192, 192),  # 16
+            (192, 224, 224),  # 8
+            (224, 256, 256),  # 4
+            (256, 288, 288)  # 2
             # 1
         ]
 
@@ -77,7 +76,8 @@ class Discriminator(nn.Module):
         self.__conv_blocks = nn.ModuleList([
             ConvBlock(
                 conv_channels[i][0],
-                conv_channels[i][1]
+                conv_channels[i][1],
+                conv_channels[i][2]
             )
             for i in range(nb_layer)
         ])
