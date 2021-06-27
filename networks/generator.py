@@ -89,7 +89,7 @@ class AdaIN(nn.Module):
         return self.__repr__()
 
 
-class GenConv2d(nn.ConvTranspose2d):
+"""class GenConv2d(nn.ConvTranspose2d):
     def __init__(self, in_channels: int, out_channels: int):
         super(GenConv2d, self).__init__(
             in_channels,
@@ -98,6 +98,24 @@ class GenConv2d(nn.ConvTranspose2d):
             stride=(2, 2),
             padding=(1, 1),
             output_padding=(1, 1)
+        )"""
+
+
+class GenConv2d(nn.Sequential):
+    def __init__(self, in_channels: int, out_channels: int):
+        super(GenConv2d, self).__init__(
+            nn.Upsample(
+                scale_factor=2.,
+                mode="bilinear",
+                align_corners=True
+            ),
+            nn.Conv2d(
+                in_channels,
+                out_channels,
+                kernel_size=(3, 3),
+                stride=(1, 1),
+                padding=(1, 1)
+            )
         )
 
 
