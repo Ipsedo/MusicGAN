@@ -20,7 +20,7 @@ from statistics import mean
 
 def get_transform(layer: int) -> Compose:
     size = 512
-    downscale_factor = 7 - layer
+    downscale_factor = 7 - layer + 1
 
     target_size = int(size / 2 ** downscale_factor)
 
@@ -102,7 +102,7 @@ def main() -> None:
     )
 
     disc = networks.Discriminator(
-        2, start_layer=gen.nb_layer - curr_layer
+        2, start_layer=7
     )
 
     gen.cuda()
