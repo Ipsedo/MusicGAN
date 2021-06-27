@@ -92,13 +92,12 @@ def main() -> None:
             f"\"{output_dir}\" is not a directory !"
         )
 
-    curr_layer = 1
-    scale_factor = 8
+    scale_factor = 7
 
     gen = networks.Generator(
         rand_channel,
         style_rand_channel,
-        start_layer=curr_layer
+        start_layer=0
     )
 
     disc = networks.Discriminator(
@@ -324,7 +323,7 @@ def main() -> None:
                             ax.matshow(magn / (magn.max() - magn.min()),
                                        cmap='plasma')
                             plt.title("gen magn " + str(save_idx) +
-                                      " grow=" + str(curr_layer))
+                                      " grow=" + str(gen.curr_layer))
                             fig.savefig(
                                 join(output_dir,
                                      f"magn_{save_idx}_ID{gen_idx}.png")
@@ -335,7 +334,7 @@ def main() -> None:
                             ax.matshow(phase / (phase.max() - phase.min()),
                                        cmap='plasma')
                             plt.title("gen phase " + str(save_idx) +
-                                      " grow=" + str(curr_layer))
+                                      " grow=" + str(gen.curr_layer))
                             fig.savefig(
                                 join(output_dir,
                                      f"phase_{save_idx}_ID{gen_idx}.png")
@@ -391,7 +390,6 @@ def main() -> None:
                 iter_idx += 1
 
                 if iter_idx % grow_every == grow_every - 1:
-                    curr_layer += 1
                     scale_factor -= 1
 
                     if curr_layer > 7:
