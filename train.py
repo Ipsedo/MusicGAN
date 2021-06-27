@@ -93,7 +93,7 @@ def main() -> None:
             f"\"{output_dir}\" is not a directory !"
         )
 
-    curr_layer = 0
+    curr_layer = 1
 
     gen = networks.Generator(
         rand_channel,
@@ -102,7 +102,7 @@ def main() -> None:
     )
 
     disc = networks.Discriminator(
-        2, start_layer=7 - curr_layer
+        2, start_layer=gen.nb_layer - curr_layer
     )
 
     gen.cuda()
