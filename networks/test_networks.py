@@ -6,7 +6,7 @@ if __name__ == '__main__':
     rand_channels = 64
     style_channels = 256
 
-    gen = Generator(rand_channels, style_channels, 1)
+    gen = Generator(rand_channels, style_channels, 0)
     disc = Discriminator(2, 7)
 
     print(gen)
@@ -25,6 +25,9 @@ if __name__ == '__main__':
         out_disc = disc(out)
 
         print("B", out_disc.size())
+
+        print(gen.growing)
+        print(disc.growing)
 
         gen.next_layer()
         disc.next_layer()

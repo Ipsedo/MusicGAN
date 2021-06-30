@@ -108,27 +108,25 @@ class Block(nn.Module):
             in_channels: int,
             out_channels: int,
             style_channels: int,
-            up_sample: bool,
             last_layer: bool
     ):
         super(Block, self).__init__()
 
-        self.__is_up_sample = up_sample
-
-        if self.__is_up_sample:
-            self.__up_sample = nn.Upsample(
-                scale_factor=2.,
-                align_corners=True,
-                mode="bilinear"
-            )
-
-        self.__conv = GenConv2d(
-            in_channels, out_channels
+        # First conv
+        self.__conv = nn.ConvTranspose2d(
+            in_channels,
+            out_channels,
+            kernel_size=(3, 3),
+            stride=(2, 2),
+            padding=(1, 1),
+            output_padding=(1, 1)
         )
 
         self.__last_layer = last_layer
 
-        if not self.__last_layer:
+        if self.__last_layer:
+            self.__tanh = nn.Tanh()
+        else:
             self.__pn = PixelNorm()
             self.__noise = NoiseLayer(out_channels)
 
@@ -138,20 +136,13 @@ class Block(nn.Module):
 
             self.__lrelu = nn.LeakyReLU(2e-1)
 
-        else:
-            self.__tanh = nn.Tanh()
-
     def forward(
             self,
             x: th.Tensor,
             style: th.Tensor
     ) -> Tuple[th.Tensor, th.Tensor]:
-        out = x
 
-        if self.__is_up_sample:
-            out = self.__up_sample(out)
-
-        out = self.__conv(out)
+        out = self.__conv(x)
 
         if self.__last_layer:
             out = self.__tanh(out)
@@ -200,11 +191,12 @@ class Generator(nn.Module):
     ):
         super(Generator, self).__init__()
 
-        self.__start_layer = start_layer
+        self.__curr_layer = start_layer
+
+        self.__nb_downsample = 8
 
         channels = [
-            (rand_channels, 256),
-            (256, 224),
+            (rand_channels, 224),
             (224, 192),
             (192, 160),
             (160, 128),
@@ -214,24 +206,24 @@ class Generator(nn.Module):
             (32, 2)
         ]
 
-        assert 1 <= start_layer < len(channels)
+        self.__channels = channels
+
+        assert 0 <= start_layer < len(channels)
 
         # Generator layers
         self.__gen_blocks = nn.ModuleList([
             Block(
                 c[0], c[1],
                 style_channels,
-                i != 0,
                 i == len(channels) - 1
             )
             for i, c in enumerate(channels)
         ])
 
         # for progressive gan
-        self.__end_blocks = nn.ModuleList([
-            ToMagnPhaseLayer(c[1])
-            for c in channels[1:-1]
-        ])
+        self.__end_block = ToMagnPhaseLayer(
+            channels[self.curr_layer][1]
+        )
 
         self.__style_network = nn.Sequential(*[
             LinearBlock(style_channels, style_channels)
@@ -251,22 +243,41 @@ class Generator(nn.Module):
             m = self.__gen_blocks[i]
             out = m(out, style)
 
-        if self.curr_layer < len(self.__gen_blocks) - 1:
-            m = self.__end_blocks[self.curr_layer - 1]
-            out = m(out)
+        if self.growing:
+            out = self.__end_block(out)
 
         return out
 
-    def next_layer(self) -> None:
-        self.__start_layer += 1
+    def next_layer(self) -> bool:
+        if self.growing:
+            self.__curr_layer += 1
 
-        if self.__start_layer >= len(self.__gen_blocks):
-            self.__start_layer = len(self.__gen_blocks) - 1
+            self.__end_block = ToMagnPhaseLayer(
+                self.__channels[self.curr_layer][1]
+            )
+
+            device = "cuda"\
+                if next(self.__gen_blocks.parameters()).is_cuda \
+                else "cpu"
+
+            self.__end_block.to(device)
+
+            return True
+
+        return False
 
     @property
     def down_sample(self) -> int:
-        return len(self.__gen_blocks) - 1
+        return self.__nb_downsample
 
     @property
     def curr_layer(self) -> int:
-        return self.__start_layer
+        return self.__curr_layer
+
+    @property
+    def growing(self) -> bool:
+        return self.curr_layer < len(self.__gen_blocks) - 1
+
+    @property
+    def end_block(self) -> nn.Module:
+        return self.__end_block

@@ -97,7 +97,7 @@ def main() -> None:
     gen = networks.Generator(
         rand_channel,
         style_rand_channel,
-        start_layer=1
+        start_layer=0
     )
 
     disc = networks.Discriminator(
@@ -167,8 +167,17 @@ def main() -> None:
         iter_idx = 0
         save_idx = 0
 
-        save_every = 1000
-        grow_every = 50000
+        save_every = 2000
+        grow_every = [
+            10000,
+            20000,
+            50000,
+            75000,
+            100000,
+            100000,
+            100000,
+            100000
+        ]
 
         for e in range(nb_epoch):
 
@@ -389,18 +398,24 @@ def main() -> None:
 
                 iter_idx += 1
 
-                if iter_idx % grow_every == grow_every - 1:
-                    if gen.curr_layer > 7:
-                        print("finish")
-                    else:
-                        scale_factor -= 1
+                if iter_idx % grow_every[gen.curr_layer] == 0 and \
+                        gen.growing:
+                    scale_factor -= 1
 
                     transform = get_transform(scale_factor)
 
                     gen.next_layer()
                     disc.next_layer()
 
-                    print("up_layer", gen.curr_layer, "/", gen.nb_layer)
+                    optim_gen.add_param_group({
+                        "params": gen.end_block.parameters()
+                    })
+
+                    optim_disc.add_param_group({
+                        "params": disc.start_block.parameters()
+                    })
+
+                    print("up_layer", gen.curr_layer, "/", gen.down_sample)
 
 
 if __name__ == '__main__':

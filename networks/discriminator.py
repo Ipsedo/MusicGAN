@@ -14,10 +14,9 @@ class ConvBlock(nn.Sequential):
                 in_channels,
                 out_channels,
                 kernel_size=(3, 3),
-                stride=(1, 1),
+                stride=(2, 2),
                 padding=(1, 1)
             ),
-            nn.AvgPool2d(2, 2),
             nn.LeakyReLU(2e-1)
         )
 
@@ -46,19 +45,19 @@ class Discriminator(nn.Module):
         assert 0 <= start_layer <= 7
 
         conv_channels = [
-            (in_channels, 32),  # 512
-            (32, 64),  # 256
-            (64, 96),  # 128
-            (96, 128),  # 64
-            (128, 160),  # 32
-            (160, 192),  # 16
-            (192, 224),  # 8
-            (224, 256),  # 4
-            (256, 288)  # 2
-            # 1
+            (in_channels, 32),
+            (32, 64),
+            (64, 96),
+            (96, 128),
+            (128, 160),
+            (160, 192),
+            (192, 224),
+            (224, 256),
+            (256, 288)
         ]
 
-        # +1 for gen end_block
+        self.__channels = conv_channels
+
         self.__curr_layer = start_layer
 
         stride = 2
@@ -73,10 +72,9 @@ class Discriminator(nn.Module):
             for i in range(nb_layer)
         ])
 
-        self.___start_blocks = nn.ModuleList([
-            MagPhaseLayer(c[1])
-            for c in conv_channels[:-1]
-        ])
+        self.___start_block = MagPhaseLayer(
+            conv_channels[self.curr_layer - 1][1]
+        )
 
         nb_time = 512
         nb_freq = 512
@@ -91,9 +89,8 @@ class Discriminator(nn.Module):
 
         out = x
 
-        if self.__curr_layer >= 1:
-            # -1 disc has one layer more then gen
-            out = self.___start_blocks[self.__curr_layer - 1](out)
+        if self.growing:
+            out = self.___start_block(out)
 
         for i in range(self.__curr_layer, len(self.__conv_blocks)):
             out = self.__conv_blocks[i](out)
@@ -104,11 +101,35 @@ class Discriminator(nn.Module):
 
         return out_clf
 
-    def next_layer(self) -> None:
-        self.__curr_layer -= 1
+    def next_layer(self) -> bool:
+        if self.growing:
+            self.__curr_layer -= 1
 
-        if self.__curr_layer < 1:
-            self.__curr_layer = 0
+            self.___start_block = MagPhaseLayer(
+                self.__channels[self.curr_layer - 1][1]
+            )
+
+            device = "cuda" \
+                if next(self.__conv_blocks.parameters()).is_cuda \
+                else "cpu"
+
+            self.___start_block.to(device)
+
+            return True
+
+        return False
+
+    @property
+    def curr_layer(self) -> int:
+        return self.__curr_layer
+
+    @property
+    def growing(self) -> bool:
+        return self.__curr_layer >= 1
+
+    @property
+    def start_block(self) -> nn.Module:
+        return self.___start_block
 
     def gradient_penalty(
             self,
