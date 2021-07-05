@@ -2,7 +2,7 @@ import audio
 import networks
 
 import torch as th
-from torchvision.transforms import Compose, Resize, Normalize
+from torchvision.transforms import Compose, Resize
 from torch.utils.data import DataLoader
 
 from os import mkdir
@@ -24,6 +24,8 @@ def get_transform(downscale_factor: int) -> Compose:
     target_size = int(size / 2 ** downscale_factor)
 
     compose = Compose([
+        audio.ChannelMinMaxNorm(),
+        audio.ChangeRange(-1., 1.),
         Resize(target_size)
     ])
 
@@ -81,7 +83,7 @@ def main() -> None:
     gen_lr = 1e-4
 
     nb_epoch = 1000
-    batch_size = 6
+    batch_size = 16
 
     output_dir = args.out_path
 
@@ -168,7 +170,15 @@ def main() -> None:
         save_idx = 0
 
         save_every = 2000
-        grow_every = 30000
+        grow_every = [
+            20000,
+            30000,
+            40000,
+            60000,
+            80000,
+            120000,
+            160000
+        ]
 
         for e in range(nb_epoch):
 
@@ -389,7 +399,7 @@ def main() -> None:
 
                 iter_idx += 1
 
-                if gen.growing and iter_idx % grow_every == 0:
+                if gen.growing and iter_idx % grow_every[gen.curr_layer] == 0:
                     scale_factor -= 1
 
                     transform = get_transform(scale_factor)
