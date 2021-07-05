@@ -1,8 +1,6 @@
 import torch as th
 from torch.utils.data import Dataset
 
-from typing import Tuple
-
 from os import listdir
 from os.path import isdir, isfile, join
 
