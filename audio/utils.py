@@ -88,20 +88,20 @@ def stft_to_phase_magn(
     magn = (magn - min_magn) / (max_magn - min_magn)
     phase = (phase - min_phase) / (max_phase - min_phase)
 
-    return magn * 1.6 - 0.8, phase * 1.6 - 0.8
+    return magn * 2. - 1., phase * 2. - 1.
 
 
 def magn_phase_to_wav(magn_phase: th.Tensor, wav_path: str, sample_rate: int):
     magn_phase = magn_phase.permute(0, 2, 3, 1)
     x = magn_phase.flatten(0, 1)
 
-    phases = (x[:, :, 1] + 0.8) / 1.6 * 2. * np.pi - np.pi
+    phases = (x[:, :, 1] + 1.) / 2. * 2. * np.pi - np.pi
     for i in range(phases.shape[0] - 1):
         phases[i + 1, :] = phases[i + 1, :] + phases[i, :]
 
     phases = phases % (2 * np.pi)
 
-    magn = (x[:, :, 0] + 0.8) / 1.6
+    magn = (x[:, :, 0] + 1.) / 2.
     magn = th.exp(magn) - 1
 
     real = magn * th.cos(phases)
