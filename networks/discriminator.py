@@ -7,11 +7,20 @@ class ConvBlock(nn.Sequential):
     def __init__(
             self,
             in_channels: int,
+            hidden_channels: int,
             out_channels: int
     ):
         super(ConvBlock, self).__init__(
             nn.Conv2d(
                 in_channels,
+                hidden_channels,
+                kernel_size=(3, 3),
+                stride=(1, 1),
+                padding=(1, 1)
+            ),
+            nn.LeakyReLU(2e-1),
+            nn.Conv2d(
+                hidden_channels,
                 out_channels,
                 kernel_size=(3, 3),
                 stride=(2, 2),
@@ -45,15 +54,15 @@ class Discriminator(nn.Module):
         assert 0 <= start_layer <= 7
 
         conv_channels = [
-            (in_channels, 32),
-            (32, 64),
-            (64, 96),
-            (96, 128),
-            (128, 160),
-            (160, 192),
-            (192, 224),
-            (224, 256),
-            (256, 288)
+            (in_channels, 32, 32),
+            (32, 64, 64),
+            (64, 96, 96),
+            (96, 128, 128),
+            (128, 160, 160),
+            (160, 192, 192),
+            (192, 224, 224),
+            (224, 256, 256),
+            (256, 288, 288)
         ]
 
         self.__channels = conv_channels
@@ -66,10 +75,9 @@ class Discriminator(nn.Module):
 
         self.__conv_blocks = nn.ModuleList([
             ConvBlock(
-                conv_channels[i][0],
-                conv_channels[i][1]
+                c[0], c[1], c[2]
             )
-            for i in range(nb_layer)
+            for c in conv_channels
         ])
 
         self.___start_block = MagPhaseLayer(

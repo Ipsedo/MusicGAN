@@ -92,7 +92,11 @@ class AdaIN(nn.Module):
 
 
 class GenConv2d(nn.Conv2d):
-    def __init__(self, in_channels: int, out_channels: int):
+    def __init__(
+            self,
+            in_channels: int,
+            out_channels: int
+    ):
         super(GenConv2d, self).__init__(
             in_channels,
             out_channels,
@@ -106,20 +110,37 @@ class Block(nn.Module):
     def __init__(
             self,
             in_channels: int,
+            hidden_channels: int,
             out_channels: int,
             style_channels: int,
             last_layer: bool
     ):
         super(Block, self).__init__()
 
-        # First conv
-        self.__conv = nn.ConvTranspose2d(
+        self.__conv_1 = nn.ConvTranspose2d(
             in_channels,
-            out_channels,
+            hidden_channels,
             kernel_size=(3, 3),
             stride=(2, 2),
             padding=(1, 1),
             output_padding=(1, 1)
+        )
+
+        self.__pn_1 = PixelNorm()
+        self.__noise_1 = NoiseLayer(hidden_channels)
+        self.__adain_1 = AdaIN(
+            hidden_channels,
+            style_channels
+        )
+        self.__lrelu_1 = nn.LeakyReLU(2e-1)
+
+        # First conv
+        self.__conv_2 = nn.Conv2d(
+            hidden_channels,
+            out_channels,
+            kernel_size=(3, 3),
+            stride=(1, 1),
+            padding=(1, 1)
         )
 
         self.__last_layer = last_layer
@@ -127,32 +148,39 @@ class Block(nn.Module):
         if self.__last_layer:
             self.__tanh = nn.Tanh()
         else:
-            self.__pn = PixelNorm()
-            self.__noise = NoiseLayer(out_channels)
+            self.__pn_2 = PixelNorm()
 
-            self.__adain = AdaIN(
-                out_channels, style_channels
+            self.__noise_2 = NoiseLayer(
+                out_channels
             )
 
-            self.__lrelu = nn.LeakyReLU(2e-1)
+            self.__adain_2 = AdaIN(
+                out_channels,
+                style_channels
+            )
+
+            self.__lrelu_2 = nn.LeakyReLU(2e-1)
 
     def forward(
             self,
             x: th.Tensor,
             style: th.Tensor
     ) -> Tuple[th.Tensor, th.Tensor]:
+        out = self.__conv_1(x)
+        out = self.__pn_1(out)
+        out = self.__noise_1(out)
+        out = self.__adain_1(out, style)
+        out = self.__lrelu_1(out)
 
-        out = self.__conv(x)
+        out = self.__conv_2(out)
 
         if self.__last_layer:
             out = self.__tanh(out)
         else:
-            out = self.__pn(out)
-            out = self.__noise(out)
-
-            out = self.__adain(out, style)
-
-            out = self.__lrelu(out)
+            out = self.__pn_2(out)
+            out = self.__noise_2(out)
+            out = self.__adain_2(out, style)
+            out = self.__lrelu_2(out)
 
         return out
 
@@ -187,33 +215,33 @@ class Generator(nn.Module):
             self,
             rand_channels: int,
             style_channels: int,
-            start_layer: int = 1
+            end_layer: int = 0
     ):
         super(Generator, self).__init__()
 
-        self.__curr_layer = start_layer
+        self.__curr_layer = end_layer
 
         self.__nb_downsample = 8
 
         channels = [
-            (rand_channels, 224),
-            (224, 192),
-            (192, 160),
-            (160, 128),
-            (128, 96),
-            (96, 64),
-            (64, 32),
-            (32, 2)
+            (rand_channels, 256, 224),
+            (224, 224, 192),
+            (192, 192, 160),
+            (160, 160, 128),
+            (128, 128, 96),
+            (96, 96, 64),
+            (64, 64, 32),
+            (32, 32, 2)
         ]
 
         self.__channels = channels
 
-        assert 0 <= start_layer < len(channels)
+        assert 0 <= end_layer < len(channels)
 
         # Generator layers
         self.__gen_blocks = nn.ModuleList([
             Block(
-                c[0], c[1],
+                c[0], c[1], c[2],
                 style_channels,
                 i == len(channels) - 1
             )
@@ -222,7 +250,7 @@ class Generator(nn.Module):
 
         # for progressive gan
         self.__end_block = ToMagnPhaseLayer(
-            channels[self.curr_layer][1]
+            channels[self.curr_layer][2]
         )
 
         self.__style_network = nn.Sequential(*[
@@ -253,7 +281,7 @@ class Generator(nn.Module):
             self.__curr_layer += 1
 
             self.__end_block = ToMagnPhaseLayer(
-                self.__channels[self.curr_layer][1]
+                self.__channels[self.curr_layer][2]
             )
 
             device = "cuda"\
