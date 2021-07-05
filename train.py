@@ -81,7 +81,7 @@ def main() -> None:
     gen_lr = 1e-4
 
     nb_epoch = 1000
-    batch_size = 8
+    batch_size = 6
 
     output_dir = args.out_path
 
@@ -97,7 +97,7 @@ def main() -> None:
     gen = networks.Generator(
         rand_channel,
         style_rand_channel,
-        start_layer=0
+        end_layer=0
     )
 
     disc = networks.Discriminator(
@@ -168,16 +168,7 @@ def main() -> None:
         save_idx = 0
 
         save_every = 2000
-        grow_every = [
-            10000,
-            20000,
-            50000,
-            75000,
-            100000,
-            100000,
-            100000,
-            100000
-        ]
+        grow_every = 30000
 
         for e in range(nb_epoch):
 
@@ -398,8 +389,7 @@ def main() -> None:
 
                 iter_idx += 1
 
-                if iter_idx % grow_every[gen.curr_layer] == 0 and \
-                        gen.growing:
+                if gen.growing and iter_idx % grow_every == 0:
                     scale_factor -= 1
 
                     transform = get_transform(scale_factor)
@@ -415,7 +405,7 @@ def main() -> None:
                         "params": disc.start_block.parameters()
                     })
 
-                    print("up_layer", gen.curr_layer, "/", gen.down_sample)
+                    print("\nup_layer", gen.curr_layer, "/", gen.down_sample)
 
 
 if __name__ == '__main__':
