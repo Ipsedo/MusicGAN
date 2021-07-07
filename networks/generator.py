@@ -96,8 +96,7 @@ class Block(nn.Module):
             self,
             in_channels: int,
             out_channels: int,
-            style_channels: int,
-            last_layer: bool
+            style_channels: int
     ):
         super(Block, self).__init__()
 
@@ -110,39 +109,31 @@ class Block(nn.Module):
             output_padding=(1, 1)
         )
 
-        self.__last_layer = last_layer
+        self.__pn = PixelNorm()
 
-        if self.__last_layer:
-            self.__tanh = nn.Tanh()
-        else:
-            self.__pn = PixelNorm()
-
-            self.__noise = NoiseLayer(
+        self.__noise = NoiseLayer(
                 out_channels
-            )
+        )
 
-            self.__adain = AdaIN(
+        self.__adain = AdaIN(
                 out_channels,
                 style_channels
-            )
+        )
 
-            self.__lrelu = nn.LeakyReLU(2e-1)
+        self.__lrelu = nn.LeakyReLU(2e-1)
 
     def forward(
             self,
             x: th.Tensor,
             style: th.Tensor
-    ) -> Tuple[th.Tensor, th.Tensor]:
+    ) -> th.Tensor:
 
         out = self.__conv(x)
 
-        if self.__last_layer:
-            out = self.__tanh(out)
-        else:
-            out = self.__pn(out)
-            out = self.__noise(out)
-            out = self.__adain(out, style)
-            out = self.__lrelu(out)
+        out = self.__pn(out)
+        out = self.__noise(out)
+        out = self.__adain(out, style)
+        out = self.__lrelu(out)
 
         return out
 
@@ -186,14 +177,14 @@ class Generator(nn.Module):
         self.__nb_downsample = 8
 
         channels = [
-            (rand_channels, 224),
+            (rand_channels, 256),
+            (256, 224),
             (224, 192),
             (192, 160),
             (160, 128),
             (128, 96),
             (96, 64),
-            (64, 32),
-            (32, 2)
+            (64, 32)
         ]
 
         self.__channels = channels
@@ -204,8 +195,7 @@ class Generator(nn.Module):
         self.__gen_blocks = nn.ModuleList([
             Block(
                 c[0], c[1],
-                style_channels,
-                i == len(channels) - 1
+                style_channels
             )
             for i, c in enumerate(channels)
         ])
@@ -213,6 +203,10 @@ class Generator(nn.Module):
         # for progressive gan
         self.__end_block = ToMagnPhaseLayer(
             channels[self.curr_layer][1]
+        )
+
+        self.__last_layer = ToMagnPhaseLayer(
+            channels[-1][1]
         )
 
         self.__style_network = nn.Sequential(*[
@@ -234,7 +228,9 @@ class Generator(nn.Module):
             out = m(out, style)
 
         if self.growing:
-            out = self.__end_block(out)
+            return self.__end_block(out)
+
+        out = self.__last_layer(out)
 
         return out
 
@@ -246,7 +242,7 @@ class Generator(nn.Module):
                 self.__channels[self.curr_layer][1]
             )
 
-            device = "cuda"\
+            device = "cuda" \
                 if next(self.__gen_blocks.parameters()).is_cuda \
                 else "cpu"
 
