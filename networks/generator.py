@@ -205,10 +205,6 @@ class Generator(nn.Module):
             channels[self.curr_layer][1]
         )
 
-        self.__last_layer = ToMagnPhaseLayer(
-            channels[-1][1]
-        )
-
         self.__style_network = nn.Sequential(*[
             LinearBlock(style_channels, style_channels)
             for _ in range(4)
@@ -227,10 +223,7 @@ class Generator(nn.Module):
             m = self.__gen_blocks[i]
             out = m(out, style)
 
-        if self.growing:
-            return self.__end_block(out)
-
-        out = self.__last_layer(out)
+        out = self.__end_block(out)
 
         return out
 
