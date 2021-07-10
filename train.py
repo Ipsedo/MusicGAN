@@ -83,7 +83,7 @@ def main() -> None:
     gen_lr = 1e-4
 
     nb_epoch = 1000
-    batch_size = 12
+    batch_size = 4
 
     output_dir = args.out_path
 
@@ -171,15 +171,7 @@ def main() -> None:
 
         save_every = 2000
         grow_idx = 0
-        grow_every = [
-            10000,
-            20000,
-            20000,
-            20000,
-            20000,
-            20000,
-            20000
-        ]
+        grow_every = 10000
 
         for e in range(nb_epoch):
 
@@ -401,7 +393,7 @@ def main() -> None:
                 iter_idx += 1
                 grow_idx += 1
 
-                if gen.growing and grow_idx % grow_every[gen.curr_layer] == 0:
+                if gen.growing and grow_idx % grow_every == 0:
                     scale_factor -= 1
 
                     transform = get_transform(scale_factor)

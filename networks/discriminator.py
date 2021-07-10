@@ -45,7 +45,6 @@ class Discriminator(nn.Module):
         assert 0 <= start_layer <= 7
 
         conv_channels = [
-            (in_channels, 32),
             (32, 64),
             (64, 96),
             (96, 128),
@@ -53,7 +52,8 @@ class Discriminator(nn.Module):
             (160, 192),
             (192, 224),
             (224, 256),
-            (256, 288)
+            (256, 256),
+            (256, 256)
         ]
 
         self.__channels = conv_channels
@@ -71,8 +71,8 @@ class Discriminator(nn.Module):
             for c in conv_channels
         ])
 
-        self.___start_block = MagPhaseLayer(
-            conv_channels[self.curr_layer - 1][1]
+        self.__start_block = MagPhaseLayer(
+            conv_channels[self.curr_layer][0]
         )
 
         nb_time = 512
@@ -86,10 +86,7 @@ class Discriminator(nn.Module):
 
     def forward(self, x: th.Tensor) -> th.Tensor:
 
-        out = x
-
-        if self.growing:
-            out = self.___start_block(out)
+        out = self.__start_block(x)
 
         for i in range(self.__curr_layer, len(self.__conv_blocks)):
             out = self.__conv_blocks[i](out)
@@ -104,15 +101,15 @@ class Discriminator(nn.Module):
         if self.growing:
             self.__curr_layer -= 1
 
-            self.___start_block = MagPhaseLayer(
-                self.__channels[self.curr_layer - 1][1]
+            self.__start_block = MagPhaseLayer(
+                self.__channels[self.curr_layer][0]
             )
 
             device = "cuda" \
                 if next(self.__conv_blocks.parameters()).is_cuda \
                 else "cpu"
 
-            self.___start_block.to(device)
+            self.__start_block.to(device)
 
             return True
 
@@ -124,11 +121,11 @@ class Discriminator(nn.Module):
 
     @property
     def growing(self) -> bool:
-        return self.__curr_layer >= 1
+        return self.__curr_layer > 0
 
     @property
     def start_block(self) -> nn.Module:
-        return self.___start_block
+        return self.__start_block
 
     def gradient_penalty(
             self,
