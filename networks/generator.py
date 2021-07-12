@@ -177,14 +177,14 @@ class Generator(nn.Module):
         self.__nb_downsample = 8
 
         channels = [
-            (rand_channels, 256),
-            (256, 224),
-            (224, 192),
-            (192, 160),
-            (160, 128),
-            (128, 96),
-            (96, 64),
-            (64, 32)
+            (rand_channels, 128),
+            (128, 112),
+            (112, 96),
+            (96, 80),
+            (80, 64),
+            (64, 48),
+            (48, 32),
+            (32, 16)
         ]
 
         self.__channels = channels
