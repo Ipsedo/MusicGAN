@@ -74,16 +74,16 @@ def main() -> None:
 
     sample_rate = 44100
 
-    rand_channel = 64
+    rand_channel = 16
     height = 2
     width = 2
-    style_rand_channel = 256
+    style_rand_channel = 64
 
     disc_lr = 1e-4
     gen_lr = 1e-4
 
     nb_epoch = 1000
-    batch_size = 4
+    batch_size = 8
 
     output_dir = args.out_path
 
@@ -171,7 +171,7 @@ def main() -> None:
 
         save_every = 2000
         grow_idx = 0
-        grow_every = 10000
+        grow_every = 40000
 
         for e in range(nb_epoch):
 
