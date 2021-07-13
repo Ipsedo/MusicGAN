@@ -16,8 +16,9 @@ def main() -> None:
 
     parser.add_argument("gen_dict_state", type=str)
     parser.add_argument("rand_channels", type=int)
-    parser.add_argument("nb_vec", type=int)
-    parser.add_argument("nb_music", type=int)
+    parser.add_argument("style_channels", type=int)
+    parser.add_argument("-n", "--nb-vec", type=int)
+    parser.add_argument("-m", "--nb-music", type=int)
 
     parser.add_argument("-o", "--out-dir", type=str, required=True)
 
@@ -26,11 +27,20 @@ def main() -> None:
     if not exists(args.out_dir):
         mkdir(args.out_dir)
     elif exists(args.out_dir) and not isdir(args.out_dir):
-        raise NotADirectoryError(f"\"{args.out_dir}\" is not a directory")
+        raise NotADirectoryError(
+            f"\"{args.out_dir}\" is not a directory"
+        )
 
     print("Load model...")
-    gen = Generator(args.rand_channels, 256, 7)
-    gen.load_state_dict(th.load(args.gen_dict_state))
+    gen = Generator(
+        args.rand_channels,
+        args.style_channels,
+        7
+    )
+
+    gen.load_state_dict(
+        th.load(args.gen_dict_state)
+    )
 
     height = 2
     width = 2
@@ -45,7 +55,10 @@ def main() -> None:
             width
         )
 
-        z_style = th.randn(args.nb_music, 256)
+        z_style = th.randn(
+            args.nb_music,
+            args.style_channels
+        )
 
         gen_sound = gen(z, z_style)
 
