@@ -45,15 +45,15 @@ class Discriminator(nn.Module):
         assert 0 <= start_layer <= 7
 
         conv_channels = [
-            (16, 32),
-            (32, 48),
-            (48, 64),
-            (64, 80),
-            (80, 96),
-            (96, 112),
-            (112, 128),
-            (128, 144),
-            (144, 160)
+            (8, 16),
+            (16, 24),
+            (24, 32),
+            (32, 40),
+            (40, 48),
+            (48, 56),
+            (56, 64),
+            (64, 72),
+            (72, 80)
         ]
 
         self.__channels = conv_channels
@@ -71,6 +71,8 @@ class Discriminator(nn.Module):
             for c in conv_channels
         ])
 
+        self.__last_start_block = None
+
         self.__start_block = MagPhaseLayer(
             conv_channels[self.curr_layer][0]
         )
@@ -84,11 +86,18 @@ class Discriminator(nn.Module):
 
         self.__clf = nn.Linear(out_size, 1)
 
-    def forward(self, x: th.Tensor) -> th.Tensor:
+    def forward(self, x: th.Tensor, alpha: float) -> th.Tensor:
 
-        out = self.__start_block(x)
+        out_new = self.__start_block(x)
+        out_new = self.__conv_blocks[self.__curr_layer](out_new)
 
-        for i in range(self.__curr_layer, len(self.__conv_blocks)):
+        if self.__last_start_block is not None:
+            out_old = self.__last_start_block(x)
+            out = alpha * out_new + (1 - alpha) * out_old
+        else:
+            out = out_new
+
+        for i in range(self.__curr_layer + 1, len(self.__conv_blocks)):
             out = self.__conv_blocks[i](out)
 
         out = out.flatten(1, -1)
@@ -100,6 +109,11 @@ class Discriminator(nn.Module):
     def next_layer(self) -> bool:
         if self.growing:
             self.__curr_layer -= 1
+
+            self.__last_start_block = nn.Sequential(
+                nn.AvgPool2d(2, 2),
+                self.__start_block
+            )
 
             self.__start_block = MagPhaseLayer(
                 self.__channels[self.curr_layer][0]
@@ -130,7 +144,8 @@ class Discriminator(nn.Module):
     def gradient_penalty(
             self,
             x_real: th.Tensor,
-            x_gen: th.Tensor
+            x_gen: th.Tensor,
+            alpha: float
     ) -> th.Tensor:
         device = "cuda" if next(self.parameters()).is_cuda else "cpu"
 
@@ -139,7 +154,7 @@ class Discriminator(nn.Module):
 
         x_interpolated = eps * x_real + (1 - eps) * x_gen
 
-        out_interpolated = self(x_interpolated)
+        out_interpolated = self(x_interpolated, alpha)
 
         gradients = th_autograd.grad(
             out_interpolated, x_interpolated,

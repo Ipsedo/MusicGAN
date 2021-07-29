@@ -74,10 +74,10 @@ def main() -> None:
 
     sample_rate = 44100
 
-    rand_channel = 16
+    rand_channel = 8
     height = 2
     width = 2
-    style_rand_channel = 64
+    style_rand_channel = 32
 
     disc_lr = 1e-4
     gen_lr = 1e-4
@@ -171,13 +171,16 @@ def main() -> None:
 
         save_every = 2000
         grow_idx = 0
-        grow_every = 40000
+        grow_every = 100000
+        fadein_length = 10000
 
         for e in range(nb_epoch):
 
             tqdm_bar = tqdm(data_loader)
 
             for x_real in tqdm_bar:
+                alpha = min(1., (1. + grow_idx) / fadein_length)
+
                 # train discriminator
 
                 # pass data to cuda
@@ -200,11 +203,11 @@ def main() -> None:
                 )
 
                 # gen fake data
-                x_fake = gen(z, z_style)
+                x_fake = gen(z, z_style, alpha)
 
                 # pass real data and gen data to discriminator
-                out_real = disc(x_real)
-                out_fake = disc(x_fake)
+                out_real = disc(x_real, alpha)
+                out_fake = disc(x_fake, alpha)
 
                 # compute discriminator loss
                 disc_loss = networks.wasserstein_discriminator_loss(
@@ -212,7 +215,7 @@ def main() -> None:
                 )
 
                 # compute gradient penalty
-                grad_pen = disc.gradient_penalty(x_real, x_fake)
+                grad_pen = disc.gradient_penalty(x_real, x_fake, alpha)
 
                 # add gradient penalty
                 disc_loss_gp = disc_loss + grad_pen
@@ -254,10 +257,10 @@ def main() -> None:
                     )
 
                     # generate fake data
-                    x_fake = gen(z, z_style)
+                    x_fake = gen(z, z_style, alpha)
 
                     # pass to discriminator
-                    out_fake = disc(x_fake)
+                    out_fake = disc(x_fake, alpha)
 
                     # compute generator loss
                     gen_loss = networks.wasserstein_generator_loss(out_fake)
@@ -287,7 +290,8 @@ def main() -> None:
                     f"disc_grad_pen = {mean(grad_pen_list):.2f}, "
                     f"e_tp = {mean(error_tp):.5f}, "
                     f"e_tn = {mean(error_tn):.5f}, "
-                    f"e_gen = {mean(error_gen):.5f}"
+                    f"e_gen = {mean(error_gen):.5f}, "
+                    f"alpha = {alpha}"
                 )
 
                 # log metrics
@@ -317,7 +321,7 @@ def main() -> None:
                                 device="cuda"
                             )
 
-                            x_fake = gen(z, z_style)
+                            x_fake = gen(z, z_style, alpha)
 
                             magn = x_fake[0, 0, :, :].detach().cpu().numpy()
                             phase = x_fake[0, 1, :, :].detach().cpu().numpy()
@@ -401,13 +405,21 @@ def main() -> None:
                     gen.next_layer()
                     disc.next_layer()
 
-                    optim_gen.add_param_group({
+                    """optim_gen.add_param_group({
                         "params": gen.end_block.parameters()
                     })
 
                     optim_disc.add_param_group({
                         "params": disc.start_block.parameters()
-                    })
+                    })"""
+
+                    optim_gen = th.optim.Adam(
+                        gen.parameters(), lr=gen_lr
+                    )
+
+                    optim_disc = th.optim.Adam(
+                        disc.parameters(), lr=disc_lr
+                    )
 
                     print("\nup_layer", gen.curr_layer, "/", gen.down_sample)
 

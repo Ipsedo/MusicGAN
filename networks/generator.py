@@ -1,8 +1,6 @@
 import torch as th
 import torch.nn as nn
 
-from typing import Tuple
-
 
 class PixelNorm(nn.Module):
     def __init__(self, epsilon: float = 1e-8):
@@ -88,7 +86,7 @@ class AdaIN(nn.Module):
                f"style={self.__style_channels})"
 
     def __str__(self):
-        return self.__repr__
+        return self.__repr__()
 
 
 class Block(nn.Module):
@@ -112,12 +110,12 @@ class Block(nn.Module):
         self.__pn = PixelNorm()
 
         self.__noise = NoiseLayer(
-                out_channels
+            out_channels
         )
 
         self.__adain = AdaIN(
-                out_channels,
-                style_channels
+            out_channels,
+            style_channels
         )
 
         self.__lrelu = nn.LeakyReLU(2e-1)
@@ -127,7 +125,6 @@ class Block(nn.Module):
             x: th.Tensor,
             style: th.Tensor
     ) -> th.Tensor:
-
         out = self.__conv(x)
 
         out = self.__pn(out)
@@ -177,14 +174,14 @@ class Generator(nn.Module):
         self.__nb_downsample = 8
 
         channels = [
-            (rand_channels, 128),
-            (128, 112),
-            (112, 96),
-            (96, 80),
-            (80, 64),
-            (64, 48),
-            (48, 32),
-            (32, 16)
+            (rand_channels, 64),
+            (64, 56),
+            (56, 48),
+            (48, 40),
+            (40, 32),
+            (32, 24),
+            (24, 16),
+            (16, 8)
         ]
 
         self.__channels = channels
@@ -205,31 +202,50 @@ class Generator(nn.Module):
             channels[self.curr_layer][1]
         )
 
+        self.__last_end_block = None
+
         self.__style_network = nn.Sequential(*[
             LinearBlock(style_channels, style_channels)
-            for _ in range(4)
+            for _ in range(8)
         ])
 
     def forward(
             self,
             z: th.Tensor,
-            z_style: th.Tensor
+            z_style: th.Tensor,
+            alpha: float
     ) -> th.Tensor:
         style = self.__style_network(z_style)
 
         out = z
 
-        for i in range(self.curr_layer + 1):
+        for i in range(self.curr_layer):
             m = self.__gen_blocks[i]
             out = m(out, style)
 
-        out = self.__end_block(out)
+        m = self.__gen_blocks[self.curr_layer]
+        out_last = m(out, style)
 
-        return out
+        out_mp = self.__end_block(out_last)
+
+        if self.__last_end_block is not None:
+            out_old_mp = self.__last_end_block(out)
+            return alpha * out_mp + (1. - alpha) * out_old_mp
+
+        return out_mp
 
     def next_layer(self) -> bool:
         if self.growing:
             self.__curr_layer += 1
+
+            self.__last_end_block = nn.Sequential(
+                self.__end_block,
+                nn.Upsample(
+                    scale_factor=2.,
+                    mode="bilinear",
+                    align_corners=True
+                )
+            )
 
             self.__end_block = ToMagnPhaseLayer(
                 self.__channels[self.curr_layer][1]
