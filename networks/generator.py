@@ -1,6 +1,8 @@
 import torch as th
 import torch.nn as nn
 
+from typing import Iterator
+
 
 class PixelNorm(nn.Module):
     def __init__(self, epsilon: float = 1e-8):
@@ -89,48 +91,85 @@ class AdaIN(nn.Module):
         return self.__repr__()
 
 
+class GenActivation(nn.Module):
+    def __init__(self, channels: int, style_channels: int):
+        super(GenActivation, self).__init__()
+
+        self.__pn = PixelNorm()
+
+        self.__noise = NoiseLayer(
+            channels
+        )
+
+        self.__adain = AdaIN(
+            channels,
+            style_channels
+        )
+
+        self.__lrelu = nn.LeakyReLU(2e-1)
+
+    def forward(self, x: th.Tensor, style: th.Tensor) -> th.Tensor:
+        out = self.__pn(x)
+        out = self.__noise(out)
+        out = self.__adain(out, style)
+        out = self.__lrelu(out)
+        return out
+
+
 class Block(nn.Module):
     def __init__(
             self,
             in_channels: int,
+            hidden_channels: int,
             out_channels: int,
             style_channels: int
     ):
         super(Block, self).__init__()
 
-        self.__conv = nn.ConvTranspose2d(
+        self.__conv_1 = nn.Conv2d(
             in_channels,
-            out_channels,
+            hidden_channels,
             kernel_size=(3, 3),
-            stride=(2, 2),
-            padding=(1, 1),
-            output_padding=(1, 1)
+            stride=(1, 1),
+            padding=(1, 1)
         )
 
-        self.__pn = PixelNorm()
-
-        self.__noise = NoiseLayer(
-            out_channels
-        )
-
-        self.__adain = AdaIN(
-            out_channels,
+        self.__act_1 = GenActivation(
+            hidden_channels,
             style_channels
         )
 
-        self.__lrelu = nn.LeakyReLU(2e-1)
+        self.__up_sample = nn.Upsample(
+            scale_factor=2.,
+            mode="bilinear",
+            align_corners=True
+        )
+
+        self.__conv_2 = nn.Conv2d(
+            hidden_channels,
+            out_channels,
+            kernel_size=(3, 3),
+            stride=(1, 1),
+            padding=(1, 1)
+        )
+
+        self.__act_2 = GenActivation(
+            out_channels,
+            style_channels
+        )
 
     def forward(
             self,
             x: th.Tensor,
             style: th.Tensor
     ) -> th.Tensor:
-        out = self.__conv(x)
+        out = self.__conv_1(x)
+        out = self.__act_1(out, style)
 
-        out = self.__pn(out)
-        out = self.__noise(out)
-        out = self.__adain(out, style)
-        out = self.__lrelu(out)
+        out = self.__up_sample(out)
+
+        out = self.__conv_2(out)
+        out = self.__act_2(out, style)
 
         return out
 
@@ -174,14 +213,14 @@ class Generator(nn.Module):
         self.__nb_downsample = 8
 
         channels = [
-            (rand_channels, 64),
-            (64, 56),
-            (56, 48),
-            (48, 40),
-            (40, 32),
-            (32, 24),
-            (24, 16),
-            (16, 8)
+            (rand_channels, 128, 128),
+            (128, 112, 112),
+            (112, 96, 96),
+            (96, 80, 80),
+            (80, 64, 64),
+            (64, 48, 48),
+            (48, 32, 32),
+            (32, 16, 16)
         ]
 
         self.__channels = channels
@@ -191,7 +230,7 @@ class Generator(nn.Module):
         # Generator layers
         self.__gen_blocks = nn.ModuleList([
             Block(
-                c[0], c[1],
+                c[0], c[1], c[2],
                 style_channels
             )
             for i, c in enumerate(channels)
@@ -199,10 +238,22 @@ class Generator(nn.Module):
 
         # for progressive gan
         self.__end_block = ToMagnPhaseLayer(
-            channels[self.curr_layer][1]
+            channels[self.curr_layer][2]
         )
 
-        self.__last_end_block = None
+        self.__last_end_block = (
+            None if self.__curr_layer == 0
+            else nn.Sequential(
+                ToMagnPhaseLayer(
+                    channels[self.curr_layer - 1][1]
+                ),
+                nn.Upsample(
+                    scale_factor=2.,
+                    mode="bilinear",
+                    align_corners=True
+                )
+            )
+        )
 
         self.__style_network = nn.Sequential(*[
             LinearBlock(style_channels, style_channels)
@@ -248,7 +299,7 @@ class Generator(nn.Module):
             )
 
             self.__end_block = ToMagnPhaseLayer(
-                self.__channels[self.curr_layer][1]
+                self.__channels[self.curr_layer][2]
             )
 
             device = "cuda" \
@@ -273,6 +324,9 @@ class Generator(nn.Module):
     def growing(self) -> bool:
         return self.curr_layer < len(self.__gen_blocks) - 1
 
-    @property
-    def end_block(self) -> nn.Module:
-        return self.__end_block
+    def parameters(self, recurse: bool = True) -> Iterator[nn.Parameter]:
+        return iter(
+            list(self.__gen_blocks.parameters(recurse)) +
+            list(self.__end_block.parameters(recurse)) +
+            list(self.__style_network.parameters(recurse))
+        )

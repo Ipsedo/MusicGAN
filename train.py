@@ -169,17 +169,36 @@ def main() -> None:
         iter_idx = 0
         save_idx = 0
 
-        save_every = 2000
+        save_every = 1000
         grow_idx = 0
-        grow_every = 100000
-        fadein_length = 10000
+        grow_every = [
+            4000,
+            8000,
+            16000,
+            32000,
+            64000,
+            80000,
+            96000
+        ]
+        fadein_length = [
+            1,
+            1000,
+            2000,
+            4000,
+            8000,
+            16000,
+            16000,
+            16000
+        ]
 
         for e in range(nb_epoch):
 
             tqdm_bar = tqdm(data_loader)
 
             for x_real in tqdm_bar:
-                alpha = min(1., (1. + grow_idx) / fadein_length)
+                alpha = min(
+                    1., (1. + grow_idx) / fadein_length[gen.curr_layer]
+                )
 
                 # train discriminator
 
@@ -284,14 +303,14 @@ def main() -> None:
                 tqdm_bar.set_description(
                     f"Epoch {e:02} "
                     f"[{iter_idx // save_every:03}: "
-                    f"{iter_idx % save_every:03} / {save_every}], "
+                    f"{iter_idx % save_every:04} / {save_every}], "
                     f"disc_loss = {mean(disc_loss_list):.6f}, "
                     f"gen_loss = {mean(gen_loss_list):.6f}, "
                     f"disc_grad_pen = {mean(grad_pen_list):.2f}, "
                     f"e_tp = {mean(error_tp):.5f}, "
                     f"e_tn = {mean(error_tn):.5f}, "
                     f"e_gen = {mean(error_gen):.5f}, "
-                    f"alpha = {alpha}"
+                    f"alpha = {alpha:.3f}"
                 )
 
                 # log metrics
@@ -397,21 +416,13 @@ def main() -> None:
                 iter_idx += 1
                 grow_idx += 1
 
-                if gen.growing and grow_idx % grow_every == 0:
+                if gen.growing and grow_idx % grow_every[gen.curr_layer] == 0:
                     scale_factor -= 1
 
                     transform = get_transform(scale_factor)
 
                     gen.next_layer()
                     disc.next_layer()
-
-                    """optim_gen.add_param_group({
-                        "params": gen.end_block.parameters()
-                    })
-
-                    optim_disc.add_param_group({
-                        "params": disc.start_block.parameters()
-                    })"""
 
                     optim_gen = th.optim.Adam(
                         gen.parameters(), lr=gen_lr
