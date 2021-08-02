@@ -2,19 +2,31 @@ import torch as th
 import torch.nn as nn
 import torch.autograd as th_autograd
 
+from typing import Iterator
+
 
 class ConvBlock(nn.Sequential):
     def __init__(
             self,
             in_channels: int,
+            hidden_channels: int,
             out_channels: int
     ):
         super(ConvBlock, self).__init__(
             nn.Conv2d(
-                in_channels,
+               in_channels,
+               hidden_channels,
+               kernel_size=(3, 3),
+               stride=(1, 1),
+               padding=(1, 1)
+            ),
+            nn.LeakyReLU(2e-1),
+            nn.AvgPool2d(2, 2),
+            nn.Conv2d(
+                hidden_channels,
                 out_channels,
                 kernel_size=(3, 3),
-                stride=(2, 2),
+                stride=(1, 1),
                 padding=(1, 1)
             ),
             nn.LeakyReLU(2e-1)
@@ -22,10 +34,15 @@ class ConvBlock(nn.Sequential):
 
 
 class MagPhaseLayer(nn.Sequential):
-    def __init__(self, out_channels: int):
+    def __init__(
+            self,
+            in_channels: int,
+            out_channels: int
+    ):
         super(MagPhaseLayer, self).__init__(
             nn.Conv2d(
-                2, out_channels,
+                in_channels,
+                out_channels,
                 kernel_size=(3, 3),
                 stride=(1, 1),
                 padding=(1, 1)
@@ -44,16 +61,18 @@ class Discriminator(nn.Module):
 
         assert 0 <= start_layer <= 7
 
+        self.__in_channels = in_channels
+
         conv_channels = [
-            (8, 16),
-            (16, 24),
-            (24, 32),
-            (32, 40),
-            (40, 48),
-            (48, 56),
-            (56, 64),
-            (64, 72),
-            (72, 80)
+            (16, 16, 32),
+            (32, 32, 48),
+            (48, 48, 64),
+            (64, 64, 80),
+            (80, 80, 96),
+            (96, 96, 112),
+            (112, 112, 128),
+            (128, 128, 144),
+            (144, 144, 160)
         ]
 
         self.__channels = conv_channels
@@ -66,7 +85,7 @@ class Discriminator(nn.Module):
 
         self.__conv_blocks = nn.ModuleList([
             ConvBlock(
-                c[0], c[1]
+                c[0], c[1], c[2]
             )
             for c in conv_channels
         ])
@@ -74,15 +93,18 @@ class Discriminator(nn.Module):
         self.__last_start_block = None
 
         self.__start_block = MagPhaseLayer(
+            self.__in_channels,
             conv_channels[self.curr_layer][0]
         )
 
         nb_time = 512
         nb_freq = 512
 
-        out_size = conv_channels[-1][1] * \
-                   nb_time // stride ** nb_layer * \
-                   nb_freq // stride ** nb_layer
+        out_size = (
+                conv_channels[-1][2] *
+                nb_time // stride ** nb_layer *
+                nb_freq // stride ** nb_layer
+        )
 
         self.__clf = nn.Linear(out_size, 1)
 
@@ -116,6 +138,7 @@ class Discriminator(nn.Module):
             )
 
             self.__start_block = MagPhaseLayer(
+                self.__in_channels,
                 self.__channels[self.curr_layer][0]
             )
 
@@ -136,10 +159,6 @@ class Discriminator(nn.Module):
     @property
     def growing(self) -> bool:
         return self.__curr_layer > 0
-
-    @property
-    def start_block(self) -> nn.Module:
-        return self.__start_block
 
     def gradient_penalty(
             self,
@@ -169,3 +188,10 @@ class Discriminator(nn.Module):
         grad_pen_factor = 10.
 
         return grad_pen_factor * gradient_penalty
+
+    def parameters(self, recurse: bool = True) -> Iterator[nn.Parameter]:
+        return iter(
+            list(self.__conv_blocks.parameters(recurse)) +
+            list(self.__start_block.parameters(recurse)) +
+            list(self.__clf.parameters(recurse))
+        )

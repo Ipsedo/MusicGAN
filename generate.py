@@ -60,7 +60,7 @@ def main() -> None:
             args.style_channels
         )
 
-        gen_sound = gen(z, z_style)
+        gen_sound = gen(z, z_style, 1.0)
 
         print("Saving sound...")
         for i in tqdm(range(gen_sound.size()[0])):
