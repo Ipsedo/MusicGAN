@@ -2,6 +2,7 @@ import audio
 import networks
 
 import torch as th
+import torch.backends.cudnn as th_cudnn
 from torchvision.transforms import Compose, Resize
 from torch.utils.data import DataLoader
 
@@ -77,13 +78,12 @@ def main() -> None:
     rand_channel = 16
     height = 2
     width = 2
-    style_rand_channel = 64
 
     disc_lr = 1e-4
     gen_lr = 1e-4
 
     nb_epoch = 1000
-    batch_size = 4
+    batch_size = 8
 
     output_dir = args.out_path
 
@@ -98,12 +98,11 @@ def main() -> None:
 
     gen = networks.Generator(
         rand_channel,
-        style_rand_channel,
         end_layer=0
     )
 
     disc = networks.Discriminator(
-        2, start_layer=7
+        start_layer=7
     )
 
     gen.cuda()
@@ -143,7 +142,6 @@ def main() -> None:
 
     mlflow.log_params({
         "rand_channel": rand_channel,
-        "style_rand_channel": style_rand_channel,
         "nb_epoch": nb_epoch,
         "batch_size": batch_size,
         "disc_lr": disc_lr,
@@ -172,7 +170,13 @@ def main() -> None:
         save_every = 2000
         grow_idx = 0
         grow_every = [
-            1,1,1,1,1,1,1
+            10000,
+            40000,
+            50000,
+            60000,
+            70000,
+            80000,
+            80000
         ]
         fadein_length = [
             1,
@@ -209,14 +213,8 @@ def main() -> None:
                     device="cuda"
                 )
 
-                z_style = th.randn(
-                    batch_size,
-                    style_rand_channel,
-                    device="cuda"
-                )
-
                 # gen fake data
-                x_fake = gen(z, z_style, alpha)
+                x_fake = gen(z, alpha)
 
                 # pass real data and gen data to discriminator
                 out_real = disc(x_real, alpha)
@@ -263,14 +261,8 @@ def main() -> None:
                         device="cuda"
                     )
 
-                    z_style = th.randn(
-                        batch_size,
-                        style_rand_channel,
-                        device="cuda"
-                    )
-
                     # generate fake data
-                    x_fake = gen(z, z_style, alpha)
+                    x_fake = gen(z, alpha)
 
                     # pass to discriminator
                     out_fake = disc(x_fake, alpha)
@@ -328,13 +320,7 @@ def main() -> None:
                                 device="cuda"
                             )
 
-                            z_style = th.randn(
-                                1,
-                                style_rand_channel,
-                                device="cuda"
-                            )
-
-                            x_fake = gen(z, z_style, alpha)
+                            x_fake = gen(z, alpha)
 
                             magn = x_fake[0, 0, :, :].detach().cpu().numpy()
                             phase = x_fake[0, 1, :, :].detach().cpu().numpy()

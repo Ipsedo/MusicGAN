@@ -25,151 +25,41 @@ class PixelNorm(nn.Module):
         return self.__repr__()
 
 
-class NoiseLayer(nn.Module):
-    def __init__(self, channels: int):
-        super(NoiseLayer, self).__init__()
-
-        self.__channels = channels
-
-        self.__to_noise = nn.Linear(1, channels, bias=False)
-
-    def forward(self, x: th.Tensor) -> th.Tensor:
-        device = "cuda" if next(self.parameters()).is_cuda else "cpu"
-        b, c, w, h = x.size()
-
-        rand_per_pixel = th.randn(b, w, h, 1, device=device)
-
-        out = x + self.__to_noise(rand_per_pixel).permute(0, 3, 1, 2)
-
-        return out
-
-    def __repr__(self):
-        return f"NoiseLayer({self.__channels})"
-
-    def __str__(self):
-        return self.__repr__()
-
-
-class AdaIN(nn.Module):
-    def __init__(
-            self,
-            channels: int,
-            style_channels: int
-    ):
-        super(AdaIN, self).__init__()
-
-        self.__to_style = nn.Linear(
-            style_channels,
-            2 * channels
-        )
-
-        self.__inst_norm = nn.InstanceNorm2d(
-            channels, affine=False
-        )
-
-        self.__channels = channels
-        self.__style_channels = style_channels
-
-    def forward(self, x: th.Tensor, z: th.Tensor) -> th.Tensor:
-        b, c, _, _ = x.size()
-
-        out_lin = self.__to_style(z).view(b, 2 * c, 1, 1)
-        gamma, beta = out_lin.chunk(2, 1)
-
-        out_norm = self.__inst_norm(x)
-
-        out = gamma * out_norm + beta
-
-        return out
-
-    def __repr__(self):
-        return "AdaIN" + \
-               f"(channels={self.__channels}, " \
-               f"style={self.__style_channels})"
-
-    def __str__(self):
-        return self.__repr__()
-
-
-class GenActivation(nn.Module):
-    def __init__(self, channels: int, style_channels: int):
-        super(GenActivation, self).__init__()
-
-        self.__pn = PixelNorm()
-
-        self.__noise = NoiseLayer(
-            channels
-        )
-
-        self.__adain = AdaIN(
-            channels,
-            style_channels
-        )
-
-        self.__lrelu = nn.LeakyReLU(2e-1)
-
-    def forward(self, x: th.Tensor, style: th.Tensor) -> th.Tensor:
-        out = self.__pn(x)
-        out = self.__noise(out)
-        out = self.__adain(out, style)
-        out = self.__lrelu(out)
-        return out
-
-
-class Block(nn.Module):
-    def __init__(
-            self,
-            in_channels: int,
-            out_channels: int,
-            style_channels: int,
-            up_sample: bool
-    ):
-        super(Block, self).__init__()
-
-        self.__up_sample = nn.Upsample(
-            scale_factor=2.,
-            mode="bilinear",
-            align_corners=True
-        ) if up_sample else None
-
-        self.__conv = nn.Conv2d(
-            in_channels,
-            out_channels,
-            kernel_size=(3, 3),
-            stride=(1, 1),
-            padding=(1, 1)
-        )
-
-        self.__act = GenActivation(
-            out_channels,
-            style_channels
-        )
-
-    def forward(
-            self,
-            x: th.Tensor,
-            style: th.Tensor
-    ) -> th.Tensor:
-        out = x
-
-        if self.__up_sample is not None:
-            out = self.__up_sample(out)
-
-        out = self.__conv(out)
-        out = self.__act(out, style)
-
-        return out
-
-
-class LinearBlock(nn.Sequential):
+class Block(nn.Sequential):
     def __init__(
             self,
             in_channels: int,
             out_channels: int
     ):
-        super(LinearBlock, self).__init__(
-            nn.Linear(in_channels, out_channels),
+        super(Block, self).__init__(
+            nn.Conv2d(
+                in_channels,
+                out_channels,
+                kernel_size=(3, 3),
+                stride=(1, 1),
+                padding=(1, 1)
+            ),
+            PixelNorm(),
             nn.LeakyReLU(2e-1)
+        )
+
+
+class UpSampleBlock(nn.Sequential):
+    def __init__(
+            self,
+            in_channels: int,
+            out_channels: int
+    ):
+        super(UpSampleBlock, self).__init__(
+            nn.Upsample(
+                scale_factor=2.,
+                mode="bilinear",
+                align_corners=True
+            ),
+            Block(
+                in_channels,
+                out_channels
+            )
         )
 
 
@@ -190,7 +80,6 @@ class Generator(nn.Module):
     def __init__(
             self,
             rand_channels: int,
-            style_channels: int,
             end_layer: int = 0
     ):
         super(Generator, self).__init__()
@@ -200,14 +89,14 @@ class Generator(nn.Module):
         self.__nb_downsample = 8
 
         channels = [
-            (160, 144),
-            (144, 128),
-            (128, 112),
-            (112, 96),
-            (96, 80),
-            (80, 64),
-            (64, 48),
-            (48, 32)
+            (80, 72),
+            (72, 64),
+            (64, 56),
+            (56, 48),
+            (48, 40),
+            (40, 32),
+            (32, 24),
+            (24, 16)
         ]
 
         self.__channels = channels
@@ -216,17 +105,13 @@ class Generator(nn.Module):
 
         self.__first_block = Block(
             rand_channels,
-            channels[0][0],
-            style_channels,
-            False
+            channels[0][0]
         )
 
         # Generator layers
         self.__gen_blocks = nn.ModuleList([
-            Block(
-                c[0], c[1],
-                style_channels,
-                True
+            UpSampleBlock(
+                c[0], c[1]
             )
             for i, c in enumerate(channels)
         ])
@@ -250,29 +135,22 @@ class Generator(nn.Module):
             )
         )
 
-        self.__style_network = nn.Sequential(*[
-            LinearBlock(style_channels, style_channels)
-            for _ in range(8)
-        ])
-
     def forward(
             self,
             z: th.Tensor,
-            z_style: th.Tensor,
             alpha: float
     ) -> th.Tensor:
-        style = self.__style_network(z_style)
 
-        out = self.__first_block(z, style)
+        out = self.__first_block(z)
 
         for i in range(self.curr_layer):
             m = self.__gen_blocks[i]
-            out = m(out, style)
+            out = m(out)
 
         m = self.__gen_blocks[self.curr_layer]
-        out_last = m(out, style)
+        out_blocks = m(out)
 
-        out_mp = self.__end_block(out_last)
+        out_mp = self.__end_block(out_blocks)
 
         if self.__last_end_block is not None:
             out_old_mp = self.__last_end_block(out)
@@ -322,6 +200,5 @@ class Generator(nn.Module):
     def parameters(self, recurse: bool = True) -> Iterator[nn.Parameter]:
         return iter(
             list(self.__gen_blocks.parameters(recurse)) +
-            list(self.__end_block.parameters(recurse)) +
-            list(self.__style_network.parameters(recurse))
+            list(self.__end_block.parameters(recurse))
         )

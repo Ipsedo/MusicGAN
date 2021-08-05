@@ -27,12 +27,11 @@ class ConvBlock(nn.Sequential):
 class MagPhaseLayer(nn.Sequential):
     def __init__(
             self,
-            in_channels: int,
             out_channels: int
     ):
         super(MagPhaseLayer, self).__init__(
             nn.Conv2d(
-                in_channels,
+                2,
                 out_channels,
                 kernel_size=(3, 3),
                 stride=(1, 1),
@@ -45,25 +44,22 @@ class MagPhaseLayer(nn.Sequential):
 class Discriminator(nn.Module):
     def __init__(
             self,
-            in_channels: int,
             start_layer: int = 7
     ):
         super(Discriminator, self).__init__()
 
         assert 0 <= start_layer <= 7
 
-        self.__in_channels = in_channels
-
         conv_channels = [
-            (32, 48),
-            (48, 64),
-            (64, 80),
-            (80, 96),
-            (96, 112),
-            (112, 128),
-            (128, 144),
-            (144, 160),
-            (160, 176)
+            (16, 24),
+            (24, 32),
+            (32, 40),
+            (40, 48),
+            (48, 56),
+            (56, 64),
+            (64, 72),
+            (72, 80),
+            (80, 96)
         ]
 
         self.__channels = conv_channels
@@ -84,7 +80,6 @@ class Discriminator(nn.Module):
         self.__last_start_block = None
 
         self.__start_block = MagPhaseLayer(
-            self.__in_channels,
             conv_channels[self.curr_layer][0]
         )
 
@@ -129,7 +124,6 @@ class Discriminator(nn.Module):
             )
 
             self.__start_block = MagPhaseLayer(
-                self.__in_channels,
                 self.__channels[self.curr_layer][0]
             )
 
