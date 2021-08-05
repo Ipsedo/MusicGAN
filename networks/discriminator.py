@@ -9,27 +9,18 @@ class ConvBlock(nn.Sequential):
     def __init__(
             self,
             in_channels: int,
-            hidden_channels: int,
             out_channels: int
     ):
         super(ConvBlock, self).__init__(
             nn.Conv2d(
                in_channels,
-               hidden_channels,
+               out_channels,
                kernel_size=(3, 3),
                stride=(1, 1),
                padding=(1, 1)
             ),
             nn.LeakyReLU(2e-1),
-            nn.AvgPool2d(2, 2),
-            nn.Conv2d(
-                hidden_channels,
-                out_channels,
-                kernel_size=(3, 3),
-                stride=(1, 1),
-                padding=(1, 1)
-            ),
-            nn.LeakyReLU(2e-1)
+            nn.AvgPool2d(2, 2)
         )
 
 
@@ -64,15 +55,15 @@ class Discriminator(nn.Module):
         self.__in_channels = in_channels
 
         conv_channels = [
-            (16, 16, 32),
-            (32, 32, 48),
-            (48, 48, 64),
-            (64, 64, 80),
-            (80, 80, 96),
-            (96, 96, 112),
-            (112, 112, 128),
-            (128, 128, 144),
-            (144, 144, 160)
+            (32, 48),
+            (48, 64),
+            (64, 80),
+            (80, 96),
+            (96, 112),
+            (112, 128),
+            (128, 144),
+            (144, 160),
+            (160, 176)
         ]
 
         self.__channels = conv_channels
@@ -85,7 +76,7 @@ class Discriminator(nn.Module):
 
         self.__conv_blocks = nn.ModuleList([
             ConvBlock(
-                c[0], c[1], c[2]
+                c[0], c[1]
             )
             for c in conv_channels
         ])
@@ -101,7 +92,7 @@ class Discriminator(nn.Module):
         nb_freq = 512
 
         out_size = (
-                conv_channels[-1][2] *
+                conv_channels[-1][1] *
                 nb_time // stride ** nb_layer *
                 nb_freq // stride ** nb_layer
         )
