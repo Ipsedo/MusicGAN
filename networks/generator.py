@@ -120,40 +120,27 @@ class Block(nn.Module):
     def __init__(
             self,
             in_channels: int,
-            hidden_channels: int,
             out_channels: int,
-            style_channels: int
+            style_channels: int,
+            up_sample: bool
     ):
         super(Block, self).__init__()
-
-        self.__conv_1 = nn.Conv2d(
-            in_channels,
-            hidden_channels,
-            kernel_size=(3, 3),
-            stride=(1, 1),
-            padding=(1, 1)
-        )
-
-        self.__act_1 = GenActivation(
-            hidden_channels,
-            style_channels
-        )
 
         self.__up_sample = nn.Upsample(
             scale_factor=2.,
             mode="bilinear",
             align_corners=True
-        )
+        ) if up_sample else None
 
-        self.__conv_2 = nn.Conv2d(
-            hidden_channels,
+        self.__conv = nn.Conv2d(
+            in_channels,
             out_channels,
             kernel_size=(3, 3),
             stride=(1, 1),
             padding=(1, 1)
         )
 
-        self.__act_2 = GenActivation(
+        self.__act = GenActivation(
             out_channels,
             style_channels
         )
@@ -163,13 +150,13 @@ class Block(nn.Module):
             x: th.Tensor,
             style: th.Tensor
     ) -> th.Tensor:
-        out = self.__conv_1(x)
-        out = self.__act_1(out, style)
+        out = x
 
-        out = self.__up_sample(out)
+        if self.__up_sample is not None:
+            out = self.__up_sample(out)
 
-        out = self.__conv_2(out)
-        out = self.__act_2(out, style)
+        out = self.__conv(out)
+        out = self.__act(out, style)
 
         return out
 
@@ -213,32 +200,40 @@ class Generator(nn.Module):
         self.__nb_downsample = 8
 
         channels = [
-            (rand_channels, 128, 128),
-            (128, 112, 112),
-            (112, 96, 96),
-            (96, 80, 80),
-            (80, 64, 64),
-            (64, 48, 48),
-            (48, 32, 32),
-            (32, 16, 16)
+            (160, 144),
+            (144, 128),
+            (128, 112),
+            (112, 96),
+            (96, 80),
+            (80, 64),
+            (64, 48),
+            (48, 32)
         ]
 
         self.__channels = channels
 
         assert 0 <= end_layer < len(channels)
 
+        self.__first_block = Block(
+            rand_channels,
+            channels[0][0],
+            style_channels,
+            False
+        )
+
         # Generator layers
         self.__gen_blocks = nn.ModuleList([
             Block(
-                c[0], c[1], c[2],
-                style_channels
+                c[0], c[1],
+                style_channels,
+                True
             )
             for i, c in enumerate(channels)
         ])
 
         # for progressive gan
         self.__end_block = ToMagnPhaseLayer(
-            channels[self.curr_layer][2]
+            channels[self.curr_layer][1]
         )
 
         self.__last_end_block = (
@@ -268,7 +263,7 @@ class Generator(nn.Module):
     ) -> th.Tensor:
         style = self.__style_network(z_style)
 
-        out = z
+        out = self.__first_block(z, style)
 
         for i in range(self.curr_layer):
             m = self.__gen_blocks[i]
@@ -299,7 +294,7 @@ class Generator(nn.Module):
             )
 
             self.__end_block = ToMagnPhaseLayer(
-                self.__channels[self.curr_layer][2]
+                self.__channels[self.curr_layer][1]
             )
 
             device = "cuda" \
