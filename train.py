@@ -169,16 +169,10 @@ def main() -> None:
         iter_idx = 0
         save_idx = 0
 
-        save_every = 1000
+        save_every = 2000
         grow_idx = 0
         grow_every = [
-            10000,
-            20000,
-            30000,
-            40000,
-            50000,
-            60000,
-            70000
+            1,1,1,1,1,1,1
         ]
         fadein_length = [
             1,
