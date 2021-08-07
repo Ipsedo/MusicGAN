@@ -89,14 +89,14 @@ class Generator(nn.Module):
         self.__nb_downsample = 8
 
         channels = [
-            (80, 72),
-            (72, 64),
-            (64, 56),
-            (56, 48),
-            (48, 40),
-            (40, 32),
-            (32, 24),
-            (24, 16)
+            (144, 128),
+            (128, 112),
+            (112, 96),
+            (96, 80),
+            (80, 64),
+            (64, 48),
+            (48, 32),
+            (32, 16)
         ]
 
         self.__channels = channels
@@ -199,6 +199,7 @@ class Generator(nn.Module):
 
     def parameters(self, recurse: bool = True) -> Iterator[nn.Parameter]:
         return iter(
+            list(self.__first_block.parameters()) +
             list(self.__gen_blocks.parameters(recurse)) +
             list(self.__end_block.parameters(recurse))
         )

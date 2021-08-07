@@ -2,7 +2,6 @@ import audio
 import networks
 
 import torch as th
-import torch.backends.cudnn as th_cudnn
 from torchvision.transforms import Compose, Resize
 from torch.utils.data import DataLoader
 
@@ -56,11 +55,29 @@ def main() -> None:
         type=str
     )
 
-    parser.add_argument('--gen', type=str, required=False)
-    parser.add_argument('--gen-optim', type=str, required=False)
+    parser.add_argument(
+        '--gen',
+        type=str,
+        required=False
+    )
 
-    parser.add_argument('--disc', type=str, required=False)
-    parser.add_argument('--disc-optim', type=str, required=False)
+    parser.add_argument(
+        '--gen-optim',
+        type=str,
+        required=False
+    )
+
+    parser.add_argument(
+        '--disc',
+        type=str,
+        required=False
+    )
+
+    parser.add_argument(
+        '--disc-optim',
+        type=str,
+        required=False
+    )
 
     args = parser.parse_args()
 
@@ -71,11 +88,14 @@ def main() -> None:
 
     mlflow.start_run(run_name=args.run)
 
-    mlflow.log_param("input_dataset", args.input_dataset)
+    mlflow.log_param(
+        "input_dataset",
+        args.input_dataset
+    )
 
     sample_rate = 44100
 
-    rand_channel = 16
+    rand_channel = 32
     height = 2
     width = 2
 
@@ -167,16 +187,16 @@ def main() -> None:
         iter_idx = 0
         save_idx = 0
 
-        save_every = 2000
+        save_every = 1000
         grow_idx = 0
         grow_every = [
+            5000,
             10000,
+            15000,
+            20000,
+            30000,
             40000,
-            50000,
-            60000,
-            70000,
-            80000,
-            80000
+            50000
         ]
         fadein_length = [
             1,
@@ -184,9 +204,9 @@ def main() -> None:
             2000,
             4000,
             8000,
-            16000,
-            16000,
-            16000
+            10000,
+            10000,
+            10000
         ]
 
         for e in range(nb_epoch):
@@ -313,7 +333,7 @@ def main() -> None:
                     # Generate sound
                     with th.no_grad():
 
-                        for gen_idx in range(3):
+                        for gen_idx in range(6):
                             z = th.randn(
                                 1, rand_channel,
                                 height, width,
