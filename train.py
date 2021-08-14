@@ -95,7 +95,8 @@ def main() -> None:
 
     sample_rate = 44100
 
-    rand_channel = 32
+    style_channels = 64
+    rand_channel = 16
     height = 2
     width = 2
 
@@ -103,7 +104,7 @@ def main() -> None:
     gen_lr = 1e-4
 
     nb_epoch = 1000
-    batch_size = 8
+    batch_size = 4
 
     output_dir = args.out_path
 
@@ -118,6 +119,7 @@ def main() -> None:
 
     gen = networks.Generator(
         rand_channel,
+        style_channels,
         end_layer=0
     )
 
@@ -191,22 +193,22 @@ def main() -> None:
         grow_idx = 0
         grow_every = [
             5000,
-            10000,
-            15000,
             20000,
-            30000,
             40000,
-            50000
+            60000,
+            80000,
+            100000,
+            120000
         ]
         fadein_length = [
             1,
             1000,
             2000,
+            3000,
             4000,
-            8000,
-            10000,
-            10000,
-            10000
+            5000,
+            6000,
+            7000
         ]
 
         for e in range(nb_epoch):
@@ -233,8 +235,14 @@ def main() -> None:
                     device="cuda"
                 )
 
+                z_style = th.randn(
+                    batch_size,
+                    style_channels,
+                    device="cuda"
+                )
+
                 # gen fake data
-                x_fake = gen(z, alpha)
+                x_fake = gen(z, z_style, alpha)
 
                 # pass real data and gen data to discriminator
                 out_real = disc(x_real, alpha)
@@ -281,8 +289,14 @@ def main() -> None:
                         device="cuda"
                     )
 
+                    z_style = th.randn(
+                        batch_size,
+                        style_channels,
+                        device="cuda"
+                    )
+
                     # generate fake data
-                    x_fake = gen(z, alpha)
+                    x_fake = gen(z, z_style, alpha)
 
                     # pass to discriminator
                     out_fake = disc(x_fake, alpha)
@@ -340,7 +354,12 @@ def main() -> None:
                                 device="cuda"
                             )
 
-                            x_fake = gen(z, alpha)
+                            z_style = th.randn(
+                                1, style_channels,
+                                device="cuda"
+                            )
+
+                            x_fake = gen(z, z_style, alpha)
 
                             magn = x_fake[0, 0, :, :].detach().cpu().numpy()
                             phase = x_fake[0, 1, :, :].detach().cpu().numpy()
