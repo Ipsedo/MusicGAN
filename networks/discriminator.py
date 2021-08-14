@@ -51,7 +51,7 @@ class Discriminator(nn.Module):
         assert 0 <= start_layer <= 7
 
         conv_channels = [
-            (16, 32),
+            (24, 32),
             (32, 48),
             (48, 64),
             (64, 80),
