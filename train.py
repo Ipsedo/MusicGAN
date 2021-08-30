@@ -95,13 +95,13 @@ def main() -> None:
 
     sample_rate = 44100
 
-    style_channels = 64
-    rand_channel = 16
+    style_channels = 128
+    rand_channel = 32
     height = 2
     width = 2
 
-    disc_lr = 1e-4
-    gen_lr = 1e-4
+    disc_lr = 1e-3
+    gen_lr = 1e-3
 
     nb_epoch = 1000
     batch_size = 4
@@ -131,11 +131,13 @@ def main() -> None:
     disc.cuda()
 
     optim_gen = th.optim.Adam(
-        gen.parameters(), lr=gen_lr
+        gen.parameters(), lr=gen_lr,
+        betas=(0.5, 0.9)
     )
 
     optim_disc = th.optim.Adam(
-        disc.parameters(), lr=disc_lr
+        disc.parameters(), lr=disc_lr,
+        betas=(0.5, 0.9)
     )
 
     # Load models & optimizers
@@ -189,26 +191,26 @@ def main() -> None:
         iter_idx = 0
         save_idx = 0
 
-        save_every = 1000
+        save_every = 2000
         grow_idx = 0
         grow_every = [
             10000,
+            20000,
             40000,
             80000,
-            120000,
             160000,
-            160000,
-            160000
+            320000,
+            320000
         ]
         fadein_length = [
             1,
+            2000,
             4000,
             8000,
-            12000,
             16000,
-            16000,
-            16000,
-            16000
+            32000,
+            32000,
+            64000
         ]
 
         for e in range(nb_epoch):
@@ -268,10 +270,10 @@ def main() -> None:
                 optim_disc.step()
 
                 # discriminator metrics
-                error_tp.append(out_real.mean().item())
-                error_tn.append(out_fake.mean().item())
                 del error_tn[0]
                 del error_tp[0]
+                error_tp.append(out_real.mean().item())
+                error_tn.append(out_fake.mean().item())
 
                 del disc_loss_list[0]
                 del grad_pen_list[0]
@@ -435,6 +437,7 @@ def main() -> None:
                 iter_idx += 1
                 grow_idx += 1
 
+                # ProGAN : add next layer
                 if gen.growing and grow_idx % grow_every[gen.curr_layer] == 0:
                     scale_factor -= 1
 
