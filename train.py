@@ -96,12 +96,12 @@ def main() -> None:
     sample_rate = 44100
 
     style_channels = 128
-    rand_channel = 32
+    rand_channels = 32
     height = 2
     width = 2
 
-    disc_lr = 1e-4
-    gen_lr = 1e-4
+    disc_lr = 5e-4
+    gen_lr = 5e-4
 
     nb_epoch = 1000
     batch_size = 4
@@ -118,7 +118,7 @@ def main() -> None:
     scale_factor = 7
 
     gen = networks.Generator(
-        rand_channel,
+        rand_channels,
         style_channels,
         end_layer=0
     )
@@ -165,7 +165,8 @@ def main() -> None:
     )
 
     mlflow.log_params({
-        "rand_channel": rand_channel,
+        "rand_channels": rand_channels,
+        "style_channels": style_channels,
         "nb_epoch": nb_epoch,
         "batch_size": batch_size,
         "disc_lr": disc_lr,
@@ -231,7 +232,7 @@ def main() -> None:
                 # sample random latent data
                 z = th.randn(
                     batch_size,
-                    rand_channel,
+                    rand_channels,
                     height,
                     width,
                     device="cuda"
@@ -285,7 +286,7 @@ def main() -> None:
                     # sample random latent data
                     z = th.randn(
                         batch_size,
-                        rand_channel,
+                        rand_channels,
                         height,
                         width,
                         device="cuda"
@@ -351,7 +352,7 @@ def main() -> None:
 
                         for gen_idx in range(6):
                             z = th.randn(
-                                1, rand_channel,
+                                1, rand_channels,
                                 height, width,
                                 device="cuda"
                             )
