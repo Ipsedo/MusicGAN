@@ -35,15 +35,15 @@ def main() -> None:
     gen = Generator(
         args.rand_channels,
         args.style_channels,
-        end_layer=7
+        end_layer=6
     )
 
     gen.load_state_dict(
         th.load(args.gen_dict_state)
     )
 
-    height = 2
-    width = 2
+    height = 4
+    width = 4
 
     with th.no_grad():
         print("Pass rand data to generator...")
