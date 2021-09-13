@@ -95,10 +95,10 @@ def main() -> None:
 
     sample_rate = 44100
 
-    style_channels = 128
-    rand_channels = 32
-    height = 2
-    width = 2
+    style_channels = 256
+    rand_channels = 16
+    height = 4
+    width = 4
 
     disc_lr = 1e-4
     gen_lr = 1e-4
@@ -115,7 +115,7 @@ def main() -> None:
             f"\"{output_dir}\" is not a directory !"
         )
 
-    scale_factor = 7
+    scale_factor = 6
 
     gen = networks.Generator(
         rand_channels,
@@ -124,7 +124,7 @@ def main() -> None:
     )
 
     disc = networks.Discriminator(
-        start_layer=7
+        start_layer=6
     )
 
     gen.cuda()
@@ -199,19 +199,19 @@ def main() -> None:
             100000,
             100000,
             100000,
-            200000,
-            200000,
-            200000
+            100000,
+            100000,
+            100000
         ]
         fadein_length = [
             1,
             10000,
             10000,
             10000,
-            20000,
-            20000,
-            20000,
-            30000
+            10000,
+            10000,
+            10000,
+            20000
         ]
 
         for e in range(nb_epoch):

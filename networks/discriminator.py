@@ -44,11 +44,11 @@ class MagPhaseLayer(nn.Sequential):
 class Discriminator(nn.Module):
     def __init__(
             self,
-            start_layer: int = 7
+            start_layer: int = 6
     ):
         super(Discriminator, self).__init__()
 
-        assert 0 <= start_layer <= 7
+        assert 0 <= start_layer <= 6
 
         conv_channels = [
             (32, 64),
@@ -58,8 +58,7 @@ class Discriminator(nn.Module):
             (112, 128),
             (128, 144),
             (144, 160),
-            (160, 176),
-            (176, 192)
+            (160, 176)
         ]
 
         self.__channels = conv_channels
@@ -68,7 +67,7 @@ class Discriminator(nn.Module):
 
         stride = 2
 
-        nb_layer = 9
+        nb_layer = 8
 
         self.__conv_blocks = nn.ModuleList([
             ConvBlock(

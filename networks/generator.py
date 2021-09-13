@@ -194,10 +194,9 @@ class Generator(nn.Module):
 
         self.__curr_layer = end_layer
 
-        self.__nb_downsample = 8
+        self.__nb_downsample = 7
 
         channels = [
-            (176, 160),
             (160, 144),
             (144, 128),
             (128, 112),
@@ -257,14 +256,16 @@ class Generator(nn.Module):
             alpha: float
     ) -> th.Tensor:
 
-        out = self.__first_block(z, z_style)
+        style = self.__style_network(z_style)
+
+        out = self.__first_block(z, style)
 
         for i in range(self.curr_layer):
             m = self.__gen_blocks[i]
-            out = m(out, z_style)
+            out = m(out, style)
 
         m = self.__gen_blocks[self.curr_layer]
-        out_blocks = m(out, z_style)
+        out_blocks = m(out, style)
 
         out_mp = self.__end_block(out_blocks)
 
