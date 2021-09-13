@@ -100,8 +100,8 @@ def main() -> None:
     height = 2
     width = 2
 
-    disc_lr = 5e-4
-    gen_lr = 5e-4
+    disc_lr = 1e-4
+    gen_lr = 1e-4
 
     nb_epoch = 1000
     batch_size = 4
@@ -160,7 +160,7 @@ def main() -> None:
         audio_dataset,
         batch_size=batch_size,
         shuffle=True,
-        num_workers=8,
+        num_workers=10,
         drop_last=True
     )
 
@@ -196,22 +196,22 @@ def main() -> None:
         grow_idx = 0
         grow_every = [
             10000,
-            20000,
-            40000,
-            80000,
-            160000,
-            320000,
-            320000
+            100000,
+            100000,
+            100000,
+            200000,
+            200000,
+            200000
         ]
         fadein_length = [
             1,
-            2000,
-            4000,
-            8000,
-            16000,
-            32000,
-            32000,
-            64000
+            10000,
+            10000,
+            10000,
+            20000,
+            20000,
+            20000,
+            30000
         ]
 
         for e in range(nb_epoch):
