@@ -82,10 +82,13 @@ class AdaIN(nn.Module):
 
         return out
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return "AdaIN" + \
                f"(channels={self.__channels}, " \
                f"style={self.__style_channels})"
+
+    def __str__(self) -> str:
+        return self.__repr__()
 
 
 class Block(nn.Module):
@@ -107,9 +110,9 @@ class Block(nn.Module):
 
         self.__pn = PixelNorm()
 
-        #self.__noise = NoiseLayer(
-        #    out_channels
-        #)
+        self.__noise = NoiseLayer(
+            out_channels
+        )
 
         self.__adain = AdaIN(
             out_channels,
@@ -122,7 +125,7 @@ class Block(nn.Module):
         out = self.__conv(x)
 
         out = self.__pn(out)
-        #out = self.__noise(out)
+        out = self.__noise(out)
         out = self.__adain(out, style)
         out = self.__lr_relu(out)
 
@@ -197,13 +200,13 @@ class Generator(nn.Module):
         self.__nb_downsample = 7
 
         channels = [
-            (160, 144),
-            (144, 128),
             (128, 112),
             (112, 96),
             (96, 80),
             (80, 64),
-            (64, 32)
+            (64, 48),
+            (48, 32),
+            (32, 16)
         ]
 
         self.__channels = channels
@@ -321,3 +324,7 @@ class Generator(nn.Module):
             list(self.__end_block.parameters(recurse)) +
             list(self.__style_network.parameters(recurse))
         )
+
+    def zero_grad(self, set_to_none: bool = False) -> None:
+        for p in self.parameters():
+            p.grad = None

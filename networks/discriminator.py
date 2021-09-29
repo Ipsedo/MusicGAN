@@ -51,14 +51,15 @@ class Discriminator(nn.Module):
         assert 0 <= start_layer <= 6
 
         conv_channels = [
-            (32, 64),
+            (16, 32),
+            (32, 48),
+            (48, 64),
             (64, 80),
             (80, 96),
             (96, 112),
             (112, 128),
             (128, 144),
-            (144, 160),
-            (160, 176)
+            (144, 160)
         ]
 
         self.__channels = conv_channels
@@ -67,7 +68,7 @@ class Discriminator(nn.Module):
 
         stride = 2
 
-        nb_layer = 8
+        nb_layer = 9
 
         self.__conv_blocks = nn.ModuleList([
             ConvBlock(
@@ -179,3 +180,7 @@ class Discriminator(nn.Module):
             list(self.__start_block.parameters(recurse)) +
             list(self.__clf.parameters(recurse))
         )
+
+    def zero_grad(self, set_to_none: bool = False) -> None:
+        for p in self.parameters():
+            p.grad = None
