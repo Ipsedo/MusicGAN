@@ -95,16 +95,16 @@ def main() -> None:
 
     sample_rate = 44100
 
-    style_channels = 256
+    style_channels = 64
     rand_channels = 16
     height = 4
     width = 4
 
-    disc_lr = 1e-4
-    gen_lr = 1e-4
+    disc_lr = 1e-3
+    gen_lr = 1e-3
 
     nb_epoch = 1000
-    batch_size = 4
+    batch_size = 8
 
     output_dir = args.out_path
 
@@ -131,13 +131,11 @@ def main() -> None:
     disc.cuda()
 
     optim_gen = th.optim.Adam(
-        gen.parameters(), lr=gen_lr,
-        betas=(0.5, 0.9)
+        gen.parameters(), lr=gen_lr
     )
 
     optim_disc = th.optim.Adam(
-        disc.parameters(), lr=disc_lr,
-        betas=(0.5, 0.9)
+        disc.parameters(), lr=disc_lr
     )
 
     # Load models & optimizers
@@ -160,8 +158,9 @@ def main() -> None:
         audio_dataset,
         batch_size=batch_size,
         shuffle=True,
-        num_workers=10,
-        drop_last=True
+        num_workers=8,
+        drop_last=True,
+        pin_memory=False
     )
 
     mlflow.log_params({
@@ -195,23 +194,23 @@ def main() -> None:
         save_every = 2000
         grow_idx = 0
         grow_every = [
+            1000,
+            5000,
+            5000,
             10000,
-            100000,
-            100000,
-            100000,
-            100000,
-            100000,
-            100000
+            10000,
+            10000,
+            10000
         ]
         fadein_length = [
             1,
-            10000,
-            10000,
-            10000,
-            10000,
-            10000,
-            10000,
-            20000
+            500,
+            500,
+            1000,
+            1000,
+            1000,
+            1000,
+            1000
         ]
 
         for e in range(nb_epoch):
@@ -226,8 +225,8 @@ def main() -> None:
                 # train discriminator
 
                 # pass data to cuda
-                x_real = x_real.cuda().to(th.float)
-                x_real = transform(x_real)
+                x_real = x_real.to(th.float)
+                x_real = transform(x_real).cuda()
 
                 # sample random latent data
                 z = th.randn(
@@ -263,8 +262,8 @@ def main() -> None:
                 disc_loss_gp = disc_loss + grad_pen
 
                 # reset grad
-                optim_gen.zero_grad()
-                optim_disc.zero_grad()
+                gen.zero_grad()
+                disc.zero_grad()
 
                 # backward and optim step
                 disc_loss_gp.backward()
@@ -308,8 +307,8 @@ def main() -> None:
                     gen_loss = networks.wasserstein_generator_loss(out_fake)
 
                     # reset gradient
-                    optim_gen.zero_grad()
-                    optim_disc.zero_grad()
+                    gen.zero_grad()
+                    disc.zero_grad()
 
                     # backward and optim step
                     gen_loss.backward()
@@ -455,7 +454,7 @@ def main() -> None:
                         disc.parameters(), lr=disc_lr
                     )
 
-                    print("\nup_layer", gen.curr_layer, "/", gen.down_sample)
+                    print("\nup_layer", gen.curr_layer, "/", gen.down_sample - 1)
 
                     grow_idx = 0
 
