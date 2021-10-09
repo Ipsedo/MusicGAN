@@ -243,8 +243,6 @@ class Generator(nn.Module):
             )
         )
 
-        print(self.__last_end_block)
-
         self.__style_network = nn.Sequential(*[
             LinearBlock(style_channels, style_channels)
             for _ in range(8)
