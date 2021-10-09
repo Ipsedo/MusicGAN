@@ -100,19 +100,20 @@ class Block(nn.Module):
     ):
         super(Block, self).__init__()
 
-        self.__conv = nn.Conv2d(
+        self.__conv = nn.ConvTranspose2d(
             in_channels,
             out_channels,
             kernel_size=(3, 3),
-            stride=(1, 1),
-            padding=(1, 1)
+            stride=(2, 2),
+            padding=(1, 1),
+            output_padding=(1, 1)
         )
 
-        self.__pn = PixelNorm()
+        #self.__pn = PixelNorm()
 
-        self.__noise = NoiseLayer(
-            out_channels
-        )
+        #self.__noise = NoiseLayer(
+        #    out_channels
+        #)
 
         self.__adain = AdaIN(
             out_channels,
@@ -124,22 +125,22 @@ class Block(nn.Module):
     def forward(self, x: th.Tensor, style: th.Tensor) -> th.Tensor:
         out = self.__conv(x)
 
-        out = self.__pn(out)
-        out = self.__noise(out)
+        #out = self.__pn(out)
+        #out = self.__noise(out)
         out = self.__adain(out, style)
         out = self.__lr_relu(out)
 
         return out
 
 
-class UpSampleBlock(nn.Module):
+class _UpSampleBlock(nn.Module):
     def __init__(
             self,
             in_channels: int,
             out_channels: int,
             style_channels: int
     ):
-        super(UpSampleBlock, self).__init__()
+        super(_UpSampleBlock, self).__init__()
 
         self.__up_sample = nn.Upsample(
             scale_factor=2.,
@@ -164,7 +165,7 @@ class UpSampleBlock(nn.Module):
 class ToMagnPhaseLayer(nn.Sequential):
     def __init__(self, in_channels: int):
         super(ToMagnPhaseLayer, self).__init__(
-            nn.Conv2d(
+            nn.ConvTranspose2d(
                 in_channels, 2,
                 kernel_size=(3, 3),
                 stride=(1, 1),
@@ -200,28 +201,23 @@ class Generator(nn.Module):
         self.__nb_downsample = 7
 
         channels = [
-            (128, 112),
-            (112, 96),
-            (96, 80),
-            (80, 64),
-            (64, 48),
-            (48, 32),
-            (32, 16)
+            (rand_channels, 256),
+            (256, 224),
+            (224, 192),
+            (192, 160),
+            (160, 128),
+            (128, 96),
+            (96, 64),
+            (64, 32)
         ]
 
         self.__channels = channels
 
         assert 0 <= end_layer < len(channels)
 
-        self.__first_block = Block(
-            rand_channels,
-            channels[0][0],
-            style_channels
-        )
-
         # Generator layers
         self.__gen_blocks = nn.ModuleList([
-            UpSampleBlock(
+            Block(
                 c[0], c[1],
                 style_channels
             )
@@ -235,15 +231,8 @@ class Generator(nn.Module):
 
         self.__last_end_block = (
             None if self.__curr_layer == 0
-            else nn.Sequential(
-                ToMagnPhaseLayer(
-                    channels[self.curr_layer - 1][1]
-                ),
-                nn.Upsample(
-                    scale_factor=2.,
-                    mode="bilinear",
-                    align_corners=True
-                )
+            else ToMagnPhaseLayer(
+                    channels[self.curr_layer][1]
             )
         )
 
@@ -261,16 +250,15 @@ class Generator(nn.Module):
 
         style = self.__style_network(z_style)
 
-        out = self.__first_block(z, style)
+        out = z
 
         for i in range(self.curr_layer):
             m = self.__gen_blocks[i]
             out = m(out, style)
 
-        m = self.__gen_blocks[self.curr_layer]
-        out_blocks = m(out, style)
+        out_block = self.__gen_blocks[self.curr_layer](out, style)
 
-        out_mp = self.__end_block(out_blocks)
+        out_mp = self.__end_block(out_block)
 
         if self.__last_end_block is not None:
             out_old_mp = self.__last_end_block(out)
@@ -319,7 +307,6 @@ class Generator(nn.Module):
 
     def parameters(self, recurse: bool = True) -> Iterator[nn.Parameter]:
         return iter(
-            list(self.__first_block.parameters(recurse)) +
             list(self.__gen_blocks.parameters(recurse)) +
             list(self.__end_block.parameters(recurse)) +
             list(self.__style_network.parameters(recurse))

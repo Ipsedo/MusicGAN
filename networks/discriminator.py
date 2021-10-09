@@ -16,11 +16,10 @@ class ConvBlock(nn.Sequential):
                in_channels,
                out_channels,
                kernel_size=(3, 3),
-               stride=(1, 1),
+               stride=(2, 2),
                padding=(1, 1)
             ),
-            nn.LeakyReLU(2e-1),
-            nn.AvgPool2d(2, 2)
+            nn.LeakyReLU(2e-1)
         )
 
 
@@ -44,22 +43,19 @@ class MagPhaseLayer(nn.Sequential):
 class Discriminator(nn.Module):
     def __init__(
             self,
-            start_layer: int = 6
+            start_layer: int = 7
     ):
         super(Discriminator, self).__init__()
 
-        assert 0 <= start_layer <= 6
-
         conv_channels = [
-            (16, 32),
-            (32, 48),
-            (48, 64),
-            (64, 80),
-            (80, 96),
-            (96, 112),
-            (112, 128),
-            (128, 144),
-            (144, 160)
+            (32, 64),
+            (64, 96),
+            (96, 128),
+            (128, 160),
+            (160, 192),
+            (192, 224),
+            (224, 256),
+            (256, 288)
         ]
 
         self.__channels = conv_channels
@@ -68,7 +64,8 @@ class Discriminator(nn.Module):
 
         stride = 2
 
-        nb_layer = 9
+        self.__nb_layer = len(conv_channels)
+        assert 0 <= start_layer <= len(conv_channels)
 
         self.__conv_blocks = nn.ModuleList([
             ConvBlock(
@@ -88,18 +85,17 @@ class Discriminator(nn.Module):
 
         out_size = (
                 conv_channels[-1][1] *
-                nb_time // stride ** nb_layer *
-                nb_freq // stride ** nb_layer
+                nb_time // stride ** self.__nb_layer *
+                nb_freq // stride ** self.__nb_layer
         )
 
         self.__clf = nn.Linear(out_size, 1)
 
     def forward(self, x: th.Tensor, alpha: float) -> th.Tensor:
-
         out_new = self.__start_block(x)
         out_new = self.__conv_blocks[self.__curr_layer](out_new)
 
-        if self.__last_start_block is not None:
+        if self.__curr_layer < len(self.__conv_blocks) - 1:
             out_old = self.__last_start_block(x)
             out = alpha * out_new + (1 - alpha) * out_old
         else:
