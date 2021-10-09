@@ -35,7 +35,7 @@ def main() -> None:
     gen = Generator(
         args.rand_channels,
         args.style_channels,
-        end_layer=6
+        end_layer=7
     )
 
     gen.load_state_dict(

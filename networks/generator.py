@@ -231,10 +231,19 @@ class Generator(nn.Module):
 
         self.__last_end_block = (
             None if self.__curr_layer == 0
-            else ToMagnPhaseLayer(
-                    channels[self.curr_layer][1]
+            else nn.Sequential(
+                ToMagnPhaseLayer(
+                    channels[self.curr_layer - 1][1]
+                ),
+                nn.Upsample(
+                    scale_factor=2.,
+                    mode="bilinear",
+                    align_corners=True
+                )
             )
         )
+
+        print(self.__last_end_block)
 
         self.__style_network = nn.Sequential(*[
             LinearBlock(style_channels, style_channels)
