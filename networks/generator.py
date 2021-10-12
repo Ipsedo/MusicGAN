@@ -109,11 +109,11 @@ class Block(nn.Module):
             output_padding=(1, 1)
         )
 
-        #self.__pn = PixelNorm()
+        self.__pn = PixelNorm()
 
-        #self.__noise = NoiseLayer(
-        #    out_channels
-        #)
+        self.__noise = NoiseLayer(
+            out_channels
+        )
 
         self.__adain = AdaIN(
             out_channels,
@@ -125,8 +125,8 @@ class Block(nn.Module):
     def forward(self, x: th.Tensor, style: th.Tensor) -> th.Tensor:
         out = self.__conv(x)
 
-        #out = self.__pn(out)
-        #out = self.__noise(out)
+        out = self.__pn(out)
+        out = self.__noise(out)
         out = self.__adain(out, style)
         out = self.__lr_relu(out)
 
