@@ -96,15 +96,15 @@ def main() -> None:
     sample_rate = 44100
 
     style_channels = 128
-    rand_channels = 64
+    rand_channels = 32
     height = 2
     width = 2
 
-    disc_lr = 1e-4
-    gen_lr = 1e-4
+    disc_lr = 5e-4
+    gen_lr = 5e-4
 
     nb_epoch = 1000
-    batch_size = 4
+    batch_size = 7
 
     output_dir = args.out_path
 
@@ -198,19 +198,19 @@ def main() -> None:
             100000,
             100000,
             100000,
-            200000,
-            200000,
-            200000
+            100000,
+            100000,
+            100000
         ]
         fadein_length = [
             1,
-            40000,
-            40000,
-            40000,
-            80000,
-            80000,
-            80000,
-            80000
+            20000,
+            20000,
+            20000,
+            20000,
+            20000,
+            20000,
+            20000,
         ]
 
         for e in range(nb_epoch):
@@ -454,7 +454,7 @@ def main() -> None:
                         disc.parameters(), lr=disc_lr
                     )
 
-                    print("\nup_layer", gen.curr_layer, "/", gen.down_sample - 1)
+                    print("\nup_layer", gen.curr_layer, "/", gen.down_sample)
 
                     grow_idx = 0
 
