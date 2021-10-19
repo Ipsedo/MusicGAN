@@ -96,15 +96,16 @@ def main() -> None:
     sample_rate = 44100
 
     style_channels = 128
+    rand_style_channels = 64
     rand_channels = 32
     height = 2
     width = 2
 
-    disc_lr = 5e-4
-    gen_lr = 5e-4
+    disc_lr = 1e-4
+    gen_lr = 1e-4
 
     nb_epoch = 1000
-    batch_size = 7
+    batch_size = 6
 
     output_dir = args.out_path
 
@@ -119,6 +120,7 @@ def main() -> None:
 
     gen = networks.Generator(
         rand_channels,
+        rand_style_channels,
         style_channels,
         end_layer=0
     )
@@ -160,11 +162,12 @@ def main() -> None:
         shuffle=True,
         num_workers=8,
         drop_last=True,
-        pin_memory=False
+        pin_memory=True
     )
 
     mlflow.log_params({
         "rand_channels": rand_channels,
+        "rand_style_channels": rand_style_channels,
         "style_channels": style_channels,
         "nb_epoch": nb_epoch,
         "batch_size": batch_size,
@@ -200,17 +203,17 @@ def main() -> None:
             100000,
             100000,
             100000,
-            100000
+            100000,
         ]
         fadein_length = [
             1,
-            20000,
-            20000,
-            20000,
-            20000,
-            20000,
-            20000,
-            20000,
+            25000,
+            25000,
+            25000,
+            25000,
+            25000,
+            25000,
+            25000,
         ]
 
         for e in range(nb_epoch):
@@ -239,7 +242,7 @@ def main() -> None:
 
                 z_style = th.randn(
                     batch_size,
-                    style_channels,
+                    rand_style_channels,
                     device="cuda"
                 )
 
@@ -293,7 +296,7 @@ def main() -> None:
 
                     z_style = th.randn(
                         batch_size,
-                        style_channels,
+                        rand_style_channels,
                         device="cuda"
                     )
 
@@ -357,7 +360,7 @@ def main() -> None:
                             )
 
                             z_style = th.randn(
-                                1, style_channels,
+                                1, rand_style_channels,
                                 device="cuda"
                             )
 

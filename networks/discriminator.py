@@ -19,6 +19,7 @@ class ConvBlock(nn.Sequential):
                stride=(2, 2),
                padding=(1, 1)
             ),
+            nn.InstanceNorm2d(out_channels, affine=False),
             nn.LeakyReLU(2e-1)
         )
 
@@ -36,6 +37,7 @@ class MagPhaseLayer(nn.Sequential):
                 stride=(1, 1),
                 padding=(1, 1)
             ),
+            nn.InstanceNorm2d(out_channels, affine=False),
             nn.LeakyReLU(2e-1)
         )
 
@@ -55,7 +57,7 @@ class Discriminator(nn.Module):
             (160, 192),
             (192, 224),
             (224, 256),
-            (256, 288)
+            (256, 256)
         ]
 
         self.__channels = conv_channels
@@ -95,7 +97,7 @@ class Discriminator(nn.Module):
         out_new = self.__start_block(x)
         out_new = self.__conv_blocks[self.__curr_layer](out_new)
 
-        if self.__curr_layer < len(self.__conv_blocks) - 1:
+        if self.__last_start_block:
             out_old = self.__last_start_block(x)
             out = alpha * out_new + (1 - alpha) * out_old
         else:
