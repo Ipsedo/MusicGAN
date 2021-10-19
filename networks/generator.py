@@ -109,7 +109,7 @@ class Block(nn.Module):
             output_padding=(1, 1)
         )
 
-        self.__pn = PixelNorm()
+        #self.__pn = PixelNorm()
 
         self.__noise = NoiseLayer(
             out_channels
@@ -125,7 +125,8 @@ class Block(nn.Module):
     def forward(self, x: th.Tensor, style: th.Tensor) -> th.Tensor:
         out = self.__conv(x)
 
-        out = self.__pn(out)
+        # pixel norm -> pas de sens comme on fait du instant norm...
+        #out = self.__pn(out)
         out = self.__noise(out)
         out = self.__adain(out, style)
         out = self.__lr_relu(out)
@@ -191,6 +192,7 @@ class Generator(nn.Module):
     def __init__(
             self,
             rand_channels: int,
+            rand_style_channels: int,
             style_channels: int,
             end_layer: int = 0
     ):
@@ -243,9 +245,20 @@ class Generator(nn.Module):
             )
         )
 
+        style_layers = [
+            (rand_style_channels, style_channels),
+            (style_channels, style_channels),
+            (style_channels, style_channels),
+            (style_channels, style_channels),
+            (style_channels, style_channels),
+            (style_channels, style_channels),
+            (style_channels, style_channels),
+            (style_channels, style_channels),
+        ]
+
         self.__style_network = nn.Sequential(*[
-            LinearBlock(style_channels, style_channels)
-            for _ in range(8)
+            LinearBlock(size_in, size_out)
+            for size_in, size_out in style_layers
         ])
 
     def forward(
