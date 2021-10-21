@@ -101,8 +101,8 @@ def main() -> None:
     height = 2
     width = 2
 
-    disc_lr = 1e-4
-    gen_lr = 1e-4
+    disc_lr = 2e-4
+    gen_lr = 2e-4
 
     nb_epoch = 1000
     batch_size = 6
@@ -160,9 +160,9 @@ def main() -> None:
         audio_dataset,
         batch_size=batch_size,
         shuffle=True,
-        num_workers=8,
+        num_workers=6,
         drop_last=True,
-        pin_memory=True
+        pin_memory=False
     )
 
     mlflow.log_params({
@@ -207,13 +207,13 @@ def main() -> None:
         ]
         fadein_length = [
             1,
-            25000,
-            25000,
-            25000,
-            25000,
-            25000,
-            25000,
-            25000,
+            40000,
+            40000,
+            40000,
+            40000,
+            40000,
+            40000,
+            60000,
         ]
 
         for e in range(nb_epoch):
