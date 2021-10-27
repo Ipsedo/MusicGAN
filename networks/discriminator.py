@@ -33,9 +33,8 @@ class MagPhaseLayer(nn.Sequential):
             nn.Conv2d(
                 2,
                 out_channels,
-                kernel_size=(3, 3),
-                stride=(1, 1),
-                padding=(1, 1)
+                kernel_size=(1, 1),
+                stride=(1, 1)
             ),
             nn.InstanceNorm2d(out_channels, affine=False),
             nn.LeakyReLU(2e-1)
@@ -57,7 +56,7 @@ class Discriminator(nn.Module):
             (160, 192),
             (192, 224),
             (224, 256),
-            (256, 256)
+            (256, 288)
         ]
 
         self.__channels = conv_channels
@@ -171,6 +170,9 @@ class Discriminator(nn.Module):
         grad_pen_factor = 10.
 
         return grad_pen_factor * gradient_penalty
+
+    def start_bck_parameters(self) -> Iterator[nn.Parameter]:
+        return self.__start_block.parameters()
 
     def parameters(self, recurse: bool = True) -> Iterator[nn.Parameter]:
         return iter(

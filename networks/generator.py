@@ -168,9 +168,8 @@ class ToMagnPhaseLayer(nn.Sequential):
         super(ToMagnPhaseLayer, self).__init__(
             nn.ConvTranspose2d(
                 in_channels, 2,
-                kernel_size=(3, 3),
-                stride=(1, 1),
-                padding=(1, 1)
+                kernel_size=(1, 1),
+                stride=(1, 1)
             ),
             nn.Tanh()
         )
@@ -291,12 +290,12 @@ class Generator(nn.Module):
             self.__curr_layer += 1
 
             self.__last_end_block = nn.Sequential(
-                self.__end_block,
                 nn.Upsample(
                     scale_factor=2.,
                     mode="bilinear",
                     align_corners=True
-                )
+                ),
+                self.__end_block
             )
 
             self.__end_block = ToMagnPhaseLayer(
@@ -324,6 +323,9 @@ class Generator(nn.Module):
     @property
     def growing(self) -> bool:
         return self.curr_layer < len(self.__gen_blocks) - 1
+
+    def end_block_params(self) -> Iterator[nn.Parameter]:
+        return self.__end_block.parameters()
 
     def parameters(self, recurse: bool = True) -> Iterator[nn.Parameter]:
         return iter(
