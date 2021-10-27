@@ -101,8 +101,8 @@ def main() -> None:
     height = 2
     width = 2
 
-    disc_lr = 2e-4
-    gen_lr = 2e-4
+    disc_lr = 1e-4
+    gen_lr = 1e-4
 
     nb_epoch = 1000
     batch_size = 6
@@ -133,11 +133,13 @@ def main() -> None:
     disc.cuda()
 
     optim_gen = th.optim.Adam(
-        gen.parameters(), lr=gen_lr
+        gen.parameters(), lr=gen_lr,
+        betas=(0., 0.9)
     )
 
     optim_disc = th.optim.Adam(
-        disc.parameters(), lr=disc_lr
+        disc.parameters(), lr=disc_lr,
+        betas=(0., 0.9)
     )
 
     # Load models & optimizers
@@ -197,23 +199,23 @@ def main() -> None:
         save_every = 2000
         grow_idx = 0
         grow_every = [
-            100000,
-            100000,
-            100000,
-            100000,
-            100000,
-            100000,
-            100000,
+            50000,
+            50000,
+            50000,
+            50000,
+            50000,
+            50000,
+            50000,
         ]
         fadein_length = [
             1,
-            40000,
-            40000,
-            40000,
-            40000,
-            40000,
-            40000,
-            60000,
+            25000,
+            25000,
+            25000,
+            25000,
+            25000,
+            25000,
+            25000
         ]
 
         for e in range(nb_epoch):
@@ -449,13 +451,13 @@ def main() -> None:
                     gen.next_layer()
                     disc.next_layer()
 
-                    optim_gen = th.optim.Adam(
-                        gen.parameters(), lr=gen_lr
-                    )
+                    optim_gen.add_param_group({
+                        "params": gen.end_block_params()
+                    })
 
-                    optim_disc = th.optim.Adam(
-                        disc.parameters(), lr=disc_lr
-                    )
+                    optim_disc.add_param_group({
+                        "params": disc.start_bck_parameters()
+                    })
 
                     print("\nup_layer", gen.curr_layer, "/", gen.down_sample)
 
