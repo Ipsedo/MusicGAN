@@ -13,13 +13,21 @@ class ConvBlock(nn.Sequential):
     ):
         super(ConvBlock, self).__init__(
             nn.Conv2d(
-               in_channels,
-               out_channels,
-               kernel_size=(3, 3),
-               stride=(2, 2),
-               padding=(1, 1)
+                in_channels,
+                in_channels,
+                kernel_size=(3, 3),
+                stride=(1, 1),
+                padding=(1, 1)
             ),
-            nn.InstanceNorm2d(out_channels, affine=False),
+            nn.LeakyReLU(2e-1),
+
+            nn.Conv2d(
+                in_channels,
+                out_channels,
+                kernel_size=(3, 3),
+                stride=(2, 2),
+                padding=(1, 1)
+            ),
             nn.LeakyReLU(2e-1)
         )
 
@@ -49,14 +57,14 @@ class Discriminator(nn.Module):
         super(Discriminator, self).__init__()
 
         conv_channels = [
-            (32, 64),
-            (64, 96),
-            (96, 128),
-            (128, 160),
-            (160, 192),
-            (192, 224),
-            (224, 256),
-            (256, 288)
+            (8, 16),
+            (16, 24),
+            (24, 32),
+            (32, 40),
+            (40, 48),
+            (48, 56),
+            (56, 64),
+            (64, 72)
         ]
 
         self.__channels = conv_channels

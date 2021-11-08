@@ -95,9 +95,9 @@ def main() -> None:
 
     sample_rate = 44100
 
-    style_channels = 128
-    rand_style_channels = 64
-    rand_channels = 32
+    #style_channels = 32
+    #rand_style_channels = 16
+    rand_channels = 16
     height = 2
     width = 2
 
@@ -105,7 +105,7 @@ def main() -> None:
     gen_lr = 1e-4
 
     nb_epoch = 1000
-    batch_size = 6
+    batch_size = 12
 
     output_dir = args.out_path
 
@@ -120,8 +120,8 @@ def main() -> None:
 
     gen = networks.Generator(
         rand_channels,
-        rand_style_channels,
-        style_channels,
+        #rand_style_channels,
+        #style_channels,
         end_layer=0
     )
 
@@ -133,13 +133,11 @@ def main() -> None:
     disc.cuda()
 
     optim_gen = th.optim.Adam(
-        gen.parameters(), lr=gen_lr,
-        betas=(0., 0.9)
+        gen.parameters(), lr=gen_lr
     )
 
     optim_disc = th.optim.Adam(
-        disc.parameters(), lr=disc_lr,
-        betas=(0., 0.9)
+        disc.parameters(), lr=disc_lr
     )
 
     # Load models & optimizers
@@ -169,8 +167,8 @@ def main() -> None:
 
     mlflow.log_params({
         "rand_channels": rand_channels,
-        "rand_style_channels": rand_style_channels,
-        "style_channels": style_channels,
+        #"rand_style_channels": rand_style_channels,
+        #"style_channels": style_channels,
         "nb_epoch": nb_epoch,
         "batch_size": batch_size,
         "disc_lr": disc_lr,
@@ -196,26 +194,26 @@ def main() -> None:
         iter_idx = 0
         save_idx = 0
 
-        save_every = 2000
+        save_every = 500
         grow_idx = 0
         grow_every = [
-            50000,
-            50000,
-            50000,
-            50000,
-            50000,
-            50000,
-            50000,
+            5000,
+            20000,
+            20000,
+            20000,
+            20000,
+            20000,
+            20000,
         ]
         fadein_length = [
             1,
-            25000,
-            25000,
-            25000,
-            25000,
-            25000,
-            25000,
-            25000
+            8000,
+            8000,
+            8000,
+            8000,
+            8000,
+            8000,
+            8000,
         ]
 
         for e in range(nb_epoch):
@@ -242,14 +240,14 @@ def main() -> None:
                     device="cuda"
                 )
 
-                z_style = th.randn(
-                    batch_size,
-                    rand_style_channels,
-                    device="cuda"
-                )
+                #z_style = th.randn(
+                #    batch_size,
+                #    rand_style_channels,
+                #    device="cuda"
+                #)
 
                 # gen fake data
-                x_fake = gen(z, z_style, alpha)
+                x_fake = gen(z, alpha)
 
                 # pass real data and gen data to discriminator
                 out_real = disc(x_real, alpha)
@@ -296,14 +294,14 @@ def main() -> None:
                         device="cuda"
                     )
 
-                    z_style = th.randn(
-                        batch_size,
-                        rand_style_channels,
-                        device="cuda"
-                    )
+                    #z_style = th.randn(
+                    #    batch_size,
+                    #    rand_style_channels,
+                    #    device="cuda"
+                    #)
 
                     # generate fake data
-                    x_fake = gen(z, z_style, alpha)
+                    x_fake = gen(z, alpha)
 
                     # pass to discriminator
                     out_fake = disc(x_fake, alpha)
@@ -361,12 +359,12 @@ def main() -> None:
                                 device="cuda"
                             )
 
-                            z_style = th.randn(
-                                1, rand_style_channels,
-                                device="cuda"
-                            )
+                            #z_style = th.randn(
+                            #    1, rand_style_channels,
+                            #    device="cuda"
+                            #)
 
-                            x_fake = gen(z, z_style, alpha)
+                            x_fake = gen(z, alpha)
 
                             magn = x_fake[0, 0, :, :].detach().cpu().numpy()
                             phase = x_fake[0, 1, :, :].detach().cpu().numpy()
