@@ -91,16 +91,16 @@ class AdaIN(nn.Module):
         return self.__repr__()
 
 
-class Block(nn.Module):
+class _Block(nn.Module):
     def __init__(
             self,
             in_channels: int,
             out_channels: int,
             style_channels: int
     ):
-        super(Block, self).__init__()
+        super(_Block, self).__init__()
 
-        self.__conv = nn.ConvTranspose2d(
+        self.__conv_1 = nn.ConvTranspose2d(
             in_channels,
             out_channels,
             kernel_size=(3, 3),
@@ -109,58 +109,77 @@ class Block(nn.Module):
             output_padding=(1, 1)
         )
 
-        #self.__pn = PixelNorm()
-
-        self.__noise = NoiseLayer(
+        self.__noise_1 = NoiseLayer(
             out_channels
         )
 
-        self.__adain = AdaIN(
+        self.__adain_1 = AdaIN(
             out_channels,
             style_channels
         )
 
-        self.__lr_relu = nn.LeakyReLU(2e-1)
+        self.__lr_relu_1 = nn.LeakyReLU(2e-1)
+
+        self.__conv_2 = nn.ConvTranspose2d(
+            out_channels,
+            out_channels,
+            kernel_size=(3, 3),
+            stride=(1, 1),
+            padding=(1, 1)
+        )
+
+        self.__noise_2 = NoiseLayer(
+            out_channels
+        )
+
+        self.__adain_2 = AdaIN(
+            out_channels,
+            style_channels
+        )
+
+        self.__lr_relu_2 = nn.LeakyReLU(2e-1)
 
     def forward(self, x: th.Tensor, style: th.Tensor) -> th.Tensor:
-        out = self.__conv(x)
+        out = self.__conv_1(x)
+        out = self.__noise_1(out)
+        out = self.__adain_1(out, style)
+        out = self.__lr_relu_1(out)
 
-        # pixel norm -> pas de sens comme on fait du instant norm...
-        #out = self.__pn(out)
-        out = self.__noise(out)
-        out = self.__adain(out, style)
-        out = self.__lr_relu(out)
+        out = self.__conv_2(out)
+        out = self.__noise_2(out)
+        out = self.__adain_2(out, style)
+        out = self.__lr_relu_2(out)
 
         return out
 
 
-class _UpSampleBlock(nn.Module):
+class Block(nn.Sequential):
     def __init__(
             self,
             in_channels: int,
-            out_channels: int,
-            style_channels: int
+            out_channels: int
     ):
-        super(_UpSampleBlock, self).__init__()
-
-        self.__up_sample = nn.Upsample(
-            scale_factor=2.,
-            mode="bilinear",
-            align_corners=True
+        super(Block, self).__init__(
+            nn.ConvTranspose2d(
+                in_channels,
+                out_channels,
+                kernel_size=(3, 3),
+                stride=(2, 2),
+                padding=(1, 1),
+                output_padding=(1, 1)
+            ),
+            PixelNorm(),
+            nn.LeakyReLU(2e-1),
+            nn.ConvTranspose2d(
+                out_channels,
+                out_channels,
+                kernel_size=(3, 3),
+                stride=(1, 1),
+                padding=(1, 1)
+            ),
+            PixelNorm(),
+            nn.LeakyReLU(2e-1)
         )
-
-        self.__block = Block(
-            in_channels,
-            out_channels,
-            style_channels
-        )
-
-    def forward(self, x: th.Tensor, style: th.Tensor) -> th.Tensor:
-        out = self.__up_sample(x)
-
-        out = self.__block(out, style)
-
-        return out
 
 
 class ToMagnPhaseLayer(nn.Sequential):
@@ -169,7 +188,7 @@ class ToMagnPhaseLayer(nn.Sequential):
             nn.ConvTranspose2d(
                 in_channels, 2,
                 kernel_size=(1, 1),
-                stride=(1, 1)
+                stride=(1, 1),
             ),
             nn.Tanh()
         )
@@ -191,8 +210,8 @@ class Generator(nn.Module):
     def __init__(
             self,
             rand_channels: int,
-            rand_style_channels: int,
-            style_channels: int,
+            #rand_style_channels: int,
+            #style_channels: int,
             end_layer: int = 0
     ):
         super(Generator, self).__init__()
@@ -202,14 +221,14 @@ class Generator(nn.Module):
         self.__nb_downsample = 7
 
         channels = [
-            (rand_channels, 256),
-            (256, 224),
-            (224, 192),
-            (192, 160),
-            (160, 128),
-            (128, 96),
-            (96, 64),
-            (64, 32)
+            (rand_channels, 64),
+            (64, 56),
+            (56, 48),
+            (48, 40),
+            (40, 32),
+            (32, 24),
+            (24, 16),
+            (16, 8)
         ]
 
         self.__channels = channels
@@ -219,8 +238,7 @@ class Generator(nn.Module):
         # Generator layers
         self.__gen_blocks = nn.ModuleList([
             Block(
-                c[0], c[1],
-                style_channels
+                c[0], c[1]
             )
             for i, c in enumerate(channels)
         ])
@@ -233,18 +251,18 @@ class Generator(nn.Module):
         self.__last_end_block = (
             None if self.__curr_layer == 0
             else nn.Sequential(
-                ToMagnPhaseLayer(
-                    channels[self.curr_layer - 1][1]
-                ),
                 nn.Upsample(
                     scale_factor=2.,
                     mode="bilinear",
                     align_corners=True
+                ),
+                ToMagnPhaseLayer(
+                    channels[self.curr_layer - 1][1]
                 )
             )
         )
 
-        style_layers = [
+        """style_layers = [
             (rand_style_channels, style_channels),
             (style_channels, style_channels),
             (style_channels, style_channels),
@@ -258,24 +276,24 @@ class Generator(nn.Module):
         self.__style_network = nn.Sequential(*[
             LinearBlock(size_in, size_out)
             for size_in, size_out in style_layers
-        ])
+        ])"""
 
     def forward(
             self,
             z: th.Tensor,
-            z_style: th.Tensor,
+            #z_style: th.Tensor,
             alpha: float
     ) -> th.Tensor:
 
-        style = self.__style_network(z_style)
+        #style = self.__style_network(z_style)
 
         out = z
 
         for i in range(self.curr_layer):
             m = self.__gen_blocks[i]
-            out = m(out, style)
+            out = m(out)
 
-        out_block = self.__gen_blocks[self.curr_layer](out, style)
+        out_block = self.__gen_blocks[self.curr_layer](out)
 
         out_mp = self.__end_block(out_block)
 
@@ -330,8 +348,8 @@ class Generator(nn.Module):
     def parameters(self, recurse: bool = True) -> Iterator[nn.Parameter]:
         return iter(
             list(self.__gen_blocks.parameters(recurse)) +
-            list(self.__end_block.parameters(recurse)) +
-            list(self.__style_network.parameters(recurse))
+            list(self.__end_block.parameters(recurse))
+            #list(self.__style_network.parameters(recurse))
         )
 
     def zero_grad(self, set_to_none: bool = False) -> None:
