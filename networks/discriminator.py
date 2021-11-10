@@ -44,7 +44,6 @@ class MagPhaseLayer(nn.Sequential):
                 kernel_size=(1, 1),
                 stride=(1, 1)
             ),
-            nn.InstanceNorm2d(out_channels, affine=False),
             nn.LeakyReLU(2e-1)
         )
 

@@ -50,109 +50,6 @@ class NoiseLayer(nn.Module):
         return self.__repr__()
 
 
-class AdaIN(nn.Module):
-    def __init__(
-            self,
-            channels: int,
-            style_channels: int
-    ):
-        super(AdaIN, self).__init__()
-
-        self.__to_style = nn.Linear(
-            style_channels,
-            2 * channels
-        )
-
-        self.__inst_norm = nn.InstanceNorm2d(
-            channels, affine=False
-        )
-
-        self.__channels = channels
-        self.__style_channels = style_channels
-
-    def forward(self, x: th.Tensor, z: th.Tensor) -> th.Tensor:
-        b, c, _, _ = x.size()
-
-        out_lin = self.__to_style(z).view(b, 2 * c, 1, 1)
-        gamma, beta = out_lin.chunk(2, 1)
-
-        out_norm = self.__inst_norm(x)
-
-        out = gamma * out_norm + beta
-
-        return out
-
-    def __repr__(self) -> str:
-        return "AdaIN" + \
-               f"(channels={self.__channels}, " \
-               f"style={self.__style_channels})"
-
-    def __str__(self) -> str:
-        return self.__repr__()
-
-
-class _Block(nn.Module):
-    def __init__(
-            self,
-            in_channels: int,
-            out_channels: int,
-            style_channels: int
-    ):
-        super(_Block, self).__init__()
-
-        self.__conv_1 = nn.ConvTranspose2d(
-            in_channels,
-            out_channels,
-            kernel_size=(3, 3),
-            stride=(2, 2),
-            padding=(1, 1),
-            output_padding=(1, 1)
-        )
-
-        self.__noise_1 = NoiseLayer(
-            out_channels
-        )
-
-        self.__adain_1 = AdaIN(
-            out_channels,
-            style_channels
-        )
-
-        self.__lr_relu_1 = nn.LeakyReLU(2e-1)
-
-        self.__conv_2 = nn.ConvTranspose2d(
-            out_channels,
-            out_channels,
-            kernel_size=(3, 3),
-            stride=(1, 1),
-            padding=(1, 1)
-        )
-
-        self.__noise_2 = NoiseLayer(
-            out_channels
-        )
-
-        self.__adain_2 = AdaIN(
-            out_channels,
-            style_channels
-        )
-
-        self.__lr_relu_2 = nn.LeakyReLU(2e-1)
-
-    def forward(self, x: th.Tensor, style: th.Tensor) -> th.Tensor:
-        out = self.__conv_1(x)
-        out = self.__noise_1(out)
-        out = self.__adain_1(out, style)
-        out = self.__lr_relu_1(out)
-
-        out = self.__conv_2(out)
-        out = self.__noise_2(out)
-        out = self.__adain_2(out, style)
-        out = self.__lr_relu_2(out)
-
-        return out
-
-
 class Block(nn.Sequential):
     def __init__(
             self,
@@ -168,8 +65,10 @@ class Block(nn.Sequential):
                 padding=(1, 1),
                 output_padding=(1, 1)
             ),
+            NoiseLayer(out_channels),
             PixelNorm(),
             nn.LeakyReLU(2e-1),
+
             nn.ConvTranspose2d(
                 out_channels,
                 out_channels,
@@ -177,8 +76,9 @@ class Block(nn.Sequential):
                 stride=(1, 1),
                 padding=(1, 1)
             ),
+            NoiseLayer(out_channels),
             PixelNorm(),
-            nn.LeakyReLU(2e-1)
+            nn.LeakyReLU(2e-1),
         )
 
 
@@ -194,24 +94,10 @@ class ToMagnPhaseLayer(nn.Sequential):
         )
 
 
-class LinearBlock(nn.Sequential):
-    def __init__(
-            self,
-            in_channels: int,
-            out_channels: int
-    ):
-        super(LinearBlock, self).__init__(
-            nn.Linear(in_channels, out_channels),
-            nn.LeakyReLU(2e-1)
-        )
-
-
 class Generator(nn.Module):
     def __init__(
             self,
             rand_channels: int,
-            #rand_style_channels: int,
-            #style_channels: int,
             end_layer: int = 0
     ):
         super(Generator, self).__init__()
@@ -262,30 +148,11 @@ class Generator(nn.Module):
             )
         )
 
-        """style_layers = [
-            (rand_style_channels, style_channels),
-            (style_channels, style_channels),
-            (style_channels, style_channels),
-            (style_channels, style_channels),
-            (style_channels, style_channels),
-            (style_channels, style_channels),
-            (style_channels, style_channels),
-            (style_channels, style_channels),
-        ]
-
-        self.__style_network = nn.Sequential(*[
-            LinearBlock(size_in, size_out)
-            for size_in, size_out in style_layers
-        ])"""
-
     def forward(
             self,
             z: th.Tensor,
-            #z_style: th.Tensor,
             alpha: float
     ) -> th.Tensor:
-
-        #style = self.__style_network(z_style)
 
         out = z
 
@@ -349,7 +216,6 @@ class Generator(nn.Module):
         return iter(
             list(self.__gen_blocks.parameters(recurse)) +
             list(self.__end_block.parameters(recurse))
-            #list(self.__style_network.parameters(recurse))
         )
 
     def zero_grad(self, set_to_none: bool = False) -> None:
