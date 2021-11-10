@@ -95,8 +95,6 @@ def main() -> None:
 
     sample_rate = 44100
 
-    #style_channels = 32
-    #rand_style_channels = 16
     rand_channels = 16
     height = 2
     width = 2
@@ -120,8 +118,6 @@ def main() -> None:
 
     gen = networks.Generator(
         rand_channels,
-        #rand_style_channels,
-        #style_channels,
         end_layer=0
     )
 
@@ -167,8 +163,6 @@ def main() -> None:
 
     mlflow.log_params({
         "rand_channels": rand_channels,
-        #"rand_style_channels": rand_style_channels,
-        #"style_channels": style_channels,
         "nb_epoch": nb_epoch,
         "batch_size": batch_size,
         "disc_lr": disc_lr,
@@ -197,23 +191,23 @@ def main() -> None:
         save_every = 500
         grow_idx = 0
         grow_every = [
-            5000,
-            20000,
-            20000,
-            20000,
-            20000,
-            20000,
-            20000,
+            40000,
+            40000,
+            40000,
+            40000,
+            40000,
+            40000,
+            40000,
         ]
         fadein_length = [
             1,
-            8000,
-            8000,
-            8000,
-            8000,
-            8000,
-            8000,
-            8000,
+            15000,
+            15000,
+            15000,
+            15000,
+            15000,
+            15000,
+            15000,
         ]
 
         for e in range(nb_epoch):
@@ -239,12 +233,6 @@ def main() -> None:
                     width,
                     device="cuda"
                 )
-
-                #z_style = th.randn(
-                #    batch_size,
-                #    rand_style_channels,
-                #    device="cuda"
-                #)
 
                 # gen fake data
                 x_fake = gen(z, alpha)
@@ -293,12 +281,6 @@ def main() -> None:
                         width,
                         device="cuda"
                     )
-
-                    #z_style = th.randn(
-                    #    batch_size,
-                    #    rand_style_channels,
-                    #    device="cuda"
-                    #)
 
                     # generate fake data
                     x_fake = gen(z, alpha)
@@ -358,11 +340,6 @@ def main() -> None:
                                 height, width,
                                 device="cuda"
                             )
-
-                            #z_style = th.randn(
-                            #    1, rand_style_channels,
-                            #    device="cuda"
-                            #)
 
                             x_fake = gen(z, alpha)
 
