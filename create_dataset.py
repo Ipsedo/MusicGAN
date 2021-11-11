@@ -15,13 +15,13 @@ import argparse
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("Create dataset")
 
-    parser.add_argument("wav_path", type=str)
+    parser.add_argument("audio_path", type=str, help="can be /path/to/*.wav")
     parser.add_argument("-sr", "--sample-rate", type=int, default=44100)
     parser.add_argument("-o", "--output-dir", type=str, required=True)
 
     args = parser.parse_args()
 
-    w_p = glob.glob(args.wav_path)
+    w_p = glob.glob(args.audio_path)
 
     out_path = args.output_dir
     if not exists(out_path):
@@ -44,6 +44,9 @@ if __name__ == '__main__':
             nperseg=nperseg,
             stride=stride
         )
+
+        if complex_values.size()[0] < nb_vec:
+             continue
 
         magn, phase = audio.stft_to_phase_magn(
             complex_values,
