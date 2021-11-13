@@ -11,7 +11,6 @@ import audio
 
 import argparse
 
-
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("Create dataset")
 
@@ -45,7 +44,7 @@ if __name__ == '__main__':
         )
 
         if complex_values.size()[0] < nb_vec:
-             continue
+            continue
 
         magn, phase = audio.stft_to_phase_magn(
             complex_values,
