@@ -16,7 +16,6 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser("Create dataset")
 
     parser.add_argument("audio_path", type=str, help="can be /path/to/*.wav")
-    parser.add_argument("-sr", "--sample-rate", type=int, default=44100)
     parser.add_argument("-o", "--output-dir", type=str, required=True)
 
     args = parser.parse_args()
