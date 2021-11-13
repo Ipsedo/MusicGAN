@@ -84,7 +84,8 @@ def main() -> None:
     exp_name = "MusicGAN"
     mlflow.set_experiment(exp_name)
 
-    assert isdir(args.input_dataset)
+    assert isdir(args.input_dataset), \
+        f"\"{args.input_dataset}\" doesn't exist or is not a directory"
 
     mlflow.start_run(run_name=args.run)
 
