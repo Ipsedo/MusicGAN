@@ -66,7 +66,7 @@ class Block(nn.Sequential):
                 output_padding=(1, 1)
             ),
             NoiseLayer(out_channels),
-            PixelNorm(),
+            nn.InstanceNorm2d(out_channels, affine=False),
             nn.LeakyReLU(2e-1),
 
             nn.ConvTranspose2d(
@@ -77,7 +77,7 @@ class Block(nn.Sequential):
                 padding=(1, 1)
             ),
             NoiseLayer(out_channels),
-            PixelNorm(),
+            nn.InstanceNorm2d(out_channels, affine=False),
             nn.LeakyReLU(2e-1),
         )
 

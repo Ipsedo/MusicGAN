@@ -99,8 +99,8 @@ def main() -> None:
     height = 2
     width = 2
 
-    disc_lr = 1e-4
-    gen_lr = 1e-4
+    disc_lr = 1e-3
+    gen_lr = 1e-3
 
     nb_epoch = 1000
     batch_size = 12
@@ -129,11 +129,11 @@ def main() -> None:
     disc.cuda()
 
     optim_gen = th.optim.Adam(
-        gen.parameters(), lr=gen_lr
+        gen.parameters(), lr=gen_lr, betas=(0.5, 0.9)
     )
 
     optim_disc = th.optim.Adam(
-        disc.parameters(), lr=disc_lr
+        disc.parameters(), lr=disc_lr, betas=(0.5, 0.9)
     )
 
     # Load models & optimizers
@@ -188,26 +188,26 @@ def main() -> None:
         iter_idx = 0
         save_idx = 0
 
-        save_every = 500
+        save_every = 1000
         grow_idx = 0
         grow_every = [
-            40000,
-            40000,
-            40000,
-            40000,
-            40000,
-            40000,
-            40000,
+            30000,
+            30000,
+            30000,
+            30000,
+            30000,
+            30000,
+            30000,
         ]
         fadein_length = [
             1,
-            15000,
-            15000,
-            15000,
-            15000,
-            15000,
-            15000,
-            15000,
+            10000,
+            10000,
+            10000,
+            10000,
+            10000,
+            10000,
+            10000,
         ]
 
         for e in range(nb_epoch):
@@ -426,13 +426,13 @@ def main() -> None:
                     gen.next_layer()
                     disc.next_layer()
 
-                    optim_gen.add_param_group({
-                        "params": gen.end_block_params()
-                    })
+                    optim_gen = th.optim.Adam(
+                        gen.parameters(), lr=gen_lr, betas=(0.5, 0.9)
+                    )
 
-                    optim_disc.add_param_group({
-                        "params": disc.start_bck_parameters()
-                    })
+                    optim_disc = th.optim.Adam(
+                        disc.parameters(), lr=disc_lr, betas=(0.5, 0.9)
+                    )
 
                     print("\nup_layer", gen.curr_layer, "/", gen.down_sample)
 
