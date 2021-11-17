@@ -96,7 +96,7 @@ def main() -> None:
 
     sample_rate = 44100
 
-    rand_channels = 16
+    rand_channels = 32
     height = 2
     width = 2
 
@@ -104,7 +104,7 @@ def main() -> None:
     gen_lr = 1e-3
 
     nb_epoch = 1000
-    batch_size = 12
+    batch_size = 8
 
     output_dir = args.out_path
 
