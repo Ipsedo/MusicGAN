@@ -96,15 +96,15 @@ def main() -> None:
 
     sample_rate = 44100
 
-    rand_channels = 32
+    rand_channels = 16
     height = 2
     width = 2
 
-    disc_lr = 1e-3
-    gen_lr = 1e-3
+    disc_lr = 1e-4
+    gen_lr = 1e-4
 
     nb_epoch = 1000
-    batch_size = 8
+    batch_size = 16
 
     output_dir = args.out_path
 
@@ -130,11 +130,11 @@ def main() -> None:
     disc.cuda()
 
     optim_gen = th.optim.Adam(
-        gen.parameters(), lr=gen_lr, betas=(0.5, 0.9)
+        gen.parameters(), lr=gen_lr
     )
 
     optim_disc = th.optim.Adam(
-        disc.parameters(), lr=disc_lr, betas=(0.5, 0.9)
+        disc.parameters(), lr=disc_lr
     )
 
     # Load models & optimizers
@@ -192,23 +192,23 @@ def main() -> None:
         save_every = 1000
         grow_idx = 0
         grow_every = [
-            30000,
-            30000,
-            30000,
-            30000,
-            30000,
-            30000,
-            30000,
+            20000,
+            60000,
+            60000,
+            60000,
+            60000,
+            60000,
+            60000,
         ]
         fadein_length = [
             1,
-            10000,
-            10000,
-            10000,
-            10000,
-            10000,
-            10000,
-            10000,
+            20000,
+            20000,
+            20000,
+            20000,
+            20000,
+            20000,
+            20000,
         ]
 
         for e in range(nb_epoch):
@@ -428,11 +428,11 @@ def main() -> None:
                     disc.next_layer()
 
                     optim_gen = th.optim.Adam(
-                        gen.parameters(), lr=gen_lr, betas=(0.5, 0.9)
+                        gen.parameters(), lr=gen_lr
                     )
 
                     optim_disc = th.optim.Adam(
-                        disc.parameters(), lr=disc_lr, betas=(0.5, 0.9)
+                        disc.parameters(), lr=disc_lr
                     )
 
                     print("\nup_layer", gen.curr_layer, "/", gen.down_sample)
