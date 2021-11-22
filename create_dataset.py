@@ -27,12 +27,10 @@ if __name__ == '__main__':
     elif exists(out_path) and not isdir(out_path):
         raise NotADirectoryError(f"\"{out_path}\" is not a directory")
 
-    nperseg = 1022
+    nperseg = 1024
     stride = 256
 
     nb_vec = 512
-
-    n_fft = 512
 
     idx = 0
 
