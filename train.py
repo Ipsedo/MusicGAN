@@ -21,7 +21,7 @@ from statistics import mean
 def get_transform(downscale_factor: int) -> Compose:
     size = 512
 
-    target_size = int(size / 2 ** downscale_factor)
+    target_size = size // 2 ** downscale_factor
 
     compose = Compose([
         audio.ChannelMinMaxNorm(),
@@ -130,11 +130,11 @@ def main() -> None:
     disc.cuda()
 
     optim_gen = th.optim.Adam(
-        gen.parameters(), lr=gen_lr
+        gen.parameters(), lr=gen_lr, betas=(0.5, 0.9)
     )
 
     optim_disc = th.optim.Adam(
-        disc.parameters(), lr=disc_lr
+        disc.parameters(), lr=disc_lr, betas=(0.5, 0.9)
     )
 
     # Load models & optimizers
@@ -192,19 +192,19 @@ def main() -> None:
         save_every = 1000
         grow_idx = 0
         grow_every = [
+            2500,
+            5000,
+            10000,
             20000,
-            60000,
-            60000,
-            60000,
-            60000,
-            60000,
-            60000,
+            40000,
+            40000,
+            40000,
         ]
         fadein_length = [
             1,
-            20000,
-            20000,
-            20000,
+            2500,
+            5000,
+            10000,
             20000,
             20000,
             20000,
@@ -427,13 +427,13 @@ def main() -> None:
                     gen.next_layer()
                     disc.next_layer()
 
-                    optim_gen = th.optim.Adam(
-                        gen.parameters(), lr=gen_lr
-                    )
+                    optim_gen.add_param_group({
+                        "params": gen.end_block_params()
+                    })
 
-                    optim_disc = th.optim.Adam(
-                        disc.parameters(), lr=disc_lr
-                    )
+                    optim_disc.add_param_group({
+                        "params": disc.start_bck_parameters()
+                    })
 
                     print("\nup_layer", gen.curr_layer, "/", gen.down_sample)
 

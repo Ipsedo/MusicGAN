@@ -65,6 +65,7 @@ class Block(nn.Sequential):
                 padding=(1, 1),
                 output_padding=(1, 1)
             ),
+            PixelNorm(),
             nn.LeakyReLU(2e-1),
 
             nn.ConvTranspose2d(
@@ -74,6 +75,7 @@ class Block(nn.Sequential):
                 stride=(1, 1),
                 padding=(1, 1)
             ),
+            PixelNorm(),
             nn.LeakyReLU(2e-1),
         )
 
