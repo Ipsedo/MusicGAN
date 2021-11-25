@@ -60,7 +60,7 @@ def wav_to_stft(
     complex_values = complex_values.permute(1, 0)
 
     # remove Nyquist frequency
-    return complex_values[:, 1:]
+    return complex_values[:, :-1]
 
 
 def stft_to_phase_magn(
@@ -111,10 +111,15 @@ def magn_phase_to_wav(magn_phase: th.Tensor, wav_path: str, sample_rate: int):
     real = real.numpy()
     imag = imag.numpy()
 
-    real = np.concatenate((np.ones((real.shape[0], 1)), real), axis=1)
-    imag = np.concatenate((np.zeros((imag.shape[0], 1)), imag), axis=1)
+    real = np.concatenate((real, np.zeros((real.shape[0], 1))), axis=1)
+    imag = np.concatenate((imag, np.zeros((imag.shape[0], 1))), axis=1)
 
     x = real + imag * 1j
-    _, raw_audio = scipy.signal.istft(x.transpose(), nperseg=1024,
-                                      noverlap=1024 - 256)
+
+    _, raw_audio = scipy.signal.istft(
+        x.transpose(),
+        nperseg=1024,
+        noverlap=1024 - 256
+    )
+
     scipy.io.wavfile.write(wav_path, sample_rate, raw_audio)
