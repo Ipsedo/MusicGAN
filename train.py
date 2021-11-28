@@ -100,8 +100,9 @@ def main() -> None:
     height = 2
     width = 2
 
-    disc_lr = 1e-4
-    gen_lr = 1e-4
+    disc_lr = 1e-3
+    gen_lr = 1e-3
+    betas = (0.5, 0.9)
 
     nb_epoch = 1000
     batch_size = 16
@@ -130,11 +131,11 @@ def main() -> None:
     disc.cuda()
 
     optim_gen = th.optim.Adam(
-        gen.parameters(), lr=gen_lr, betas=(0.5, 0.9)
+        gen.parameters(), lr=gen_lr, betas=betas
     )
 
     optim_disc = th.optim.Adam(
-        disc.parameters(), lr=disc_lr, betas=(0.5, 0.9)
+        disc.parameters(), lr=disc_lr, betas=betas
     )
 
     # Load models & optimizers
@@ -192,23 +193,23 @@ def main() -> None:
         save_every = 1000
         grow_idx = 0
         grow_every = [
-            2500,
             5000,
             10000,
-            20000,
-            40000,
-            40000,
-            40000,
+            10000,
+            10000,
+            10000,
+            10000,
+            10000,
         ]
         fadein_length = [
             1,
-            2500,
             5000,
-            10000,
-            20000,
-            20000,
-            20000,
-            20000,
+            5000,
+            5000,
+            5000,
+            5000,
+            5000,
+            5000,
         ]
 
         for e in range(nb_epoch):
