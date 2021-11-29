@@ -100,12 +100,12 @@ def main() -> None:
     height = 2
     width = 2
 
-    disc_lr = 1e-3
-    gen_lr = 1e-3
+    disc_lr = 1e-4
+    gen_lr = 1e-4
     betas = (0.5, 0.9)
 
     nb_epoch = 1000
-    batch_size = 16
+    batch_size = 8
 
     output_dir = args.out_path
 
@@ -193,23 +193,23 @@ def main() -> None:
         save_every = 1000
         grow_idx = 0
         grow_every = [
-            5000,
             10000,
-            10000,
-            10000,
-            10000,
-            10000,
-            10000,
+            20000,
+            20000,
+            20000,
+            20000,
+            20000,
+            20000,
         ]
         fadein_length = [
             1,
-            5000,
-            5000,
-            5000,
-            5000,
-            5000,
-            5000,
-            5000,
+            10000,
+            10000,
+            10000,
+            10000,
+            10000,
+            10000,
+            10000,
         ]
 
         for e in range(nb_epoch):
