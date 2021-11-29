@@ -25,31 +25,6 @@ class PixelNorm(nn.Module):
         return self.__repr__()
 
 
-class NoiseLayer(nn.Module):
-    def __init__(self, channels: int):
-        super(NoiseLayer, self).__init__()
-
-        self.__channels = channels
-
-        self.__to_noise = nn.Linear(1, channels, bias=False)
-
-    def forward(self, x: th.Tensor) -> th.Tensor:
-        device = "cuda" if next(self.parameters()).is_cuda else "cpu"
-        b, c, w, h = x.size()
-
-        rand_per_pixel = th.randn(b, w, h, 1, device=device)
-
-        out = x + self.__to_noise(rand_per_pixel).permute(0, 3, 1, 2)
-
-        return out
-
-    def __repr__(self):
-        return f"NoiseLayer({self.__channels})"
-
-    def __str__(self):
-        return self.__repr__()
-
-
 class Block(nn.Sequential):
     def __init__(
             self,
@@ -95,14 +70,14 @@ class Generator(nn.Module):
         self.__nb_downsample = 7
 
         channels = [
-            (rand_channels, 256),
-            (256, 224),
-            (224, 192),
-            (192, 160),
-            (160, 128),
-            (128, 96),
-            (96, 64),
-            (64, 32)
+            (rand_channels, 64),
+            (64, 56),
+            (56, 48),
+            (48, 40),
+            (40, 32),
+            (32, 24),
+            (24, 16),
+            (16, 8)
         ]
 
         self.__channels = channels
