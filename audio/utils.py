@@ -5,9 +5,6 @@ import torchaudio.functional as th_audio_f
 
 import numpy as np
 
-import scipy.signal
-import scipy.io.wavfile
-
 from typing import Tuple
 
 
@@ -57,10 +54,10 @@ def wav_to_stft(
         return_complex=True
     )
 
-    complex_values = complex_values.permute(1, 0)
+    complex_values = complex_values
 
     # remove Nyquist frequency
-    return complex_values[:, :-1]
+    return complex_values[:-1, :]
 
 
 def stft_to_phase_magn(
@@ -73,13 +70,13 @@ def stft_to_phase_magn(
     magn = th.log(magn + 1)
 
     phase = unwrap(phase)
-    phase = phase[1:, :] - phase[:-1, :]
-    magn = magn[1:, :]
+    phase = phase[:, 1:] - phase[:, -1]
+    magn = magn[:, 1:]
 
-    magn = magn[magn.size()[0] % nb_vec:, :]
-    phase = phase[phase.size()[0] % nb_vec:, :]
-    magn = th.stack(magn.split(nb_vec, dim=0), dim=0)
-    phase = th.stack(phase.split(nb_vec, dim=0), dim=0)
+    magn = magn[:, magn.size()[1] % nb_vec:]
+    phase = phase[:, phase.size()[1] % nb_vec:]
+    magn = th.stack(magn.split(nb_vec, dim=1), dim=1)
+    phase = th.stack(phase.split(nb_vec, dim=1), dim=1)
 
     max_magn = magn.max()
     min_magn = magn.min()
@@ -93,33 +90,36 @@ def stft_to_phase_magn(
 
 
 def magn_phase_to_wav(magn_phase: th.Tensor, wav_path: str, sample_rate: int):
-    magn_phase = magn_phase.permute(0, 2, 3, 1)
-    x = magn_phase.flatten(0, 1)
+    magn = magn_phase[0, 0, :, :]
+    phase = magn_phase[0, 1, :, :]
 
-    phases = (x[:, :, 1] + 1.) / 2. * 2. * np.pi - np.pi
-    for i in range(phases.shape[0] - 1):
-        phases[i + 1, :] = phases[i + 1, :] + phases[i, :]
+    phase = (phase + 1.) / 2. * 2. * np.pi - np.pi
+    for i in range(phase.shape[1] - 1):
+        phase[:, i + 1] = phase[:, i + 1] + phase[:, i]
 
-    phases = phases % (2 * np.pi)
+    phase = phase % (2 * np.pi)
 
-    magn = (x[:, :, 0] + 1.) / 2.
+    magn = (magn + 1.) / 2.
     magn = th.exp(magn) - 1
 
-    real = magn * th.cos(phases)
-    imag = magn * th.sin(phases)
+    real = magn * th.cos(phase)
+    imag = magn * th.sin(phase)
 
-    real = real.numpy()
-    imag = imag.numpy()
+    real = th.cat([real, th.zeros(1, real.size()[1])], dim=0)
+    imag = th.cat([imag, th.zeros(1, imag.size()[1])], dim=0)
 
-    real = np.concatenate((real, np.zeros((real.shape[0], 1))), axis=1)
-    imag = np.concatenate((imag, np.zeros((imag.shape[0], 1))), axis=1)
+    z = real + imag * 1j
 
-    x = real + imag * 1j
+    nperseg = 1024
+    stride = 256
 
-    _, raw_audio = scipy.signal.istft(
-        x.transpose(),
-        nperseg=1024,
-        noverlap=1024 - 256
+    hann_window = th.hann_window(nperseg)
+
+    raw_audio = th_audio_f.inverse_spectrogram(
+        z, length=None,
+        pad=0, window=hann_window,
+        n_fft=nperseg, hop_length=stride,
+        win_length=nperseg, normalized=True
     )
 
-    scipy.io.wavfile.write(wav_path, sample_rate, raw_audio)
+    th_audio.save(wav_path, raw_audio[None, :], sample_rate)
