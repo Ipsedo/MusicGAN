@@ -96,7 +96,7 @@ def main() -> None:
 
     sample_rate = 44100
 
-    rand_channels = 64
+    rand_channels = 16
     height = 2
     width = 2
 
