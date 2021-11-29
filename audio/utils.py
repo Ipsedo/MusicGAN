@@ -70,7 +70,7 @@ def stft_to_phase_magn(
     magn = th.log(magn + 1)
 
     phase = unwrap(phase)
-    phase = phase[:, 1:] - phase[:, -1]
+    phase = phase[:, 1:] - phase[:, :-1]
     magn = magn[:, 1:]
 
     magn = magn[:, magn.size()[1] % nb_vec:]
