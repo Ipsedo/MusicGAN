@@ -40,6 +40,8 @@ def main() -> None:
         th.load(args.gen_dict_state)
     )
 
+    gen.eval()
+
     height = 2
     width = 2
 
@@ -49,8 +51,8 @@ def main() -> None:
         z = th.randn(
             args.nb_music,
             args.rand_channels,
-            height * args.nb_vec,
-            width
+            height,
+            width * args.nb_vec
         )
 
         gen_sound = gen(z, 1.0)
