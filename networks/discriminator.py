@@ -47,14 +47,14 @@ class Discriminator(nn.Module):
         super(Discriminator, self).__init__()
 
         conv_channels = [
-            (32, 64),
-            (64, 96),
-            (96, 128),
-            (128, 160),
-            (160, 192),
-            (192, 224),
-            (224, 256),
-            (256, 256)
+            (8, 16),
+            (16, 24),
+            (24, 32),
+            (32, 40),
+            (40, 48),
+            (48, 56),
+            (56, 64),
+            (64, 72)
         ]
 
         self.__channels = conv_channels
