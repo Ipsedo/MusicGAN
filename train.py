@@ -96,7 +96,7 @@ def main() -> None:
 
     sample_rate = 44100
 
-    rand_channels = 16
+    rand_channels = 64
     height = 2
     width = 2
 
@@ -193,23 +193,23 @@ def main() -> None:
         save_every = 1000
         grow_idx = 0
         grow_every = [
-            10000,
             20000,
-            20000,
-            20000,
-            20000,
-            20000,
-            20000,
+            40000,
+            40000,
+            40000,
+            40000,
+            40000,
+            40000,
         ]
         fadein_length = [
             1,
-            10000,
-            10000,
-            10000,
-            10000,
-            10000,
-            10000,
-            10000,
+            20000,
+            20000,
+            20000,
+            20000,
+            20000,
+            20000,
+            20000,
         ]
 
         for e in range(nb_epoch):
