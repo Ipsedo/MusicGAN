@@ -6,3 +6,7 @@ torchaudio
 torchvision
 matplotlib
 numpy
+
+# for experiments
+jupyter
+torch-scatter
