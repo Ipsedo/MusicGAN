@@ -12,14 +12,14 @@ class ConvBlock(nn.Sequential):
             out_channels: int
     ):
         super(ConvBlock, self).__init__(
+            nn.ReplicationPad2d(1),
             nn.Conv2d(
                 in_channels,
                 out_channels,
                 kernel_size=(3, 3),
-                stride=(2, 2),
-                padding=(1, 1)
+                stride=(2, 2)
             ),
-            nn.LeakyReLU(2e-1)
+            nn.LeakyReLU(2e-1),
         )
 
 
@@ -88,7 +88,9 @@ class Discriminator(nn.Module):
                 nb_freq // stride ** self.__nb_layer
         )
 
-        self.__clf = nn.Linear(out_size, 1)
+        self.__clf = nn.Sequential(
+            nn.Linear(out_size, 1)
+        )
 
     def forward(self, x: th.Tensor, alpha: float) -> th.Tensor:
         out_new = self.__start_block(x)
