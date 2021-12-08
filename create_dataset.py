@@ -49,11 +49,11 @@ if __name__ == '__main__':
             nb_vec=nb_vec
         )
 
-        nb_sample = magn.size()[1]
+        nb_sample = magn.size()[0]
 
         for s_idx in range(nb_sample):
-            s_magn = magn[:, s_idx].to(th.float64)
-            s_phase = phase[:, s_idx].to(th.float64)
+            s_magn = magn[s_idx, :, :].to(th.float64)
+            s_phase = phase[s_idx, :, :].to(th.float64)
 
             magn_phase_path = join(out_path, f"magn_phase_{idx}.pt")
 

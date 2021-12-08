@@ -3,6 +3,8 @@ import torch.nn.functional as th_f
 import torchaudio as th_audio
 import torchaudio.functional as th_audio_f
 
+import torch_scatter
+
 import numpy as np
 
 from typing import Tuple
@@ -16,7 +18,7 @@ def diff(x: th.Tensor) -> th.Tensor:
     :return:
     :rtype:
     """
-    return th_f.pad(x[1:, :] - x[:-1, :], (0, 0, 1, 0), "constant", 0)
+    return th_f.pad(x[:, 1:] - x[:, :-1], (1, 0, 0, 0), "constant", 0)
 
 
 def unwrap(phi: th.Tensor) -> th.Tensor:
@@ -32,7 +34,45 @@ def unwrap(phi: th.Tensor) -> th.Tensor:
     dphi_m[(dphi_m == -np.pi) & (dphi > 0)] = np.pi
     phi_adj = dphi_m - dphi
     phi_adj[dphi.abs() < np.pi] = 0
-    return phi + phi_adj.cumsum(0)
+    return phi + phi_adj.cumsum(1)
+
+
+def get_bark_buckets(
+    nfft: int = 4096,
+    required_length: int = 512
+) -> th.Tensor:
+    n_bins = nfft // 2
+
+    min_hz = 0.
+    max_hz = 44100 // 2
+
+    min_bark = 6 * th.arcsinh(th.tensor(min_hz) / 600)
+    max_bark = 6 * th.arcsinh(th.tensor(max_hz) / 600)
+
+    bucket_boundaries = 600 * th.sinh(th.linspace(min_bark, max_bark, required_length) / 6)
+
+    frequencies = th.linspace(min_hz, max_hz, n_bins)
+
+    buckets = th.bucketize(frequencies, bucket_boundaries)
+
+    return buckets
+
+
+def bark_compress(
+        magn: th.Tensor,
+        phase: th.Tensor,
+        nfft: int = 4096,
+        required_length: int = 512
+) -> Tuple[th.Tensor, th.Tensor]:
+
+    buckets = get_bark_buckets(nfft, required_length)
+
+    buckets_tmp = buckets[:, None].repeat(1, magn.size()[1])
+
+    magn = torch_scatter.scatter_mean(magn, buckets_tmp, dim=0)
+    phase = torch_scatter.scatter_mean(phase, buckets_tmp, dim=0)
+
+    return magn, phase
 
 
 def wav_to_stft(
@@ -54,8 +94,6 @@ def wav_to_stft(
         return_complex=True
     )
 
-    complex_values = complex_values
-
     # remove Nyquist frequency
     return complex_values[:-1, :]
 
@@ -70,13 +108,9 @@ def stft_to_phase_magn(
     magn = th.log(magn + 1)
 
     phase = unwrap(phase)
+
     phase = phase[:, 1:] - phase[:, :-1]
     magn = magn[:, 1:]
-
-    magn = magn[:, magn.size()[1] % nb_vec:]
-    phase = phase[:, phase.size()[1] % nb_vec:]
-    magn = th.stack(magn.split(nb_vec, dim=1), dim=1)
-    phase = th.stack(phase.split(nb_vec, dim=1), dim=1)
 
     max_magn = magn.max()
     min_magn = magn.min()
@@ -86,10 +120,39 @@ def stft_to_phase_magn(
     magn = (magn - min_magn) / (max_magn - min_magn)
     phase = (phase - min_phase) / (max_phase - min_phase)
 
-    return magn * 2. - 1., phase * 2. - 1.
+    magn, phase = magn * 2. - 1., phase * 2. - 1.
+
+    #magn, phase = bark_compress(magn, phase, 4096, 512)
+
+    magn = magn[:, magn.size()[1] % nb_vec:]
+    phase = phase[:, phase.size()[1] % nb_vec:]
+    magn = th.stack(magn.split(nb_vec, dim=1), dim=0)
+    phase = th.stack(phase.split(nb_vec, dim=1), dim=0)
+
+    return magn, phase
 
 
 def magn_phase_to_wav(magn_phase: th.Tensor, wav_path: str, sample_rate: int):
+
+    nfft = 1024
+    n_bins = nfft // 2
+    stride = 256
+
+    """bark_magn = magn_phase[0, 0, :, :]
+    bark_phase = magn_phase[0, 1, :, :]
+
+    magn = th.zeros(n_bins, bark_magn.size()[1])
+    phase = th.zeros(n_bins, bark_phase.size()[1])
+
+    buckets = get_bark_buckets(
+        nfft,
+        bark_magn.size()[0]
+    )
+
+    for i, b in enumerate(buckets):
+        magn[i, :] = bark_magn[b, :]
+        phase[i, :] = bark_phase[b, :]"""
+
     magn = magn_phase[0, 0, :, :]
     phase = magn_phase[0, 1, :, :]
 
@@ -110,16 +173,13 @@ def magn_phase_to_wav(magn_phase: th.Tensor, wav_path: str, sample_rate: int):
 
     z = real + imag * 1j
 
-    nperseg = 1024
-    stride = 256
-
-    hann_window = th.hann_window(nperseg)
+    hann_window = th.hann_window(nfft)
 
     raw_audio = th_audio_f.inverse_spectrogram(
         z, length=None,
         pad=0, window=hann_window,
-        n_fft=nperseg, hop_length=stride,
-        win_length=nperseg, normalized=True
+        n_fft=nfft, hop_length=stride,
+        win_length=nfft, normalized=True
     )
 
     th_audio.save(wav_path, raw_audio[None, :], sample_rate)
