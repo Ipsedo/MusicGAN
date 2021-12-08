@@ -27,10 +27,11 @@ if __name__ == '__main__':
     elif exists(out_path) and not isdir(out_path):
         raise NotADirectoryError(f"\"{out_path}\" is not a directory")
 
-    nperseg = 1024
-    stride = 256
+    nperseg = audio.N_FFT
+    stride = audio.STFT_STRIDE
 
-    nb_vec = 512
+    required_length = audio.BARK_SIZE
+    nb_vec = audio.N_VEC
 
     idx = 0
 
@@ -46,7 +47,9 @@ if __name__ == '__main__':
 
         magn, phase = audio.stft_to_phase_magn(
             complex_values,
-            nb_vec=nb_vec
+            nb_vec=nb_vec,
+            n_fft=nperseg,
+            required_length=required_length
         )
 
         nb_sample = magn.size()[0]
