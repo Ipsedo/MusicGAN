@@ -9,6 +9,8 @@ import numpy as np
 
 from typing import Tuple
 
+from . import constant
+
 
 def diff(x: th.Tensor) -> th.Tensor:
     """
@@ -38,8 +40,8 @@ def unwrap(phi: th.Tensor) -> th.Tensor:
 
 
 def get_bark_buckets(
-    nfft: int = 4096,
-    required_length: int = 512
+    nfft: int = constant.N_FFT,
+    required_length: int = constant.BARK_SIZE
 ) -> th.Tensor:
     n_bins = nfft // 2
 
@@ -61,8 +63,8 @@ def get_bark_buckets(
 def bark_compress(
         magn: th.Tensor,
         phase: th.Tensor,
-        nfft: int = 4096,
-        required_length: int = 512
+        nfft: int = constant.N_FFT,
+        required_length: int = constant.BARK_SIZE
 ) -> Tuple[th.Tensor, th.Tensor]:
 
     buckets = get_bark_buckets(nfft, required_length)
@@ -77,8 +79,8 @@ def bark_compress(
 
 def wav_to_stft(
         wav_p: str,
-        nperseg: int = 1024,
-        stride: int = 256,
+        nperseg: int = constant.N_FFT,
+        stride: int = constant.STFT_STRIDE,
 ) -> th.Tensor:
     raw_audio, _ = th_audio.load(wav_p)
 
@@ -100,7 +102,9 @@ def wav_to_stft(
 
 def stft_to_phase_magn(
         complex_values: th.Tensor,
-        nb_vec: int = 512
+        n_fft: int = constant.N_FFT,
+        required_length: int = constant.BARK_SIZE,
+        nb_vec: int = constant.N_VEC
 ) -> Tuple[th.Tensor, th.Tensor]:
     magn = th.abs(complex_values)
     phase = th.angle(complex_values)
@@ -117,12 +121,12 @@ def stft_to_phase_magn(
     max_phase = phase.max()
     min_phase = phase.min()
 
+    magn, phase = bark_compress(magn, phase, n_fft, required_length)
+
     magn = (magn - min_magn) / (max_magn - min_magn)
     phase = (phase - min_phase) / (max_phase - min_phase)
 
     magn, phase = magn * 2. - 1., phase * 2. - 1.
-
-    #magn, phase = bark_compress(magn, phase, 4096, 512)
 
     magn = magn[:, magn.size()[1] % nb_vec:]
     phase = phase[:, phase.size()[1] % nb_vec:]
@@ -134,12 +138,15 @@ def stft_to_phase_magn(
 
 def magn_phase_to_wav(magn_phase: th.Tensor, wav_path: str, sample_rate: int):
 
-    nfft = 1024
+    nfft = 4096
     n_bins = nfft // 2
     stride = 256
 
-    """bark_magn = magn_phase[0, 0, :, :]
-    bark_phase = magn_phase[0, 1, :, :]
+    bark_magn = magn_phase.permute(1, 2, 0, 3).flatten(2, 3)[0, :]
+    bark_phase = magn_phase.permute(1, 2, 0, 3).flatten(2, 3)[1, :]
+
+    bark_magn = (bark_magn + 1.) / 2.
+    bark_phase = (bark_phase + 1.) / 2. * 2. * np.pi - np.pi
 
     magn = th.zeros(n_bins, bark_magn.size()[1])
     phase = th.zeros(n_bins, bark_phase.size()[1])
@@ -151,18 +158,16 @@ def magn_phase_to_wav(magn_phase: th.Tensor, wav_path: str, sample_rate: int):
 
     for i, b in enumerate(buckets):
         magn[i, :] = bark_magn[b, :]
-        phase[i, :] = bark_phase[b, :]"""
+        phase[i, :] = bark_phase[b, :]
 
-    magn = magn_phase[0, 0, :, :]
-    phase = magn_phase[0, 1, :, :]
+    #magn = magn_phase[0, 0, :, :]
+    #phase = magn_phase[0, 1, :, :]
 
-    phase = (phase + 1.) / 2. * 2. * np.pi - np.pi
     for i in range(phase.size()[1] - 1):
         phase[:, i + 1] = phase[:, i + 1] + phase[:, i]
 
     phase = phase % (2 * np.pi)
 
-    magn = (magn + 1.) / 2.
     magn = th.exp(magn) - 1
 
     real = magn * th.cos(phase)
