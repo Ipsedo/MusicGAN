@@ -43,6 +43,26 @@ class RandPadding2d(nn.Module):
         return r
 
 
+class ReplicationPad(nn.Module):
+    def __init__(self, pad: int):
+        super(ReplicationPad, self).__init__()
+        
+        self.__pad = pad
+    
+    def forward(self, x: th.Tensor) -> th.Tensor:
+        repl = F.pad(
+            x, (self.__pad, self.__pad, 0, 0),
+            mode="replicate"
+        )
+        
+        zero_padded = F.pad(
+            repl, (0, 0, self.__pad, self.__pad),
+            mode="constant", value=0
+        )
+        
+        return zero_padded
+
+
 class CropLast2d(nn.Module):
     def forward(self, x: th.Tensor) -> th.Tensor:
         return x[:, :, :-1, :-1]

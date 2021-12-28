@@ -100,8 +100,8 @@ def main() -> None:
     height = 2
     width = 2
 
-    disc_lr = 1e-3
-    gen_lr = 1e-3
+    disc_lr = 1e-4
+    gen_lr = 1e-4
     betas = (0.5, 0.9)
 
     nb_epoch = 1000
@@ -193,23 +193,23 @@ def main() -> None:
         save_every = 1000
         grow_idx = 0
         grow_every = [
-            20000,
-            20000,
-            20000,
-            20000,
-            20000,
-            20000,
-            20000,
+            40000,
+            40000,
+            40000,
+            40000,
+            40000,
+            40000,
+            40000,
         ]
         fadein_length = [
             1,
-            10000,
-            10000,
-            10000,
-            10000,
-            10000,
-            10000,
-            10000,
+            20000,
+            20000,
+            20000,
+            20000,
+            20000,
+            20000,
+            20000,
         ]
 
         for e in range(nb_epoch):
@@ -428,13 +428,13 @@ def main() -> None:
                     gen.next_layer()
                     disc.next_layer()
 
-                    optim_gen.add_param_group({
-                        "params": gen.end_block_params()
-                    })
+                    optim_gen = th.optim.Adam(
+                        gen.parameters(), lr=gen_lr
+                    )
 
-                    optim_disc.add_param_group({
-                        "params": disc.start_bck_parameters()
-                    })
+                    optim_disc = th.optim.Adam(
+                        disc.parameters(), lr=disc_lr
+                    )
 
                     print("\nup_layer", gen.curr_layer, "/", gen.down_sample)
 

@@ -3,28 +3,24 @@ import torch.nn as nn
 
 from typing import Iterator
 
-from .layers import RandPadding2d, CropLast2d
+from .layers import RandPadding2d, CropLast2d, ReplicationPad
 
 
 class Block(nn.Sequential):
     def __init__(
             self,
             in_channels: int,
-            out_channels: int,
-            first_layer: bool
+            out_channels: int
     ):
         super(Block, self).__init__(
-            RandPadding2d(1) if first_layer
-            else nn.ReplicationPad2d(1),
-
             nn.ConvTranspose2d(
                 in_channels,
                 out_channels,
                 kernel_size=(3, 3),
                 stride=(2, 2),
-                padding=(2, 2)
+                padding=(1, 1),
+                output_padding=(1, 1)
             ),
-            CropLast2d(),
             nn.LeakyReLU(2e-1),
         )
 
@@ -71,7 +67,7 @@ class Generator(nn.Module):
         # Generator layers
         self.__gen_blocks = nn.ModuleList([
             Block(
-                c[0], c[1], i == 0
+                c[0], c[1]
             )
             for i, c in enumerate(channels)
         ])
