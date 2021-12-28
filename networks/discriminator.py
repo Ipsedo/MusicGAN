@@ -4,6 +4,8 @@ import torch.autograd as th_autograd
 
 from typing import Iterator
 
+from .layers import ReplicationPad
+
 
 class ConvBlock(nn.Sequential):
     def __init__(
@@ -12,12 +14,12 @@ class ConvBlock(nn.Sequential):
             out_channels: int
     ):
         super(ConvBlock, self).__init__(
-            nn.ReplicationPad2d(1),
             nn.Conv2d(
                 in_channels,
                 out_channels,
                 kernel_size=(3, 3),
-                stride=(2, 2)
+                stride=(2, 2),
+                padding=(1, 1)
             ),
             nn.LeakyReLU(2e-1),
         )
