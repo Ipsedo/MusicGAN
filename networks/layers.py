@@ -24,45 +24,39 @@ class PixelNorm(nn.Module):
         return self.__repr__()
 
 
-class RandPadding2d(nn.Module):
-    def __init__(self, pad: int):
-        super(RandPadding2d, self).__init__()
+class AdaIN(nn.Module):
+    def __init__(
+            self,
+            channels: int,
+            style_channels: int
+    ):
+        super(AdaIN, self).__init__()
 
-        self.__pad = pad
-
-    def forward(self, x: th.Tensor) -> th.Tensor:
-        b, c, h, w = x.size()
-
-        r = th.randn(
-            b, c, h + self.__pad * 2, w + self.__pad * 2,
-            device=x.device
+        self.__to_style = nn.Linear(
+            style_channels,
+            2 * channels
         )
 
-        r[:, :, 1:-1, 1:-1] = x
-
-        return r
-
-
-class ReplicationPad(nn.Module):
-    def __init__(self, pad: int):
-        super(ReplicationPad, self).__init__()
-        
-        self.__pad = pad
-    
-    def forward(self, x: th.Tensor) -> th.Tensor:
-        repl = F.pad(
-            x, (self.__pad, self.__pad, 0, 0),
-            mode="replicate"
+        self.__inst_norm = nn.InstanceNorm2d(
+            channels, affine=False
         )
-        
-        zero_padded = F.pad(
-            repl, (0, 0, self.__pad, self.__pad),
-            mode="constant", value=0
-        )
-        
-        return zero_padded
 
+        self.__channels = channels
+        self.__style_channels = style_channels
 
-class CropLast2d(nn.Module):
-    def forward(self, x: th.Tensor) -> th.Tensor:
-        return x[:, :, :-1, :-1]
+    def forward(self, x: th.Tensor, z: th.Tensor) -> th.Tensor:
+        b, c, _, _ = x.size()
+
+        out_lin = self.__to_style(z).view(b, 2 * c, 1, 1)
+        gamma, beta = out_lin.chunk(2, 1)
+
+        out_norm = self.__inst_norm(x)
+
+        out = gamma * out_norm + beta
+
+        return out
+
+    def __repr__(self):
+        return "AdaIN" + \
+               f"(channels={self.__channels}, " \
+               f"style={self.__style_channels})"

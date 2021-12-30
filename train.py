@@ -97,6 +97,7 @@ def main() -> None:
     sample_rate = 44100
 
     rand_channels = 32
+    style_rand_channels = 32
     height = 2
     width = 2
 
@@ -120,6 +121,7 @@ def main() -> None:
 
     gen = networks.Generator(
         rand_channels,
+        style_rand_channels,
         end_layer=0
     )
 
@@ -193,13 +195,7 @@ def main() -> None:
         save_every = 1000
         grow_idx = 0
         grow_every = [
-            40000,
-            40000,
-            40000,
-            40000,
-            40000,
-            40000,
-            40000,
+            1, 1,1,1,1,1,1
         ]
         fadein_length = [
             1,
@@ -236,8 +232,14 @@ def main() -> None:
                     device="cuda"
                 )
 
+                z_style = th.randn(
+                    batch_size,
+                    style_rand_channels,
+                    device="cuda"
+                )
+
                 # gen fake data
-                x_fake = gen(z, alpha)
+                x_fake = gen(z, z_style, alpha)
 
                 # pass real data and gen data to discriminator
                 out_real = disc(x_real, alpha)
@@ -284,8 +286,14 @@ def main() -> None:
                         device="cuda"
                     )
 
+                    z_style = th.randn(
+                        batch_size,
+                        style_rand_channels,
+                        device="cuda"
+                    )
+
                     # generate fake data
-                    x_fake = gen(z, alpha)
+                    x_fake = gen(z, z_style, alpha)
 
                     # pass to discriminator
                     out_fake = disc(x_fake, alpha)
@@ -343,7 +351,13 @@ def main() -> None:
                                 device="cuda"
                             )
 
-                            x_fake = gen(z, alpha)
+                            z_style = th.randn(
+                                1,
+                                style_rand_channels,
+                                device="cuda"
+                            )
+
+                            x_fake = gen(z, z_style, alpha)
 
                             magn = x_fake[0, 0, :, :].detach().cpu().numpy()
                             phase = x_fake[0, 1, :, :].detach().cpu().numpy()

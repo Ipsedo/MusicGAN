@@ -4,8 +4,6 @@ import torch.autograd as th_autograd
 
 from typing import Iterator
 
-from .layers import ReplicationPad
-
 
 class ConvBlock(nn.Sequential):
     def __init__(
