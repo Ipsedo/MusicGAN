@@ -96,17 +96,17 @@ def main() -> None:
 
     sample_rate = 44100
 
-    rand_channels = 32
-    style_rand_channels = 32
+    rand_channels = 64
+    style_rand_channels = 64
     height = 2
     width = 2
 
     disc_lr = 1e-4
     gen_lr = 1e-4
-    betas = (0.5, 0.9)
+    betas = (0.9, 0.999)
 
     nb_epoch = 1000
-    batch_size = 8
+    batch_size = 6
 
     output_dir = args.out_path
 
@@ -195,7 +195,13 @@ def main() -> None:
         save_every = 1000
         grow_idx = 0
         grow_every = [
-            1, 1,1,1,1,1,1
+            40000,
+            40000,
+            40000,
+            40000,
+            40000,
+            40000,
+            40000,
         ]
         fadein_length = [
             1,
