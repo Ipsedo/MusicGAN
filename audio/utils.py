@@ -61,20 +61,19 @@ def get_bark_buckets(
 
 
 def bark_compress(
-        magn: th.Tensor,
-        phase: th.Tensor,
+        complex: th.Tensor,
         nfft: int = constant.N_FFT,
         required_length: int = constant.BARK_SIZE
-) -> Tuple[th.Tensor, th.Tensor]:
+) -> th.Tensor:
 
     buckets = get_bark_buckets(nfft, required_length)
 
-    buckets_tmp = buckets[:, None].repeat(1, magn.size()[1])
+    buckets_tmp = buckets[:, None].repeat(1, complex.size()[1])
 
-    magn = torch_scatter.scatter_mean(magn, buckets_tmp, dim=0)
-    phase = torch_scatter.scatter_mean(phase, buckets_tmp, dim=0)
+    real = torch_scatter.scatter_mean(th.real(complex), buckets_tmp, dim=0)
+    imag = torch_scatter.scatter_mean(th.imag(complex), buckets_tmp, dim=0)
 
-    return magn, phase
+    return real + 1j * imag
 
 
 def wav_to_stft(
@@ -82,7 +81,7 @@ def wav_to_stft(
         nperseg: int = constant.N_FFT,
         stride: int = constant.STFT_STRIDE,
 ) -> th.Tensor:
-    raw_audio, _ = th_audio.load(wav_p)
+    raw_audio, sr = th_audio.load(wav_p)
 
     raw_audio_mono = raw_audio.mean(0)
 
@@ -106,6 +105,9 @@ def stft_to_phase_magn(
         required_length: int = constant.BARK_SIZE,
         nb_vec: int = constant.N_VEC
 ) -> Tuple[th.Tensor, th.Tensor]:
+
+    complex_values = bark_compress(complex_values, n_fft, required_length)
+
     magn = th.abs(complex_values)
     phase = th.angle(complex_values)
 
@@ -120,8 +122,6 @@ def stft_to_phase_magn(
     min_magn = magn.min()
     max_phase = phase.max()
     min_phase = phase.min()
-
-    magn, phase = bark_compress(magn, phase, n_fft, required_length)
 
     magn = (magn - min_magn) / (max_magn - min_magn)
     phase = (phase - min_phase) / (max_phase - min_phase)
@@ -138,30 +138,11 @@ def stft_to_phase_magn(
 
 def magn_phase_to_wav(magn_phase: th.Tensor, wav_path: str, sample_rate: int):
 
-    nfft = 4096
-    n_bins = nfft // 2
-    stride = 256
+    magn = magn_phase.permute(1, 2, 0, 3).flatten(2, 3)[0, :]
+    phase = magn_phase.permute(1, 2, 0, 3).flatten(2, 3)[1, :]
 
-    bark_magn = magn_phase.permute(1, 2, 0, 3).flatten(2, 3)[0, :]
-    bark_phase = magn_phase.permute(1, 2, 0, 3).flatten(2, 3)[1, :]
-
-    bark_magn = (bark_magn + 1.) / 2.
-    bark_phase = (bark_phase + 1.) / 2. * 2. * np.pi - np.pi
-
-    magn = th.zeros(n_bins, bark_magn.size()[1])
-    phase = th.zeros(n_bins, bark_phase.size()[1])
-
-    buckets = get_bark_buckets(
-        nfft,
-        bark_magn.size()[0]
-    )
-
-    for i, b in enumerate(buckets):
-        magn[i, :] = bark_magn[b, :]
-        phase[i, :] = bark_phase[b, :]
-
-    #magn = magn_phase[0, 0, :, :]
-    #phase = magn_phase[0, 1, :, :]
+    magn = (magn + 1.) / 2.
+    phase = (phase + 1.) / 2. * 2. * np.pi - np.pi
 
     for i in range(phase.size()[1] - 1):
         phase[:, i + 1] = phase[:, i + 1] + phase[:, i]
@@ -173,18 +154,30 @@ def magn_phase_to_wav(magn_phase: th.Tensor, wav_path: str, sample_rate: int):
     real = magn * th.cos(phase)
     imag = magn * th.sin(phase)
 
-    real = th.cat([real, th.zeros(1, real.size()[1])], dim=0)
-    imag = th.cat([imag, th.zeros(1, imag.size()[1])], dim=0)
+    real_res = th.zeros(constant.N_FFT // 2, real.size()[1])
+    imag_res = th.zeros(constant.N_FFT // 2, imag.size()[1])
 
-    z = real + imag * 1j
+    buckets = get_bark_buckets(
+        constant.N_FFT,
+        constant.BARK_SIZE
+    )
 
-    hann_window = th.hann_window(nfft)
+    for i, b in enumerate(buckets):
+        real_res[i, :] = real[b, :]
+        imag_res[i, :] = imag[b, :]
+
+    real_res = th.cat([real_res, th.zeros(1, real_res.size()[1])], dim=0)
+    imag_res = th.cat([imag_res, th.zeros(1, imag_res.size()[1])], dim=0)
+
+    z = real_res + imag_res * 1j
+
+    hann_window = th.hann_window(constant.N_FFT)
 
     raw_audio = th_audio_f.inverse_spectrogram(
         z, length=None,
         pad=0, window=hann_window,
-        n_fft=nfft, hop_length=stride,
-        win_length=nfft, normalized=True
+        n_fft=constant.N_FFT, hop_length=constant.STFT_STRIDE,
+        win_length=constant.N_FFT, normalized=True
     )
 
     th_audio.save(wav_path, raw_audio[None, :], sample_rate)
