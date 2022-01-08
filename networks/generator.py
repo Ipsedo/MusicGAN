@@ -126,6 +126,10 @@ class Generator(nn.Module):
             (self.__style_channels, self.__style_channels),
             (self.__style_channels, self.__style_channels),
             (self.__style_channels, self.__style_channels),
+            (self.__style_channels, self.__style_channels),
+            (self.__style_channels, self.__style_channels),
+            (self.__style_channels, self.__style_channels),
+            (self.__style_channels, self.__style_channels),
         ]
 
         self.__style_network = nn.Sequential(*[
