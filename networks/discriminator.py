@@ -19,6 +19,7 @@ class ConvBlock(nn.Sequential):
                 stride=(2, 2),
                 padding=(1, 1)
             ),
+            nn.InstanceNorm2d(out_channels),
             nn.LeakyReLU(2e-1),
         )
 
@@ -171,7 +172,7 @@ class Discriminator(nn.Module):
 
         return grad_pen_factor * gradient_penalty
 
-    def start_bck_parameters(self) -> Iterator[nn.Parameter]:
+    def start_block_parameters(self) -> Iterator[nn.Parameter]:
         return self.__start_block.parameters()
 
     def parameters(self, recurse: bool = True) -> Iterator[nn.Parameter]:
