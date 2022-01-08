@@ -30,7 +30,7 @@ if __name__ == '__main__':
     nperseg = audio.N_FFT
     stride = audio.STFT_STRIDE
 
-    required_length = audio.BARK_SIZE
+    #required_length = audio.BARK_SIZE
     nb_vec = audio.N_VEC
 
     idx = 0
@@ -42,14 +42,18 @@ if __name__ == '__main__':
             stride=stride
         )
 
+        # compressed_complex_values = audio.bark_compress(
+        #     complex_values,
+        #     nperseg,
+        #     required_length
+        # )
+
         if complex_values.size()[1] < nb_vec:
             continue
 
         magn, phase = audio.stft_to_phase_magn(
             complex_values,
-            nb_vec=nb_vec,
-            n_fft=nperseg,
-            required_length=required_length
+            nb_vec=nb_vec
         )
 
         nb_sample = magn.size()[0]
