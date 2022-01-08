@@ -13,24 +13,10 @@ from . import constant
 
 
 def diff(x: th.Tensor) -> th.Tensor:
-    """
-
-    :param x:
-    :type x:
-    :return:
-    :rtype:
-    """
     return th_f.pad(x[:, 1:] - x[:, :-1], (1, 0, 0, 0), "constant", 0)
 
 
 def unwrap(phi: th.Tensor) -> th.Tensor:
-    """
-
-    :param phi:
-    :type phi:
-    :return:
-    :rtype:
-    """
     dphi = diff(phi)
     dphi_m = ((dphi + np.pi) % (2 * np.pi)) - np.pi
     dphi_m[(dphi_m == -np.pi) & (dphi > 0)] = np.pi
@@ -40,18 +26,18 @@ def unwrap(phi: th.Tensor) -> th.Tensor:
 
 
 def get_bark_buckets(
-    nfft: int = constant.N_FFT,
-    required_length: int = constant.BARK_SIZE
+        nfft: int ,#= constant.N_FFT,
+        required_length: int #= constant.BARK_SIZE
 ) -> th.Tensor:
     n_bins = nfft // 2
 
     min_hz = 0.
     max_hz = 44100 // 2
 
-    min_bark = 6 * th.arcsinh(th.tensor(min_hz) / 600)
-    max_bark = 6 * th.arcsinh(th.tensor(max_hz) / 600)
+    min_bark = 6. * th.arcsinh(th.tensor(min_hz) / 600.)
+    max_bark = 6. * th.arcsinh(th.tensor(max_hz) / 600.)
 
-    bucket_boundaries = 600 * th.sinh(th.linspace(min_bark, max_bark, required_length) / 6)
+    bucket_boundaries = 600. * th.sinh(th.linspace(min_bark, max_bark, required_length) / 6.)
 
     frequencies = th.linspace(min_hz, max_hz, n_bins)
 
@@ -61,19 +47,30 @@ def get_bark_buckets(
 
 
 def bark_compress(
-        complex: th.Tensor,
-        nfft: int = constant.N_FFT,
-        required_length: int = constant.BARK_SIZE
+        complex_values: th.Tensor,
+        nfft: int,# = constant.N_FFT,
+        required_length: int,# = constant.BARK_SIZE
 ) -> th.Tensor:
-
     buckets = get_bark_buckets(nfft, required_length)
 
-    buckets_tmp = buckets[:, None].repeat(1, complex.size()[1])
+    buckets_tmp = buckets[:, None].repeat(1, complex_values.size()[1])
 
-    real = torch_scatter.scatter_mean(th.real(complex), buckets_tmp, dim=0)
-    imag = torch_scatter.scatter_mean(th.imag(complex), buckets_tmp, dim=0)
+    real = torch_scatter.scatter_mean(th.real(complex_values), buckets_tmp, dim=0)
+    imag = torch_scatter.scatter_mean(th.imag(complex_values), buckets_tmp, dim=0)
 
     return real + 1j * imag
+
+
+def bark_magn_scale(magn: th.Tensor, unscale: bool = False) -> th.Tensor:
+    assert len(magn.size()) == 2, f"(STFT, TIME), actual = {magn.size()}"
+
+    min_hz = 20.
+    max_hz = 44100 // 2
+
+    scale = 6. * th.arcsinh(th.linspace(min_hz, max_hz, magn.size()[0]) / 600.)[:, None]
+    scale_norm = scale / scale.norm()
+
+    return magn / scale_norm if unscale else magn * scale_norm
 
 
 def wav_to_stft(
@@ -101,17 +98,12 @@ def wav_to_stft(
 
 def stft_to_phase_magn(
         complex_values: th.Tensor,
-        n_fft: int = constant.N_FFT,
-        required_length: int = constant.BARK_SIZE,
         nb_vec: int = constant.N_VEC
 ) -> Tuple[th.Tensor, th.Tensor]:
-
-    complex_values = bark_compress(complex_values, n_fft, required_length)
-
     magn = th.abs(complex_values)
     phase = th.angle(complex_values)
 
-    magn = th.log(magn + 1)
+    magn = bark_magn_scale(magn, unscale=False)
 
     phase = unwrap(phase)
 
@@ -137,11 +129,22 @@ def stft_to_phase_magn(
 
 
 def magn_phase_to_wav(magn_phase: th.Tensor, wav_path: str, sample_rate: int):
+    assert len(magn_phase.size()) == 4, \
+        f"(N, 2, H, W), actual = {magn_phase.size()}"
+
+    assert magn_phase.size()[1] == 2, \
+        f"Channels must be equal to 2, actual = {magn_phase.size()[1]}"
+
+    assert magn_phase.size()[2] == constant.N_FFT // 2, \
+        f"Frequency size must be equal to {constant.N_FFT // 2}, actual = {magn_phase.size()[2]}"
 
     magn = magn_phase.permute(1, 2, 0, 3).flatten(2, 3)[0, :]
     phase = magn_phase.permute(1, 2, 0, 3).flatten(2, 3)[1, :]
 
     magn = (magn + 1.) / 2.
+    magn = bark_magn_scale(magn, unscale=True)
+    magn = magn / (magn.max() - magn.min())
+
     phase = (phase + 1.) / 2. * 2. * np.pi - np.pi
 
     for i in range(phase.size()[1] - 1):
@@ -149,25 +152,25 @@ def magn_phase_to_wav(magn_phase: th.Tensor, wav_path: str, sample_rate: int):
 
     phase = phase % (2 * np.pi)
 
-    magn = th.exp(magn) - 1
+    #magn = th.exp(magn) - 1
 
     real = magn * th.cos(phase)
     imag = magn * th.sin(phase)
 
-    real_res = th.zeros(constant.N_FFT // 2, real.size()[1])
-    imag_res = th.zeros(constant.N_FFT // 2, imag.size()[1])
+    # real_res = th.zeros(constant.N_FFT // 2, real.size()[1])
+    # imag_res = th.zeros(constant.N_FFT // 2, imag.size()[1])
 
-    buckets = get_bark_buckets(
-        constant.N_FFT,
-        constant.BARK_SIZE
-    )
+    # buckets = get_bark_buckets(
+    #     constant.N_FFT,
+    #     constant.BARK_SIZE
+    # )
 
-    for i, b in enumerate(buckets):
-        real_res[i, :] = real[b, :]
-        imag_res[i, :] = imag[b, :]
+    # for i, b in enumerate(buckets):
+    #     real_res[i, :] = real[b, :]
+    #     imag_res[i, :] = imag[b, :]
 
-    real_res = th.cat([real_res, th.zeros(1, real_res.size()[1])], dim=0)
-    imag_res = th.cat([imag_res, th.zeros(1, imag_res.size()[1])], dim=0)
+    real_res = th.cat([real, th.zeros(1, real.size()[1])], dim=0)
+    imag_res = th.cat([imag, th.zeros(1, imag.size()[1])], dim=0)
 
     z = real_res + imag_res * 1j
 
