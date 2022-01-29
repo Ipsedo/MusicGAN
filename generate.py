@@ -16,7 +16,6 @@ def main() -> None:
 
     parser.add_argument("gen_dict_state", type=str)
     parser.add_argument("rand_channels", type=int)
-    parser.add_argument("style_rand_channels", type=int)
     parser.add_argument("-n", "--nb-vec", type=int)
     parser.add_argument("-m", "--nb-music", type=int)
 
@@ -34,7 +33,6 @@ def main() -> None:
     print("Load model...")
     gen = Generator(
         args.rand_channels,
-        args.style_rand_channels,
         end_layer=7
     )
 
@@ -57,12 +55,7 @@ def main() -> None:
             width * args.nb_vec
         )
 
-        z_style = th.randn(
-            args.nb_music,
-            args.style_rand_channels
-        )
-
-        gen_sound = gen(z, z_style, 1.0)
+        gen_sound = gen(z, 1.0)
 
         print("Saving sound...")
         for i in tqdm(range(gen_sound.size()[0])):
