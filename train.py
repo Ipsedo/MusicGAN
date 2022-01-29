@@ -96,17 +96,17 @@ def main() -> None:
 
     sample_rate = 44100
 
-    rand_channels = 64
-    style_rand_channels = 64
+    rand_channels = 16
+    style_rand_channels = 16
     height = 2
     width = 2
 
-    disc_lr = 1e-4
-    gen_lr = 1e-4
-    betas = (0.9, 0.999)
+    disc_lr = 1e-3
+    gen_lr = 1e-3
+    betas = (0.5, 0.99)
 
     nb_epoch = 1000
-    batch_size = 6
+    batch_size = 12
 
     output_dir = args.out_path
 
@@ -195,23 +195,23 @@ def main() -> None:
         save_every = 1000
         grow_idx = 0
         grow_every = [
-            40000,
-            40000,
-            40000,
-            40000,
-            40000,
-            40000,
-            40000,
+            8000,
+            16000,
+            16000,
+            32000,
+            32000,
+            64000,
+            64000,
         ]
         fadein_length = [
             1,
-            20000,
-            20000,
-            20000,
-            20000,
-            20000,
-            20000,
-            20000,
+            4000,
+            4000,
+            8000,
+            8000,
+            16000,
+            16000,
+            24000,
         ]
 
         for e in range(nb_epoch):
@@ -327,12 +327,12 @@ def main() -> None:
                     f"Epoch {e:02} "
                     f"[{iter_idx // save_every:03}: "
                     f"{iter_idx % save_every:04} / {save_every}], "
-                    f"disc_loss = {mean(disc_loss_list):.6f}, "
-                    f"gen_loss = {mean(gen_loss_list):.6f}, "
-                    f"disc_grad_pen = {mean(grad_pen_list):.2f}, "
-                    f"e_tp = {mean(error_tp):.5f}, "
-                    f"e_tn = {mean(error_tn):.5f}, "
-                    f"e_gen = {mean(error_gen):.5f}, "
+                    f"disc_loss = {mean(disc_loss_list):.4f}, "
+                    f"gen_loss = {mean(gen_loss_list):.4f}, "
+                    f"disc_grad_pen = {mean(grad_pen_list):.4f}, "
+                    f"e_tp = {mean(error_tp):.4f}, "
+                    f"e_tn = {mean(error_tn):.4f}, "
+                    f"e_gen = {mean(error_gen):.4f}, "
                     f"alpha = {alpha:.3f}"
                 )
 
@@ -449,11 +449,15 @@ def main() -> None:
                     disc.next_layer()
 
                     optim_gen.add_param_group({
-                        "params": gen.end_block_params()
+                        "params": gen.end_block_params(),
+                        "lr": gen_lr,
+                        "betas": betas
                     })
 
                     optim_disc.add_param_group({
-                        "params": disc.start_block_parameters()
+                        "params": disc.start_block_parameters(),
+                        "lr": disc_lr,
+                        "betas": betas
                     })
 
                     print("\nup_layer", gen.curr_layer, "/", gen.down_sample)

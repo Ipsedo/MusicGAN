@@ -6,22 +6,21 @@ from typing import Iterator
 from .layers import AdaIN
 
 
-class Block(nn.Module):
+class ConvBlock(nn.Module):
     def __init__(
             self,
             in_channels: int,
             out_channels: int,
             style_channels: int
     ):
-        super(Block, self).__init__()
+        super(ConvBlock, self).__init__()
 
-        self.__conv_tr = nn.ConvTranspose2d(
-                in_channels,
-                out_channels,
-                kernel_size=(3, 3),
-                stride=(2, 2),
-                padding=(1, 1),
-                output_padding=(1, 1)
+        self.__conv = nn.Conv2d(
+            in_channels,
+            out_channels,
+            kernel_size=(3, 3),
+            stride=(1, 1),
+            padding=(1, 1)
         )
 
         self.__adain = AdaIN(
@@ -32,9 +31,43 @@ class Block(nn.Module):
         self.__lr_relu = nn.LeakyReLU(2e-1)
 
     def forward(self, x: th.Tensor, style: th.Tensor) -> th.Tensor:
-        out = self.__conv_tr(x)
+        out = self.__conv(x)
         out = self.__adain(out, style)
         out = self.__lr_relu(out)
+
+        return out
+
+
+class Block(nn.Module):
+    def __init__(
+            self,
+            in_channels: int,
+            out_channels: int,
+            style_channels: int
+    ):
+        super(Block, self).__init__()
+
+        self.__conv_1 = ConvBlock(
+            in_channels,
+            in_channels,
+            style_channels
+        )
+
+        self.__up_sample = nn.Upsample(
+            scale_factor=2.,
+            mode="nearest"
+        )
+
+        self.__conv_2 = ConvBlock(
+            in_channels,
+            out_channels,
+            style_channels
+        )
+
+    def forward(self, x: th.Tensor, style: th.Tensor):
+        out = self.__conv_1(x, style)
+        out = self.__up_sample(out)
+        out = self.__conv_2(out, style)
 
         return out
 
@@ -77,19 +110,19 @@ class Generator(nn.Module):
         self.__nb_downsample = 7
 
         channels = [
-            (rand_channels, 256),
-            (256, 224),
-            (224, 192),
-            (192, 160),
-            (160, 128),
-            (128, 96),
-            (96, 64),
-            (64, 32)
+            (rand_channels, 64),
+            (64, 56),
+            (56, 48),
+            (48, 40),
+            (40, 32),
+            (32, 24),
+            (24, 16),
+            (16, 8)
         ]
 
         self.__channels = channels
 
-        self.__style_channels = 256
+        self.__style_channels = 64
 
         assert 0 <= end_layer < len(channels)
 
@@ -112,8 +145,7 @@ class Generator(nn.Module):
             else nn.Sequential(
                 nn.Upsample(
                     scale_factor=2.,
-                    mode="bilinear",
-                    align_corners=True
+                    mode="nearest"
                 ),
                 ToMagnPhaseLayer(
                     channels[self.curr_layer - 1][1]
@@ -169,8 +201,7 @@ class Generator(nn.Module):
             self.__last_end_block = nn.Sequential(
                 nn.Upsample(
                     scale_factor=2.,
-                    mode="bilinear",
-                    align_corners=True
+                    mode="nearest"
                 ),
                 self.__end_block
             )
