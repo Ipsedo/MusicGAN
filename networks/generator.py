@@ -166,12 +166,6 @@ class Generator(nn.Module):
     def end_block_params(self) -> Iterator[nn.Parameter]:
         return self.__end_block.parameters()
 
-    def parameters(self, recurse: bool = True) -> Iterator[nn.Parameter]:
-        return iter(
-            list(self.__gen_blocks.parameters(recurse)) +
-            list(self.__end_block.parameters(recurse))
-        )
-
     def zero_grad(self, set_to_none: bool = False) -> None:
         for p in self.parameters():
             p.grad = None
