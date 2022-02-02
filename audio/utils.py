@@ -3,8 +3,6 @@ import torch.nn.functional as th_f
 import torchaudio as th_audio
 import torchaudio.functional as th_audio_f
 
-import torch_scatter
-
 import numpy as np
 
 from typing import Tuple
@@ -25,42 +23,6 @@ def unwrap(phi: th.Tensor) -> th.Tensor:
     return phi + phi_adj.cumsum(1)
 
 
-def get_bark_buckets(
-        nfft: int ,#= constant.N_FFT,
-        required_length: int #= constant.BARK_SIZE
-) -> th.Tensor:
-    n_bins = nfft // 2
-
-    min_hz = 0.
-    max_hz = 44100 // 2
-
-    min_bark = 6. * th.arcsinh(th.tensor(min_hz) / 600.)
-    max_bark = 6. * th.arcsinh(th.tensor(max_hz) / 600.)
-
-    bucket_boundaries = 600. * th.sinh(th.linspace(min_bark, max_bark, required_length) / 6.)
-
-    frequencies = th.linspace(min_hz, max_hz, n_bins)
-
-    buckets = th.bucketize(frequencies, bucket_boundaries)
-
-    return buckets
-
-
-def bark_compress(
-        complex_values: th.Tensor,
-        nfft: int,# = constant.N_FFT,
-        required_length: int,# = constant.BARK_SIZE
-) -> th.Tensor:
-    buckets = get_bark_buckets(nfft, required_length)
-
-    buckets_tmp = buckets[:, None].repeat(1, complex_values.size()[1])
-
-    real = torch_scatter.scatter_mean(th.real(complex_values), buckets_tmp, dim=0)
-    imag = torch_scatter.scatter_mean(th.imag(complex_values), buckets_tmp, dim=0)
-
-    return real + 1j * imag
-
-
 def bark_magn_scale(magn: th.Tensor, unscale: bool = False) -> th.Tensor:
     assert len(magn.size()) == 2, f"(STFT, TIME), actual = {magn.size()}"
 
@@ -79,6 +41,10 @@ def wav_to_stft(
         stride: int = constant.STFT_STRIDE,
 ) -> th.Tensor:
     raw_audio, sr = th_audio.load(wav_p)
+
+    assert sr == constant.SAMPLE_RATE, \
+        f"Audio sample rate must be {constant.SAMPLE_RATE}Hz, " \
+        f"file \"{wav_p}\" is {sr}Hz"
 
     raw_audio_mono = raw_audio.mean(0)
 
@@ -136,7 +102,8 @@ def magn_phase_to_wav(magn_phase: th.Tensor, wav_path: str, sample_rate: int):
         f"Channels must be equal to 2, actual = {magn_phase.size()[1]}"
 
     assert magn_phase.size()[2] == constant.N_FFT // 2, \
-        f"Frequency size must be equal to {constant.N_FFT // 2}, actual = {magn_phase.size()[2]}"
+        f"Frequency size must be equal to {constant.N_FFT // 2}, " \
+        f"actual = {magn_phase.size()[2]}"
 
     magn = magn_phase.permute(1, 2, 0, 3).flatten(2, 3)[0, :]
     phase = magn_phase.permute(1, 2, 0, 3).flatten(2, 3)[1, :]
@@ -152,22 +119,8 @@ def magn_phase_to_wav(magn_phase: th.Tensor, wav_path: str, sample_rate: int):
 
     phase = phase % (2 * np.pi)
 
-    #magn = th.exp(magn) - 1
-
     real = magn * th.cos(phase)
     imag = magn * th.sin(phase)
-
-    # real_res = th.zeros(constant.N_FFT // 2, real.size()[1])
-    # imag_res = th.zeros(constant.N_FFT // 2, imag.size()[1])
-
-    # buckets = get_bark_buckets(
-    #     constant.N_FFT,
-    #     constant.BARK_SIZE
-    # )
-
-    # for i, b in enumerate(buckets):
-    #     real_res[i, :] = real[b, :]
-    #     imag_res[i, :] = imag[b, :]
 
     real_res = th.cat([real, th.zeros(1, real.size()[1])], dim=0)
     imag_res = th.cat([imag, th.zeros(1, imag.size()[1])], dim=0)
