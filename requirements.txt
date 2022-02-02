@@ -9,4 +9,3 @@ numpy
 
 # for experiments
 jupyter
-torch-scatter

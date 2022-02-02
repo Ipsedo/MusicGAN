@@ -1,5 +1,6 @@
-import audio
-import networks
+from . import audio
+from .audio import constant
+from . import networks
 
 import torch as th
 from torchvision.transforms import Compose, Resize
@@ -12,7 +13,6 @@ import mlflow
 
 import matplotlib.pyplot as plt
 
-import argparse
 from tqdm import tqdm
 
 from statistics import mean
@@ -32,69 +32,26 @@ def get_transform(downscale_factor: int) -> Compose:
     return compose
 
 
-def main() -> None:
-    parser = argparse.ArgumentParser("MusicGAN")
-
-    parser.add_argument(
-        "run",
-        type=str,
-        metavar="RUN_NAME"
-    )
-
-    parser.add_argument(
-        "-o", "--out-path",
-        dest="out_path",
-        type=str,
-        required=True
-    )
-
-    parser.add_argument(
-        "-i", "--input-dataset",
-        dest="input_dataset",
-        required=True,
-        type=str
-    )
-
-    parser.add_argument(
-        '--gen',
-        type=str,
-        required=False
-    )
-
-    parser.add_argument(
-        '--gen-optim',
-        type=str,
-        required=False
-    )
-
-    parser.add_argument(
-        '--disc',
-        type=str,
-        required=False
-    )
-
-    parser.add_argument(
-        '--disc-optim',
-        type=str,
-        required=False
-    )
-
-    args = parser.parse_args()
+def train(
+        run_name: str,
+        input_dataset_path: str,
+        output_dir: str,
+) -> None:
 
     exp_name = "MusicGAN"
     mlflow.set_experiment(exp_name)
 
-    assert isdir(args.input_dataset), \
-        f"\"{args.input_dataset}\" doesn't exist or is not a directory"
+    assert isdir(input_dataset_path), \
+        f"\"{input_dataset_path}\" doesn't exist or is not a directory"
 
-    mlflow.start_run(run_name=args.run)
+    mlflow.start_run(run_name=run_name)
 
     mlflow.log_param(
         "input_dataset",
-        args.input_dataset
+        input_dataset_path
     )
 
-    sample_rate = 44100
+    sample_rate = constant.SAMPLE_RATE
 
     rand_channels = 16
     height = 2
@@ -106,8 +63,6 @@ def main() -> None:
 
     nb_epoch = 1000
     batch_size = 6
-
-    output_dir = args.out_path
 
     if not exists(output_dir):
         mkdir(output_dir)
@@ -138,21 +93,8 @@ def main() -> None:
         disc.parameters(), lr=disc_lr, betas=betas
     )
 
-    # Load models & optimizers
-    if args.gen is not None:
-        gen.load_state_dict(th.load(args.gen))
-
-    if args.disc is not None:
-        disc.load_state_dict(th.load(args.disc))
-
-    if args.gen_optim is not None:
-        optim_gen.load_state_dict(th.load(args.gen_optim))
-
-    if args.disc_optim is not None:
-        optim_disc.load_state_dict(th.load(args.disc_optim))
-
     # create DataSet
-    audio_dataset = audio.AudioDataset(args.input_dataset)
+    audio_dataset = audio.AudioDataset(input_dataset_path)
 
     data_loader = DataLoader(
         audio_dataset,
@@ -439,7 +381,3 @@ def main() -> None:
                     print("\nup_layer", gen.curr_layer, "/", gen.down_sample)
 
                     grow_idx = 0
-
-
-if __name__ == '__main__':
-    main()

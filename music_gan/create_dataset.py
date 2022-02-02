@@ -7,25 +7,22 @@ import glob
 from os.path import exists, join, isdir
 from os import mkdir
 
-import audio
+from . import audio
 
-import argparse
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser("Create dataset")
+def create_dataset(
+        audio_path: str,
+        dataset_output_dir: str
+) -> None:
 
-    parser.add_argument("audio_path", type=str, help="can be /path/to/*.wav")
-    parser.add_argument("-o", "--output-dir", type=str, required=True)
+    w_p = glob.glob(audio_path)
 
-    args = parser.parse_args()
-
-    w_p = glob.glob(args.audio_path)
-
-    out_path = args.output_dir
-    if not exists(out_path):
-        mkdir(out_path)
-    elif exists(out_path) and not isdir(out_path):
-        raise NotADirectoryError(f"\"{out_path}\" is not a directory")
+    if not exists(dataset_output_dir):
+        mkdir(dataset_output_dir)
+    elif exists(dataset_output_dir) and not isdir(dataset_output_dir):
+        raise NotADirectoryError(
+            f"\"{dataset_output_dir}\" is not a directory"
+        )
 
     nperseg = audio.N_FFT
     stride = audio.STFT_STRIDE
@@ -55,7 +52,10 @@ if __name__ == '__main__':
             s_magn = magn[s_idx, :, :].to(th.float64)
             s_phase = phase[s_idx, :, :].to(th.float64)
 
-            magn_phase_path = join(out_path, f"magn_phase_{idx}.pt")
+            magn_phase_path = join(
+                dataset_output_dir,
+                f"magn_phase_{idx}.pt"
+            )
 
             magn_phase = th.stack([s_magn, s_phase], dim=0)
 
