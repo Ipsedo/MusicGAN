@@ -5,3 +5,6 @@ mlruns/
 venv/
 env/
 out/
+*.egg-info/
+build/
+dist/
