@@ -97,13 +97,17 @@ def train(
     })
 
     grower = Grower(
-        7,
-        [1, 12500, 25000, 37500, 50000, 62500, 75000, 87500],
-        [50000, 100000, 150000, 200000, 250000, 300000, 350000]
+        n_grow=7,
+        fadein_lengths=[
+            1, 12500, 25000, 37500, 50000, 62500, 75000, 87500
+        ],
+        train_lengths=[
+            50000, 100000, 150000, 200000, 250000, 300000, 350000
+        ]
     )
 
     saver = Saver(
-        output_dir, 1000,
+        output_dir, save_every=1000,
         rand_channels=rand_channels,
         rand_height=height,
         rand_width=width
