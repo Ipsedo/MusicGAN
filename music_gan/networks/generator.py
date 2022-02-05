@@ -65,19 +65,19 @@ class Generator(nn.Module):
         self.__nb_downsample = 7
 
         channels = [
-            (rand_channels, 144),
-            (144, 128),
+            (rand_channels, 128),
             (128, 112),
             (112, 96),
             (96, 80),
             (80, 64),
             (64, 48),
-            (48, 32)
+            (48, 32),
+            (32, 16)
         ]
 
         self.__channels = channels
 
-        assert 0 <= end_layer < len(channels)
+        assert 0 <= end_layer < len(channels), f"0 <= {end_layer} < {len(channels)}"
 
         # Generator layers
         self.__gen_blocks = nn.ModuleList([
