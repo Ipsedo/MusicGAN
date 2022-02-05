@@ -53,7 +53,7 @@ def train(
 
     sample_rate = constant.SAMPLE_RATE
 
-    rand_channels = 16
+    rand_channels = 32
     height = 2
     width = 2
 
@@ -135,23 +135,23 @@ def train(
         save_every = 1000
         grow_idx = 0
         grow_every = [
-            20000,
-            30000,
+            8000,
+            16000,
+            24000,
+            32000,
             40000,
-            50000,
-            60000,
-            70000,
-            80000
+            48000,
+            56000
         ]
         fadein_length = [
             1,
+            4000,
+            6000,
+            8000,
             10000,
-            10000,
-            10000,
-            10000,
-            10000,
-            10000,
-            10000,
+            12000,
+            14000,
+            16000
         ]
 
         for e in range(nb_epoch):
@@ -370,13 +370,17 @@ def train(
                     gen.next_layer()
                     disc.next_layer()
 
-                    optim_gen = th.optim.Adam(
-                        gen.parameters(), lr=gen_lr, betas=betas
-                    )
+                    optim_gen.add_param_group({
+                        "params": gen.end_block_params(),
+                        "lr": gen_lr,
+                        "betas": betas
+                    })
 
-                    optim_disc = th.optim.Adam(
-                        disc.parameters(), lr=disc_lr, betas=betas
-                    )
+                    optim_disc.add_param_group({
+                        "params": disc.start_block_parameters(),
+                        "lr": disc_lr,
+                        "betas": betas
+                    })
 
                     print("\nup_layer", gen.curr_layer, "/", gen.down_sample)
 
