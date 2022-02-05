@@ -236,7 +236,7 @@ def train(
 
                 # log metrics
                 if iter_idx % 200 == 0:
-                    mlflow.log_metrics(step=e, metrics={
+                    mlflow.log_metrics(step=gen.curr_layer, metrics={
                         "disc_loss": disc_loss.item(),
                         "gen_loss": gen_loss.item(),
                         "batch_tp_error": error_tp[-1],
@@ -272,6 +272,7 @@ def train(
                     })
 
                     tqdm_bar.write(
-                        f"up_layer{gen.curr_layer} / {gen.down_sample}, "
+                        "\n"
+                        f"Next layer, {gen.curr_layer} / {gen.down_sample}, "
                         f"curr_save = {saver.curr_save}"
                     )
