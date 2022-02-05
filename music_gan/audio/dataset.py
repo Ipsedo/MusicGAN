@@ -1,8 +1,12 @@
 import torch as th
 from torch.utils.data import Dataset
 
+import numpy as np
+
 from os import listdir
 from os.path import isdir, isfile, join
+
+import re
 
 from tqdm import tqdm
 
@@ -14,13 +18,17 @@ class AudioDataset(Dataset):
 
         assert isdir(dataset_path)
 
+        re_files = re.compile(r"^magn_phase_\d+\.pt$")
+
         all_files = [
             f for f in tqdm(listdir(dataset_path))
             if isfile(join(dataset_path, f)) and
-            f.startswith("magn_phase")
+            re_files.match(f)
         ]
 
-        self.__all_files = sorted(all_files)
+        # Avoid pointer copy on each worker ?
+        # (instead of list)
+        self.__all_files = np.array(sorted(all_files))
 
         self.__dataset_path = dataset_path
 
