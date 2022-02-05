@@ -19,9 +19,11 @@ class Grower:
             train_lengths: List[int]
     ):
         self.__curr_grow = 0
+        self.__n_grow = n_grow
+
         self.__sample_idx = 0
         self.__step_sample_idx = 0
-        self.__n_grow = n_grow
+
         self.__downscale = 7
         self.__transform = Grower.__get_transform(self.__downscale)
 
@@ -100,8 +102,10 @@ class Saver:
 
         # for sounds/images generation
         self.__rand_channels = rand_channels
+
         self.__height = rand_height
         self.__width = rand_width
+
         self.__nb_output_images = 6
 
     def __save_models(
@@ -116,6 +120,7 @@ class Saver:
             disc.state_dict(),
             join(self.__output_dir, f"disc_{self.__curr_save}.pt")
         )
+
         th.save(
             optim_disc.state_dict(),
             join(self.__output_dir, f"optim_disc_{self.__curr_save}.pt")
@@ -126,6 +131,7 @@ class Saver:
             gen.state_dict(),
             join(self.__output_dir, f"gen_{self.__curr_save}.pt")
         )
+
         th.save(
             optim_gen.state_dict(),
             join(self.__output_dir, f"optim_gen_{self.__curr_save}.pt")
@@ -138,7 +144,9 @@ class Saver:
     ):
         # Generate sound
         with th.no_grad():
+
             for gen_idx in range(self.__nb_output_images):
+
                 z = th.randn(
                     1,
                     self.__rand_channels,
@@ -151,26 +159,44 @@ class Saver:
                 magn = x_fake[0, 0, :, :].detach().cpu().numpy()
                 phase = x_fake[0, 1, :, :].detach().cpu().numpy()
 
+                # Plot magnitude
                 fig, ax = plt.subplots()
-                ax.matshow(magn / (magn.max() - magn.min()),
-                           cmap='plasma')
-                plt.title("gen magn " + str(self.__curr_save) +
-                          " grow=" + str(gen.curr_layer))
-                fig.savefig(
-                    join(self.__output_dir,
-                         f"magn_{self.__curr_save}_ID{gen_idx}.png")
+
+                ax.matshow(
+                    magn / (magn.max() - magn.min()),
+                    cmap='plasma'
                 )
+
+                plt.title(
+                    "gen magn " + str(self.__curr_save) +
+                    " grow=" + str(gen.curr_layer)
+                )
+
+                fig.savefig(join(
+                    self.__output_dir,
+                    f"magn_{self.__curr_save}_ID{gen_idx}.png"
+                ))
+
                 plt.close()
 
+                # Plot phase
                 fig, ax = plt.subplots()
-                ax.matshow(phase / (phase.max() - phase.min()),
-                           cmap='plasma')
-                plt.title("gen phase " + str(self.__curr_save) +
-                          " grow=" + str(gen.curr_layer))
-                fig.savefig(
-                    join(self.__output_dir,
-                         f"phase_{self.__curr_save}_ID{gen_idx}.png")
+
+                ax.matshow(
+                    phase / (phase.max() - phase.min()),
+                    cmap='plasma'
                 )
+
+                plt.title(
+                    "gen phase " + str(self.__curr_save) +
+                    " grow=" + str(gen.curr_layer)
+                )
+
+                fig.savefig(join(
+                    self.__output_dir,
+                    f"phase_{self.__curr_save}_ID{gen_idx}.png"
+                ))
+
                 plt.close()
 
     def request_save(
@@ -201,7 +227,8 @@ class Saver:
 
     @property
     def curr_save(self) -> int:
-        return self.__curr_save
+        # curr_save - 1 because we want last saved step
+        return self.__curr_save - 1
 
     @property
     def save_counter(self) -> int:

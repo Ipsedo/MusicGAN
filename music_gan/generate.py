@@ -25,6 +25,7 @@ def generate(
         )
 
     print("Load model...")
+
     gen = Generator(
         rand_channels,
         end_layer=7
@@ -40,6 +41,7 @@ def generate(
     width = 2
 
     with th.no_grad():
+
         print("Pass rand data to generator...")
 
         z = th.randn(
@@ -52,6 +54,7 @@ def generate(
         gen_sound = gen(z, 1.0)
 
         print("Saving sound...")
+
         for i in tqdm(range(gen_sound.size()[0])):
             out_sound_path = join(output_dir, f"sound_{i}.wav")
 

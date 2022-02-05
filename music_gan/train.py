@@ -70,7 +70,9 @@ def train(
     )
 
     # create DataSet
-    audio_dataset = audio.AudioDataset(input_dataset_path)
+    audio_dataset = audio.AudioDataset(
+        input_dataset_path
+    )
 
     data_loader = DataLoader(
         audio_dataset,
@@ -241,6 +243,8 @@ def train(
                         "batch_tn_error": error_tn[-1]
                     })
 
+                # request save model
+                # each N forward/backward pass
                 saver.request_save(
                     gen, disc,
                     optim_gen, optim_disc,
@@ -250,6 +254,7 @@ def train(
                 iter_idx += 1
 
                 # ProGAN : add next layer
+                # IF growing AND time_to_grow
                 if gen.growing and grower.grow(batch_size):
                     gen.next_layer()
                     disc.next_layer()
@@ -266,4 +271,7 @@ def train(
                         "betas": betas
                     })
 
-                    print("\nup_layer", gen.curr_layer, "/", gen.down_sample)
+                    tqdm_bar.write(
+                        f"up_layer{gen.curr_layer} / {gen.down_sample}, "
+                        f"curr_save = {saver.curr_save}"
+                    )
