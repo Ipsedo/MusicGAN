@@ -62,7 +62,7 @@ def train(
     betas = (0.5, 0.9)
 
     nb_epoch = 1000
-    batch_size = 6
+    batch_size = 4
 
     if not exists(output_dir):
         mkdir(output_dir)
