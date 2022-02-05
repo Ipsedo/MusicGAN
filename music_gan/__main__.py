@@ -80,7 +80,7 @@ def main() -> None:
     )
 
     # View audio args
-    view_audio_parser = sub_parser.add_parser("sub_parser")
+    view_audio_parser = sub_parser.add_parser("view_audio")
 
     view_audio_parser.add_argument(
         "--input-audio",
