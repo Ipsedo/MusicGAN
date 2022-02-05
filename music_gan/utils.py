@@ -6,8 +6,6 @@ from os.path import join
 import torch as th
 from torchvision.transforms import Compose, Resize
 
-import mlflow
-
 import matplotlib.pyplot as plt
 
 from typing import List
@@ -133,20 +131,6 @@ class Saver:
             join(self.__output_dir, f"optim_gen_{self.__curr_save}.pt")
         )
 
-        # log models & optim to mlflow
-        mlflow.log_artifact(
-            join(self.__output_dir, f"gen_{self.__curr_save}.pt")
-        )
-        mlflow.log_artifact(
-            join(self.__output_dir, f"optim_gen_{self.__curr_save}.pt")
-        )
-        mlflow.log_artifact(
-            join(self.__output_dir, f"disc_{self.__curr_save}.pt")
-        )
-        mlflow.log_artifact(
-            join(self.__output_dir, f"optim_disc_{self.__curr_save}.pt")
-        )
-
     def __save_outputs(
             self,
             gen: Generator,
@@ -188,16 +172,6 @@ class Saver:
                          f"phase_{self.__curr_save}_ID{gen_idx}.png")
                 )
                 plt.close()
-
-                mlflow.log_artifact(
-                    join(self.__output_dir,
-                         f"magn_{self.__curr_save}_ID{gen_idx}.png")
-                )
-
-                mlflow.log_artifact(
-                    join(self.__output_dir,
-                         f"phase_{self.__curr_save}_ID{gen_idx}.png")
-                )
 
     def request_save(
             self,
