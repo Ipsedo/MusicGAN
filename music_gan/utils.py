@@ -21,10 +21,14 @@ class Grower:
         self.__curr_grow = 0
         self.__n_grow = n_grow
 
+        # view sample counter
         self.__sample_idx = 0
+        # current grow step counter
         self.__step_sample_idx = 0
 
+        # image downscale factor
         self.__downscale = 7
+        # image/tensor transformation
         self.__transform = Grower.__get_transform(self.__downscale)
 
         # +1 because of last layer
@@ -103,9 +107,12 @@ class Saver:
         # for sounds/images generation
         self.__rand_channels = rand_channels
 
+        # input random image
+        # usually 2 * 2 rand pixels
         self.__height = rand_height
         self.__width = rand_width
 
+        # produce 6 outputs per save
         self.__nb_output_images = 6
 
     def __save_models(
