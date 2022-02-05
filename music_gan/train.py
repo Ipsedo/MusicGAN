@@ -1,35 +1,18 @@
 from . import audio
-from .audio import constant
 from . import networks
+from .utils import Grower, Saver
 
 import torch as th
-from torchvision.transforms import Compose, Resize
 from torch.utils.data import DataLoader
 
 from os import mkdir
-from os.path import join, exists, isdir
+from os.path import exists, isdir
 
 import mlflow
-
-import matplotlib.pyplot as plt
 
 from tqdm import tqdm
 
 from statistics import mean
-
-
-def get_transform(downscale_factor: int) -> Compose:
-    size = 512
-
-    target_size = size // 2 ** downscale_factor
-
-    compose = Compose([
-        audio.ChannelMinMaxNorm(),
-        audio.ChangeRange(-1., 1.),
-        Resize(target_size)
-    ])
-
-    return compose
 
 
 def train(
@@ -38,7 +21,7 @@ def train(
         output_dir: str,
 ) -> None:
 
-    exp_name = "MusicGAN"
+    exp_name = "music_gan"
     mlflow.set_experiment(exp_name)
 
     assert isdir(input_dataset_path), \
@@ -46,12 +29,7 @@ def train(
 
     mlflow.start_run(run_name=run_name)
 
-    mlflow.log_param(
-        "input_dataset",
-        input_dataset_path
-    )
-
-    sample_rate = constant.SAMPLE_RATE
+    sample_rate = audio.SAMPLE_RATE
 
     rand_channels = 32
     height = 2
@@ -67,11 +45,9 @@ def train(
     if not exists(output_dir):
         mkdir(output_dir)
     elif exists(output_dir) and not isdir(output_dir):
-        raise Exception(
+        raise NotADirectoryError(
             f"\"{output_dir}\" is not a directory !"
         )
-
-    scale_factor = 7
 
     gen = networks.Generator(
         rand_channels,
@@ -106,17 +82,32 @@ def train(
     )
 
     mlflow.log_params({
+        "input_dataset": input_dataset_path,
+        "nb_sample": len(audio_dataset),
+        "output_dir": output_dir,
         "rand_channels": rand_channels,
         "nb_epoch": nb_epoch,
         "batch_size": batch_size,
         "disc_lr": disc_lr,
         "gen_lr": gen_lr,
+        "betas": betas,
         "sample_rate": sample_rate,
         "width": width,
         "height": height
     })
 
-    transform = get_transform(scale_factor)
+    grower = Grower(
+        7,
+        [1, 12500, 25000, 37500, 50000, 62500, 75000, 87500],
+        [50000, 100000, 150000, 200000, 250000, 300000, 350000]
+    )
+
+    saver = Saver(
+        output_dir, 1000,
+        rand_channels=rand_channels,
+        rand_height=height,
+        rand_width=width
+    )
 
     with mlflow.start_run(run_name="train", nested=True):
 
@@ -130,44 +121,17 @@ def train(
         gen_loss_list = [0. for _ in range(metric_window)]
 
         iter_idx = 0
-        save_idx = 0
-
-        save_every = 1000
-        grow_idx = 0
-        grow_every = [
-            8000,
-            16000,
-            24000,
-            32000,
-            40000,
-            48000,
-            56000
-        ]
-        fadein_length = [
-            1,
-            4000,
-            6000,
-            8000,
-            10000,
-            12000,
-            14000,
-            16000
-        ]
 
         for e in range(nb_epoch):
 
             tqdm_bar = tqdm(data_loader)
 
             for x_real in tqdm_bar:
-                alpha = min(
-                    1., (1. + grow_idx) / fadein_length[gen.curr_layer]
-                )
-
                 # train discriminator
 
                 # pass data to cuda
                 x_real = x_real.to(th.float)
-                x_real = transform(x_real).cuda()
+                x_real = grower.scale_transform(x_real).cuda()
 
                 # sample random latent data
                 z = th.randn(
@@ -179,11 +143,11 @@ def train(
                 )
 
                 # gen fake data
-                x_fake = gen(z, alpha)
+                x_fake = gen(z, grower.alpha)
 
                 # pass real data and gen data to discriminator
-                out_real = disc(x_real, alpha)
-                out_fake = disc(x_fake, alpha)
+                out_real = disc(x_real, grower.alpha)
+                out_fake = disc(x_fake, grower.alpha)
 
                 # compute discriminator loss
                 disc_loss = networks.wasserstein_discriminator_loss(
@@ -191,7 +155,7 @@ def train(
                 )
 
                 # compute gradient penalty
-                grad_pen = disc.gradient_penalty(x_real, x_fake, alpha)
+                grad_pen = disc.gradient_penalty(x_real, x_fake, grower.alpha)
 
                 # add gradient penalty
                 disc_loss_gp = disc_loss + grad_pen
@@ -227,10 +191,10 @@ def train(
                     )
 
                     # generate fake data
-                    x_fake = gen(z, alpha)
+                    x_fake = gen(z, grower.alpha)
 
                     # pass to discriminator
-                    out_fake = disc(x_fake, alpha)
+                    out_fake = disc(x_fake, grower.alpha)
 
                     # compute generator loss
                     gen_loss = networks.wasserstein_generator_loss(out_fake)
@@ -253,15 +217,15 @@ def train(
                 # update tqdm bar
                 tqdm_bar.set_description(
                     f"Epoch {e:02} "
-                    f"[{iter_idx // save_every:03}: "
-                    f"{iter_idx % save_every:04} / {save_every}], "
-                    f"disc_loss = {mean(disc_loss_list):.4f}, "
-                    f"gen_loss = {mean(gen_loss_list):.4f}, "
-                    f"disc_grad_pen = {mean(grad_pen_list):.4f}, "
-                    f"e_tp = {mean(error_tp):.4f}, "
-                    f"e_tn = {mean(error_tn):.4f}, "
-                    f"e_gen = {mean(error_gen):.4f}, "
-                    f"alpha = {alpha:.3f}"
+                    f"[{saver.curr_save:03}: "
+                    f"{saver.save_counter:03}], "
+                    f"disc_l = {mean(disc_loss_list):.4f}, "
+                    f"gen_l = {mean(gen_loss_list):.2f}, "
+                    f"grad_p = {mean(grad_pen_list):.4f}, "
+                    f"e_tp = {mean(error_tp):.2f}, "
+                    f"e_tn = {mean(error_tn):.2f}, "
+                    f"e_gen = {mean(error_gen):.2f}, "
+                    f"alpha = {grower.alpha:.3f}"
                 )
 
                 # log metrics
@@ -273,100 +237,16 @@ def train(
                         "batch_tn_error": error_tn[-1]
                     })
 
-                if iter_idx % save_every == 0:
-
-                    # Generate sound
-                    with th.no_grad():
-
-                        for gen_idx in range(6):
-                            z = th.randn(
-                                1, rand_channels,
-                                height, width,
-                                device="cuda"
-                            )
-
-                            x_fake = gen(z, alpha)
-
-                            magn = x_fake[0, 0, :, :].detach().cpu().numpy()
-                            phase = x_fake[0, 1, :, :].detach().cpu().numpy()
-
-                            fig, ax = plt.subplots()
-                            ax.matshow(magn / (magn.max() - magn.min()),
-                                       cmap='plasma')
-                            plt.title("gen magn " + str(save_idx) +
-                                      " grow=" + str(gen.curr_layer))
-                            fig.savefig(
-                                join(output_dir,
-                                     f"magn_{save_idx}_ID{gen_idx}.png")
-                            )
-                            plt.close()
-
-                            fig, ax = plt.subplots()
-                            ax.matshow(phase / (phase.max() - phase.min()),
-                                       cmap='plasma')
-                            plt.title("gen phase " + str(save_idx) +
-                                      " grow=" + str(gen.curr_layer))
-                            fig.savefig(
-                                join(output_dir,
-                                     f"phase_{save_idx}_ID{gen_idx}.png")
-                            )
-                            plt.close()
-
-                            mlflow.log_artifact(
-                                join(output_dir,
-                                     f"magn_{save_idx}_ID{gen_idx}.png")
-                            )
-
-                            mlflow.log_artifact(
-                                join(output_dir,
-                                     f"phase_{save_idx}_ID{gen_idx}.png")
-                            )
-
-                    # Save discriminator
-                    th.save(
-                        disc.state_dict(),
-                        join(output_dir, f"disc_{save_idx}.pt")
-                    )
-                    th.save(
-                        optim_disc.state_dict(),
-                        join(output_dir, f"optim_disc_{save_idx}.pt")
-                    )
-
-                    # save generator
-                    th.save(
-                        gen.state_dict(),
-                        join(output_dir, f"gen_{save_idx}.pt")
-                    )
-                    th.save(
-                        optim_gen.state_dict(),
-                        join(output_dir, f"optim_gen_{save_idx}.pt")
-                    )
-
-                    # log models & optim to mlflow
-                    mlflow.log_artifact(
-                        join(output_dir, f"gen_{save_idx}.pt")
-                    )
-                    mlflow.log_artifact(
-                        join(output_dir, f"optim_gen_{save_idx}.pt")
-                    )
-                    mlflow.log_artifact(
-                        join(output_dir, f"disc_{save_idx}.pt")
-                    )
-                    mlflow.log_artifact(
-                        join(output_dir, f"optim_disc_{save_idx}.pt")
-                    )
-
-                    save_idx += 1
+                saver.request_save(
+                    gen, disc,
+                    optim_gen, optim_disc,
+                    grower.alpha
+                )
 
                 iter_idx += 1
-                grow_idx += 1
 
                 # ProGAN : add next layer
-                if gen.growing and grow_idx % grow_every[gen.curr_layer] == 0:
-                    scale_factor -= 1
-
-                    transform = get_transform(scale_factor)
-
+                if gen.growing and grower.grow(batch_size):
                     gen.next_layer()
                     disc.next_layer()
 
@@ -383,5 +263,3 @@ def train(
                     })
 
                     print("\nup_layer", gen.curr_layer, "/", gen.down_sample)
-
-                    grow_idx = 0

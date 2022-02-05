@@ -1,6 +1,5 @@
 from .networks import Generator
 from . import audio
-from .audio import constant
 
 import torch as th
 
@@ -59,5 +58,5 @@ def generate(
             audio.magn_phase_to_wav(
                 gen_sound[i, None, :, :, :].detach(),
                 out_sound_path,
-                constant.SAMPLE_RATE
+                audio.SAMPLE_RATE
             )
