@@ -17,7 +17,7 @@ class AudioDataset(Dataset):
         all_files = [
             f for f in tqdm(listdir(dataset_path))
             if isfile(join(dataset_path, f)) and
-               f.startswith("magn_phase")
+            f.startswith("magn_phase")
         ]
 
         self.__all_files = sorted(all_files)

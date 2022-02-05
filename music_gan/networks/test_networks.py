@@ -1,5 +1,5 @@
 import torch as th
-from networks import Generator, Discriminator
+from . import Generator, Discriminator
 
 if __name__ == '__main__':
     batch_size = 5
