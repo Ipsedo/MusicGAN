@@ -58,6 +58,7 @@ class Discriminator(nn.Module):
         super(Discriminator, self).__init__()
 
         conv_channels = [
+            (16, 32),
             (32, 48),
             (48, 64),
             (64, 80),
@@ -65,8 +66,7 @@ class Discriminator(nn.Module):
             (96, 112),
             (112, 128),
             (128, 144),
-            (144, 160),
-            (160, 176),
+            (144, 160)
         ]
 
         self.__channels = conv_channels
