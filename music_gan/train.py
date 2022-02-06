@@ -35,12 +35,12 @@ def train(
     height = 2
     width = 2
 
-    disc_lr = 1e-3
-    gen_lr = 1e-3
-    betas = (0.5, 0.9)
+    disc_lr = 1e-4
+    gen_lr = 1e-4
+    betas = (0.9, 0.999)
 
     nb_epoch = 1000
-    batch_size = 4
+    batch_size = 6
 
     if not exists(output_dir):
         mkdir(output_dir)
