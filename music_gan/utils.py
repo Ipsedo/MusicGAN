@@ -43,11 +43,11 @@ class Grower:
         )
 
     def grow(self, viewed_samples: int) -> bool:
-        if self.__curr_grow >= self.__n_grow:
-            return False
-
         self.__sample_idx += viewed_samples
         self.__step_sample_idx += viewed_samples
+
+        if self.__curr_grow >= self.__n_grow:
+            return False
 
         if self.__train_l[self.__curr_grow] < self.__sample_idx:
             self.__step_sample_idx = 0
