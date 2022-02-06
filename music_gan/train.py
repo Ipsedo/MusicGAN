@@ -35,8 +35,8 @@ def train(
     height = 2
     width = 2
 
-    disc_lr = 1e-3
-    gen_lr = 1e-3
+    disc_lr = 1e-4
+    gen_lr = 1e-4
     betas = (0.5, 0.9)
 
     nb_epoch = 1000
