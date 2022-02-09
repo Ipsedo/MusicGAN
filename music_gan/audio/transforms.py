@@ -3,8 +3,27 @@ import torch as th
 
 class ChannelMinMaxNorm:
     def __call__(self, x: th.Tensor) -> th.Tensor:
-        x_max = x.view(2, -1).max(dim=-1)[0].view(2, 1, 1)
-        x_min = x.view(2, -1).min(dim=-1)[0].view(2, 1, 1)
+        assert len(x.size()) == 4
+        assert x.size()[1] == 2
+
+        tmp_x = (
+            x
+            .permute(1, 0, 2, 3)
+            .reshape(2, -1)
+        )
+
+        x_max = (
+            tmp_x
+            .max(dim=-1)[0]
+            .view(1, 2, 1, 1)
+        )
+
+        x_min = (
+            tmp_x
+            .min(dim=-1)[0]
+            .view(1, 2, 1, 1)
+        )
+
         return (x - x_min) / (x_max - x_min)
 
 
