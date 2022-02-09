@@ -115,7 +115,7 @@ def magn_phase_to_wav(magn_phase: th.Tensor, wav_path: str, sample_rate: int):
     phase = (phase + 1.) / 2. * 2. * np.pi - np.pi
 
     for i in range(phase.size()[1] - 1):
-        phase[:, i + 1] = phase[:, i + 1] + phase[:, i]
+        phase[:, i + 1] = phase[:, i] + phase[:, i + 1]
 
     phase = phase % (2 * np.pi)
 
