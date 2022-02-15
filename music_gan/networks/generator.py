@@ -3,7 +3,7 @@ import torch.nn as nn
 
 from typing import Iterator
 
-from .layers import PixelNorm
+from .layers import PixelNorm, CausalTimeConv2d
 
 
 class Block(nn.Sequential):
@@ -13,12 +13,11 @@ class Block(nn.Sequential):
             out_channels: int
     ):
         super(Block, self).__init__(
-            nn.Conv2d(
+            CausalTimeConv2d(
                 in_channels,
                 in_channels,
                 kernel_size=(3, 3),
-                stride=(1, 1),
-                padding=(1, 1)
+                stride=(1, 1)
             ),
             nn.LeakyReLU(2e-1),
             PixelNorm(),
@@ -28,12 +27,11 @@ class Block(nn.Sequential):
                 mode="nearest"
             ),
 
-            nn.Conv2d(
+            CausalTimeConv2d(
                 in_channels,
                 out_channels,
                 kernel_size=(3, 3),
-                stride=(1, 1),
-                padding=(1, 1)
+                stride=(1, 1)
             ),
             nn.LeakyReLU(2e-1),
             PixelNorm()
