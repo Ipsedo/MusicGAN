@@ -93,12 +93,12 @@ class Generator(nn.Module):
         self.__last_end_block = (
             None if self.__curr_layer == 0
             else nn.Sequential(
+                ToMagnPhaseLayer(
+                    channels[self.curr_layer - 1][1]
+                ),
                 nn.Upsample(
                     scale_factor=2.,
                     mode="nearest"
-                ),
-                ToMagnPhaseLayer(
-                    channels[self.curr_layer - 1][1]
                 )
             )
         )
@@ -130,11 +130,11 @@ class Generator(nn.Module):
             self.__curr_layer += 1
 
             self.__last_end_block = nn.Sequential(
+                self.__end_block,
                 nn.Upsample(
                     scale_factor=2.,
                     mode="nearest"
-                ),
-                self.__end_block
+                )
             )
 
             self.__end_block = ToMagnPhaseLayer(
