@@ -21,7 +21,14 @@ class ConvBlock(nn.Sequential):
             ),
             nn.LeakyReLU(2e-1),
 
-            nn.AvgPool2d(2, 2),
+            nn.Conv2d(
+                out_channels,
+                out_channels,
+                kernel_size=(3, 3),
+                stride=(2, 2),
+                padding=(1, 1)
+            ),
+            nn.LeakyReLU(2e-1),
 
             nn.Conv2d(
                 out_channels,

@@ -23,10 +23,16 @@ class Block(nn.Sequential):
             nn.LeakyReLU(2e-1),
             PixelNorm(),
 
-            nn.Upsample(
-                scale_factor=2.,
-                mode="nearest"
+            nn.ConvTranspose2d(
+                in_channels,
+                in_channels,
+                kernel_size=(3, 3),
+                stride=(2, 2),
+                padding=(1, 1),
+                output_padding=(1, 1)
             ),
+            nn.LeakyReLU(2e-1),
+            PixelNorm(),
 
             nn.Conv2d(
                 in_channels,
