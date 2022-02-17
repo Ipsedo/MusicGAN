@@ -32,7 +32,7 @@ def generate(
     )
 
     gen.load_state_dict(
-        th.load(gen_dict_state)
+        th.load(gen_dict_state, map_location="cpu")
     )
 
     gen.eval()

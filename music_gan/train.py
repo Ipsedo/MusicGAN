@@ -104,7 +104,7 @@ def train(
             1, 25000, 25000, 25000, 25000, 25000, 25000, 25000
         ],
         train_lengths=[
-            25000, 200000, 200000, 200000, 200000, 200000, 200000,
+            100000, 200000, 200000, 200000, 200000, 200000, 200000,
         ]
     )
 
@@ -259,17 +259,13 @@ def train(
                     gen.next_layer()
                     disc.next_layer()
 
-                    optim_gen.add_param_group({
-                        "params": gen.end_block_params(),
-                        "lr": gen_lr,
-                        "betas": betas
-                    })
+                    optim_gen = th.optim.Adam(
+                        gen.parameters(), lr=gen_lr, betas=betas
+                    )
 
-                    optim_disc.add_param_group({
-                        "params": disc.start_block_parameters(),
-                        "lr": disc_lr,
-                        "betas": betas
-                    })
+                    optim_disc = th.optim.Adam(
+                        disc.parameters(), lr=disc_lr, betas=betas
+                    )
 
                     tqdm_bar.write(
                         "\n"
