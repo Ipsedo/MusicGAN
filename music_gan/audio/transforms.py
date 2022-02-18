@@ -2,7 +2,7 @@ import torch as th
 
 
 class ChannelMinMaxNorm:
-    def __init__(self, epsilon=1e-8):
+    def __init__(self, epsilon: float = 1e-8):
         self.__epsilon = epsilon
 
     def __call__(self, x: th.Tensor) -> th.Tensor:

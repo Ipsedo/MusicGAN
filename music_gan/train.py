@@ -101,7 +101,7 @@ def train(
     grower = Grower(
         n_grow=7,
         fadein_lengths=[
-            1, 12500, 25000, 37500, 50000, 62500, 75000, 87500
+            1, 25000, 37500, 50000, 62500, 75000, 87500, 100000
         ],
         train_lengths=[
             50000, 100000, 150000, 200000, 250000, 300000, 350000
@@ -254,8 +254,8 @@ def train(
                 iter_idx += 1
 
                 # ProGAN : add next layer
-                # IF growing AND time_to_grow
-                if gen.growing and grower.grow(batch_size):
+                # IF time_to_grow AND growing
+                if grower.grow(batch_size) and gen.growing:
                     gen.next_layer()
                     disc.next_layer()
 
