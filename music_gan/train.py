@@ -37,7 +37,8 @@ def train(
 
     disc_lr = 1e-3
     gen_lr = 1e-3
-    betas = (0.0, 0.9)
+    disc_betas = (0., 0.9)
+    gen_betas = (0., 0.9)
 
     nb_epoch = 1000
     batch_size = 6
@@ -62,11 +63,11 @@ def train(
     disc.cuda()
 
     optim_gen = th.optim.Adam(
-        gen.parameters(), lr=gen_lr, betas=betas
+        gen.parameters(), lr=gen_lr, betas=gen_betas
     )
 
     optim_disc = th.optim.Adam(
-        disc.parameters(), lr=disc_lr, betas=betas
+        disc.parameters(), lr=disc_lr, betas=disc_betas
     )
 
     # create DataSet
@@ -92,7 +93,8 @@ def train(
         "batch_size": batch_size,
         "disc_lr": disc_lr,
         "gen_lr": gen_lr,
-        "betas": betas,
+        "gen_betas": gen_betas,
+        "disc_betas": disc_betas,
         "sample_rate": sample_rate,
         "width": width,
         "height": height
@@ -101,15 +103,17 @@ def train(
     grower = Grower(
         n_grow=7,
         fadein_lengths=[
-            1, 25000, 37500, 50000, 62500, 75000, 87500, 100000
+            1, 25000, 25000, 25000, 25000, 25000, 25000, 25000,
         ],
         train_lengths=[
-            50000, 100000, 150000, 200000, 250000, 300000, 350000
+            #25000, 200000, 200000, 300000, 400000, 500000, 600000
+            25000, 200000, 200000, 200000, 200000, 200000, 200000
         ]
     )
 
     saver = Saver(
-        output_dir, save_every=1000,
+        output_dir,
+        save_every=1000,
         rand_channels=rand_channels,
         rand_height=height,
         rand_width=width
@@ -262,13 +266,13 @@ def train(
                     optim_gen.add_param_group({
                         "params": gen.end_block_params(),
                         "lr": gen_lr,
-                        "betas": betas
+                        "betas": gen_betas
                     })
 
                     optim_disc.add_param_group({
                         "params": disc.start_block_parameters(),
                         "lr": disc_lr,
-                        "betas": betas
+                        "betas": disc_betas
                     })
 
                     tqdm_bar.write(
