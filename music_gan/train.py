@@ -31,7 +31,7 @@ def train(
 
     sample_rate = audio.SAMPLE_RATE
 
-    rand_channels = 32
+    rand_channels = 16
     height = 2
     width = 2
 
@@ -40,7 +40,7 @@ def train(
     betas = (0.0, 0.9)
 
     nb_epoch = 1000
-    batch_size = 3
+    batch_size = 6
 
     if not exists(output_dir):
         mkdir(output_dir)
