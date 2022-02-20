@@ -12,6 +12,7 @@ from tqdm import tqdm
 def generate(
         output_dir: str,
         rand_channels: int,
+        rand_style_channels: int,
         gen_dict_state: str,
         nb_vec: int,
         nb_music: int
@@ -28,6 +29,7 @@ def generate(
 
     gen = Generator(
         rand_channels,
+        rand_style_channels,
         end_layer=7
     )
 
@@ -51,7 +53,12 @@ def generate(
             width * nb_vec
         )
 
-        gen_sound = gen(z, 1.0)
+        z_style = th.randn(
+            nb_music,
+            rand_style_channels
+        )
+
+        gen_sound = gen(z, z_style, 1.0)
 
         print("Saving sound...")
 
