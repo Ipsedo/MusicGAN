@@ -92,6 +92,7 @@ class Saver:
             output_dir: str,
             save_every: int,
             rand_channels: int,
+            rand_style_channels: int,
             rand_height: int = 2,
             rand_width: int = 2,
     ):
@@ -106,6 +107,7 @@ class Saver:
 
         # for sounds/images generation
         self.__rand_channels = rand_channels
+        self.__rand_style_channels = rand_style_channels
 
         # input random image
         # usually 2 * 2 rand pixels
@@ -161,7 +163,12 @@ class Saver:
                     device="cuda"
                 )
 
-                x_fake = gen(z, alpha)
+                z_style = th.randn(
+                    1, self.__rand_style_channels,
+                    device="cuda"
+                )
+
+                x_fake = gen(z, z_style, alpha)
 
                 magn = x_fake[0, 0, :, :].detach().cpu().numpy()
                 phase = x_fake[0, 1, :, :].detach().cpu().numpy()
