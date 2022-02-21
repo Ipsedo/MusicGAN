@@ -1,6 +1,6 @@
 import argparse
 
-from music_gan import (
+from . import (
     create_dataset,
     train,
     generate,
