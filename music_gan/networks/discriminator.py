@@ -189,3 +189,10 @@ class Discriminator(nn.Module):
     def zero_grad(self, set_to_none: bool = False) -> None:
         for p in self.parameters():
             p.grad = None
+
+    # def parameters(self, recurse: bool = True) -> Iterator[nn.Parameter]:
+    #     return iter(
+    #         list(self.__start_block.parameters(recurse)) +
+    #         list(self.__conv_blocks.parameters(recurse)) +
+    #         list(self.__clf.parameters(recurse))
+    #     )
