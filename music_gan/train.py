@@ -32,16 +32,16 @@ def train(
     sample_rate = audio.SAMPLE_RATE
 
     rand_channels = 8
-    rand_style_channels = 32
+    rand_style_channels = 16
     height = 2
     width = 2
 
     disc_lr = 1e-3
     gen_lr = 1e-3
-    betas = (0.0, 0.9)
+    betas = (0.0, 0.99)
 
     nb_epoch = 1000
-    batch_size = 7
+    batch_size = 8
 
     if not exists(output_dir):
         mkdir(output_dir)
@@ -103,10 +103,10 @@ def train(
     grower = Grower(
         n_grow=7,
         fadein_lengths=[
-            1, 25000, 37500, 50000, 62500, 75000, 87500, 100000
+            1, 100000, 100000, 100000, 100000, 100000, 100000, 100000
         ],
         train_lengths=[
-            50000, 100000, 150000, 200000, 250000, 300000, 350000
+            100000, 200000, 200000, 200000, 200000, 200000, 200000
         ]
     )
 
@@ -274,17 +274,13 @@ def train(
                     gen.next_layer()
                     disc.next_layer()
 
-                    optim_gen.add_param_group({
-                        "params": gen.end_block_params(),
-                        "lr": gen_lr,
-                        "betas": betas
-                    })
+                    optim_gen = th.optim.Adam(
+                        gen.parameters(), lr=gen_lr, betas=betas
+                    )
 
-                    optim_disc.add_param_group({
-                        "params": disc.start_block_parameters(),
-                        "lr": disc_lr,
-                        "betas": betas
-                    })
+                    optim_disc = th.optim.Adam(
+                        disc.parameters(), lr=disc_lr, betas=betas
+                    )
 
                     tqdm_bar.write(
                         "\n"
