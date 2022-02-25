@@ -3,7 +3,7 @@ import torch.nn as nn
 
 from typing import Iterator
 
-from .layers import AdaIN, NoiseLayer
+from .layers import AdaIN, NoiseLayer, PixelNorm
 
 
 class ConvBlock(nn.Module):
@@ -36,13 +36,28 @@ class ConvBlock(nn.Module):
             2e-1
         )
 
+        self.__pn = PixelNorm()
+
     def forward(self, x: th.Tensor, style: th.Tensor) -> th.Tensor:
         out = self.__conv(x)
         out = self.__noise(out)
         out = self.__adain(out, style)
         out = self.__lr(out)
+        out = self.__pn(out)
 
         return out
+
+    def __repr__(self) -> str:
+        return "ConvBlock(\n" +\
+               f' 0: {self.__conv},\n' + \
+               f" 1: {self.__noise},\n" + \
+               f" 2: {self.__adain},\n" + \
+               f" 3: {self.__lr},\n" + \
+               f" 4: {self.__pn}\n" + \
+               ")"
+
+    def __str__(self) -> str:
+        return self.__repr__()
 
 
 class Block(nn.Module):
@@ -77,6 +92,16 @@ class Block(nn.Module):
         out = self.__block_2(out, style)
 
         return out
+
+    def __repr__(self) -> str:
+        return "Block(\n" + \
+               f" 0: {self.__block_1},\n" + \
+               f" 1: {self.__up_sample},\n" + \
+               f" 2: {self.__block_2}\n" + \
+               ")"
+
+    def __str__(self) -> str:
+        return self.__repr__()
 
 
 class ToMagnPhaseLayer(nn.Sequential):
@@ -126,7 +151,8 @@ class Generator(nn.Module):
         self.__channels = channels
         self.__style_channels = 32
 
-        assert 0 <= end_layer < len(channels), f"0 <= {end_layer} < {len(channels)}"
+        assert 0 <= end_layer < len(channels), \
+            f"0 <= {end_layer} < {len(channels)}"
 
         # Generator layers
         self.__gen_blocks = nn.ModuleList([
@@ -236,3 +262,10 @@ class Generator(nn.Module):
     def zero_grad(self, set_to_none: bool = False) -> None:
         for p in self.parameters():
             p.grad = None
+
+    # def parameters(self, recurse: bool = True) -> Iterator[nn.Parameter]:
+    #     return iter(
+    #         list(self.__end_block.parameters(recurse)) +
+    #         list(self.__gen_blocks.parameters(recurse)) +
+    #         list(self.__style_network.parameters(recurse))
+    #     )
