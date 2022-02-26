@@ -96,9 +96,7 @@ class MiniBatchStdDev(nn.Module):
         self.__epsilon = epsilon
 
     def forward(self, x: th.Tensor) -> th.Tensor:
-        assert len(x.size()) == 4
-
-        b, c, h, w = x.size()
+        b, _, h, w = x.size()
 
         std = th.sqrt(
             th.mean(
