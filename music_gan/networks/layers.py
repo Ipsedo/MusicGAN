@@ -98,20 +98,22 @@ class MiniBatchStdDev(nn.Module):
     def forward(self, x: th.Tensor) -> th.Tensor:
         assert len(x.size()) == 4
 
-        std_dev = th.sqrt(
+        b, c, h, w = x.size()
+
+        std = th.sqrt(
             th.mean(
-                x - th.mean(x, dim=0, keepdim=True) ** 2,
+                (x - th.mean(x, dim=0, keepdim=True)) ** 2,
                 dim=0, keepdim=True
-            ) +
-            self.__epsilon
+            )
+            + self.__epsilon
         )
 
-        std_dev_per_pixel = (
-            th.mean(std_dev, dim=1, keepdim=True)
-            .expand(x.size()[0], -1, -1, -1)
+        std_mean = (
+            th.mean(std, dim=(1, 2, 3), keepdim=True)
+            .expand(b, -1, h, w)
         )
 
-        return th.cat([x, std_dev_per_pixel], dim=1)
+        return th.cat([x, std_mean], dim=1)
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}(eps={self.__epsilon})"
