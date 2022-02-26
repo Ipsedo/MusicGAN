@@ -17,7 +17,7 @@ class PixelNorm(nn.Module):
         return x / norm
 
     def __repr__(self):
-        return f"PixelNorm(eps={self.__epsilon})"
+        return f"{self.__class__.__name__}(eps={self.__epsilon})"
 
     def __str__(self):
         return self.__repr__()
@@ -56,7 +56,7 @@ class AdaIN(nn.Module):
         return out
 
     def __repr__(self):
-        return "AdaIN" + \
+        return f"{self.__class__.__name__}" + \
                f"(channels={self.__channels}, " \
                f"style={self.__style_channels})"
 
@@ -80,7 +80,41 @@ class NoiseLayer(nn.Module):
         return out
 
     def __repr__(self):
-        return f"NoiseLayer({self.__channels})"
+        return f"{self.__class__.__name__}({self.__channels})"
 
     def __str__(self):
+        return self.__repr__()
+
+
+class MiniBatchStdDev(nn.Module):
+    def __init__(
+            self,
+            epsilon: float = 1e-8
+    ):
+        super(MiniBatchStdDev, self).__init__()
+
+        self.__epsilon = epsilon
+
+    def forward(self, x: th.Tensor) -> th.Tensor:
+        assert len(x.size()) == 4
+
+        std_dev = th.sqrt(
+            th.mean(
+                x - th.mean(x, dim=0, keepdim=True) ** 2,
+                dim=0, keepdim=True
+            ) +
+            self.__epsilon
+        )
+
+        std_dev_per_pixel = (
+            th.mean(std_dev, dim=1, keepdim=True)
+            .expand(x.size()[0], -1, -1, -1)
+        )
+
+        return th.cat([x, std_dev_per_pixel], dim=1)
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(eps={self.__epsilon})"
+
+    def __str__(self) -> str:
         return self.__repr__()
