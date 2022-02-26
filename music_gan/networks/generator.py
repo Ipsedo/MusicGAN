@@ -47,18 +47,6 @@ class ConvBlock(nn.Module):
 
         return out
 
-    def __repr__(self) -> str:
-        return "ConvBlock(\n" +\
-               f' 0: {self.__conv},\n' + \
-               f" 1: {self.__noise},\n" + \
-               f" 2: {self.__adain},\n" + \
-               f" 3: {self.__lr},\n" + \
-               f" 4: {self.__pn}\n" + \
-               ")"
-
-    def __str__(self) -> str:
-        return self.__repr__()
-
 
 class Block(nn.Module):
     def __init__(
@@ -92,16 +80,6 @@ class Block(nn.Module):
         out = self.__block_2(out, style)
 
         return out
-
-    def __repr__(self) -> str:
-        return "Block(\n" + \
-               f" 0: {self.__block_1},\n" + \
-               f" 1: {self.__up_sample},\n" + \
-               f" 2: {self.__block_2}\n" + \
-               ")"
-
-    def __str__(self) -> str:
-        return self.__repr__()
 
 
 class ToMagnPhaseLayer(nn.Sequential):
