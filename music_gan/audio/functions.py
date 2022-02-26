@@ -94,7 +94,7 @@ def stft_to_phase_magn(
     return magn, phase
 
 
-def magn_phase_to_wav(magn_phase: th.Tensor, wav_path: str, sample_rate: int):
+def magn_phase_to_wav(magn_phase: th.Tensor, wav_path: str, sample_rate: int) -> None:
     assert len(magn_phase.size()) == 4, \
         f"(N, 2, H, W), actual = {magn_phase.size()}"
 
