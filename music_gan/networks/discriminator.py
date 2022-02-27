@@ -2,6 +2,8 @@ import torch as th
 import torch.nn as nn
 import torch.autograd as th_autograd
 
+from .layers import MiniBatchStdDev
+
 from typing import Iterator
 
 
@@ -9,9 +11,19 @@ class ConvBlock(nn.Sequential):
     def __init__(
             self,
             in_channels: int,
-            out_channels: int
+            out_channels: int,
+            minibatch_std: bool
     ):
-        super(ConvBlock, self).__init__(
+        module_list = []
+
+        if minibatch_std:
+            module_list.append(
+                MiniBatchStdDev()
+            )
+
+            in_channels += 1
+
+        module_list += [
             nn.Conv2d(
                 in_channels,
                 out_channels,
@@ -31,6 +43,10 @@ class ConvBlock(nn.Sequential):
                 padding=(1, 1)
             ),
             nn.LeakyReLU(2e-1)
+        ]
+
+        super(ConvBlock, self).__init__(
+            *module_list
         )
 
 
@@ -80,9 +96,10 @@ class Discriminator(nn.Module):
 
         self.__conv_blocks = nn.ModuleList([
             ConvBlock(
-                c[0], c[1]
+                c[0], c[1],
+                i == len(conv_channels) - 1
             )
-            for c in conv_channels
+            for i, c in enumerate(conv_channels)
         ])
 
         self.__last_start_block = None
