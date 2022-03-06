@@ -37,10 +37,10 @@ def wav_to_wavelets(
     c_a, c_d = c_a.permute(1, 0), c_d.permute(1, 0)
 
     # TODO regler probleme de scale
-    c_a = c_a / (c_a.max() - c_a.min())
-    c_d = c_d / (c_d.max() - c_d.min())
+    #c_a = c_a / (c_a.max() - c_a.min())
+    #c_d = c_d / (c_d.max() - c_d.min())
 
-    c_a, c_d = c_a * 2., c_d * 2.
+    #c_a, c_d = c_a * 2., c_d * 2.
 
     c_a = c_a[:, c_a.size()[1] % nb_vec:]
     c_d = c_d[:, c_d.size()[1] % nb_vec:]
