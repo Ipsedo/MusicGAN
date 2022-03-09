@@ -103,15 +103,16 @@ def train(
     grower = Grower(
         n_grow=7,
         fadein_lengths=[
-            1, 100000, 100000, 100000, 100000, 100000, 100000, 100000
+            1, 5000, 5000, 5000, 5000, 5000, 5000, 5000,
         ],
         train_lengths=[
-            100000, 200000, 200000, 200000, 200000, 200000, 200000
+            5000, 10000, 10000, 10000, 10000, 10000, 10000,
         ]
     )
 
     saver = Saver(
-        output_dir, save_every=1000,
+        output_dir,
+        save_every=1000,
         rand_channels=rand_channels,
         rand_style_channels=rand_style_channels,
         rand_height=height,

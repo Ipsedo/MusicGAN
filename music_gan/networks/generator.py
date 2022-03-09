@@ -82,11 +82,11 @@ class Block(nn.Module):
         return out
 
 
-class ToMagnPhaseLayer(nn.Sequential):
+class OutputLayer(nn.Sequential):
     def __init__(self, in_channels: int):
-        super(ToMagnPhaseLayer, self).__init__(
+        super(OutputLayer, self).__init__(
             nn.Conv2d(
-                in_channels, 2,
+                in_channels, 1,
                 kernel_size=(1, 1),
                 stride=(1, 1),
             ),
@@ -139,7 +139,7 @@ class Generator(nn.Module):
         ])
 
         # for progressive gan
-        self.__end_block = ToMagnPhaseLayer(
+        self.__end_block = OutputLayer(
             channels[self.curr_layer][1]
         )
 
@@ -150,7 +150,7 @@ class Generator(nn.Module):
                     scale_factor=2.,
                     mode="nearest"
                 ),
-                ToMagnPhaseLayer(
+                OutputLayer(
                     channels[self.curr_layer - 1][1]
                 )
             )
@@ -208,7 +208,7 @@ class Generator(nn.Module):
                 self.__end_block
             )
 
-            self.__end_block = ToMagnPhaseLayer(
+            self.__end_block = OutputLayer(
                 self.__channels[self.curr_layer][1]
             )
 

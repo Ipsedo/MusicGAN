@@ -1,5 +1,6 @@
 from .functions import (
     wav_to_wavelets,
+    prepare_wavelets,
     wavelets_to_wav
 )
 

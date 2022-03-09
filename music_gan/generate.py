@@ -65,7 +65,7 @@ def generate(
         for i in tqdm(range(gen_sound.size()[0])):
             out_sound_path = join(output_dir, f"sound_{i}.wav")
 
-            audio.magn_phase_to_wav(
+            audio.wavelets_to_wav(
                 gen_sound[i, None, :, :, :].detach(),
                 out_sound_path,
                 audio.SAMPLE_RATE

@@ -18,7 +18,7 @@ class AudioDataset(Dataset):
 
         assert isdir(dataset_path)
 
-        re_files = re.compile(r"^magn_phase_\d+\.pt$")
+        re_files = re.compile(r"^wavelets_\d+\.pt$")
 
         all_files = [
             f for f in tqdm(listdir(dataset_path))

@@ -50,14 +50,14 @@ class ConvBlock(nn.Sequential):
         )
 
 
-class MagPhaseLayer(nn.Sequential):
+class InputLayer(nn.Sequential):
     def __init__(
             self,
             out_channels: int
     ):
-        super(MagPhaseLayer, self).__init__(
+        super(InputLayer, self).__init__(
             nn.Conv2d(
-                2,
+                1,
                 out_channels,
                 kernel_size=(1, 1),
                 stride=(1, 1)
@@ -104,7 +104,7 @@ class Discriminator(nn.Module):
 
         self.__last_start_block = None
 
-        self.__start_block = MagPhaseLayer(
+        self.__start_block = InputLayer(
             conv_channels[self.curr_layer][0]
         )
 
@@ -149,7 +149,7 @@ class Discriminator(nn.Module):
                 self.__start_block
             )
 
-            self.__start_block = MagPhaseLayer(
+            self.__start_block = InputLayer(
                 self.__channels[self.curr_layer][0]
             )
 

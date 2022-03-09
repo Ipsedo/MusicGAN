@@ -7,25 +7,25 @@ class ChannelMinMaxNorm:
 
     def __call__(self, x: th.Tensor) -> th.Tensor:
         assert len(x.size()) == 4
-        assert x.size()[1] == 2
+        assert x.size()[1] == 1
 
         batch_size = x.size()[0]
 
         tmp_x = (
             x
-            .view(batch_size, 2, -1)
+            .view(batch_size, 1, -1)
         )
 
         x_max = (
             tmp_x
             .max(dim=-1)[0]
-            .view(batch_size, 2, 1, 1)
+            .view(batch_size, 1, 1, 1)
         )
 
         x_min = (
             tmp_x
             .min(dim=-1)[0]
-            .view(batch_size, 2, 1, 1)
+            .view(batch_size, 1, 1, 1)
         )
 
         return (x - x_min) / (x_max - x_min + self.__epsilon)

@@ -170,48 +170,28 @@ class Saver:
 
                 x_fake = gen(z, z_style, alpha)
 
-                magn = x_fake[0, 0, :, :].detach().cpu().numpy()
-                phase = x_fake[0, 1, :, :].detach().cpu().numpy()
+                c_a = x_fake[0, 0, :, :].detach().cpu().numpy()
 
                 # Plot magnitude
                 fig, ax = plt.subplots()
 
                 ax.matshow(
-                    magn / (magn.max() - magn.min()),
+                    c_a / (c_a.max() - c_a.min()),
                     cmap='plasma'
                 )
 
                 plt.title(
-                    "gen magn " + str(self.__curr_save) +
+                    "gen wavelets cA " + str(self.__curr_save) +
                     " grow=" + str(gen.curr_layer)
                 )
 
                 fig.savefig(join(
                     self.__output_dir,
-                    f"magn_{self.__curr_save}_ID{gen_idx}.png"
+                    f"cA_{self.__curr_save}_ID{gen_idx}.png"
                 ))
 
                 plt.close()
 
-                # Plot phase
-                fig, ax = plt.subplots()
-
-                ax.matshow(
-                    phase / (phase.max() - phase.min()),
-                    cmap='plasma'
-                )
-
-                plt.title(
-                    "gen phase " + str(self.__curr_save) +
-                    " grow=" + str(gen.curr_layer)
-                )
-
-                fig.savefig(join(
-                    self.__output_dir,
-                    f"phase_{self.__curr_save}_ID{gen_idx}.png"
-                ))
-
-                plt.close()
 
     def request_save(
             self,
