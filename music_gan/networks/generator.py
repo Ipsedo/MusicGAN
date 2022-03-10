@@ -116,18 +116,18 @@ class Generator(nn.Module):
         self.__nb_downsample = 7
 
         channels = [
-            (rand_channels, 64),
-            (64, 56),
-            (56, 48),
-            (48, 40),
-            (40, 32),
-            (32, 24),
-            (24, 16),
-            (16, 8)
+            (rand_channels, 128),
+            (128, 112),
+            (112, 96),
+            (96, 80),
+            (80, 64),
+            (64, 48),
+            (48, 32),
+            (32, 16)
         ]
 
         self.__channels = channels
-        self.__style_channels = 32
+        self.__style_channels = 64
 
         assert 0 <= end_layer < len(channels), \
             f"0 <= {end_layer} < {len(channels)}"
