@@ -3,7 +3,7 @@ import torch.nn as nn
 
 from typing import Iterator
 
-from .layers import NoiseLayer, PixelNorm
+from .layers import NoiseLayer, PixelNorm, ToMagnPhase
 
 
 class Block(nn.Sequential):
@@ -35,26 +35,6 @@ class Block(nn.Sequential):
             NoiseLayer(out_channels),
             nn.LeakyReLU(2e-1),
             PixelNorm()
-        )
-
-
-class ToMagnPhaseLayer(nn.Sequential):
-    def __init__(self, in_channels: int):
-        super(ToMagnPhaseLayer, self).__init__(
-            nn.Conv2d(
-                in_channels, 2,
-                kernel_size=(1, 1),
-                stride=(1, 1),
-            ),
-            nn.Tanh()
-        )
-
-
-class LinearBlock(nn.Sequential):
-    def __init__(self, in_size: int, out_size: int):
-        super(LinearBlock, self).__init__(
-            nn.Linear(in_size, out_size),
-            nn.LeakyReLU(2e-1)
         )
 
 
@@ -93,19 +73,19 @@ class Generator(nn.Module):
         ])
 
         # for progressive gan
-        self.__end_block = ToMagnPhaseLayer(
+        self.__end_block = ToMagnPhase(
             channels[self.curr_layer][1]
         )
 
         self.__last_end_block = (
             None if self.__curr_layer == 0
             else nn.Sequential(
+                ToMagnPhase(
+                    channels[self.curr_layer - 1][1]
+                ),
                 nn.Upsample(
                     scale_factor=2.,
                     mode="nearest"
-                ),
-                ToMagnPhaseLayer(
-                    channels[self.curr_layer - 1][1]
                 )
             )
         )
@@ -137,14 +117,14 @@ class Generator(nn.Module):
             self.__curr_layer += 1
 
             self.__last_end_block = nn.Sequential(
+                self.__end_block,
                 nn.Upsample(
                     scale_factor=2.,
                     mode="nearest"
-                ),
-                self.__end_block
+                )
             )
 
-            self.__end_block = ToMagnPhaseLayer(
+            self.__end_block = ToMagnPhase(
                 self.__channels[self.curr_layer][1]
             )
 
@@ -172,7 +152,3 @@ class Generator(nn.Module):
 
     def end_block_params(self) -> Iterator[nn.Parameter]:
         return self.__end_block.parameters()
-
-    def zero_grad(self, set_to_none: bool = False) -> None:
-        for p in self.parameters():
-            p.grad = None
