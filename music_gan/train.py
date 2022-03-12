@@ -31,8 +31,7 @@ def train(
 
     sample_rate = audio.SAMPLE_RATE
 
-    rand_channels = 16
-    rand_style_channels = 32
+    rand_channels = 32
     height = 2
     width = 2
 
@@ -52,7 +51,6 @@ def train(
 
     gen = networks.Generator(
         rand_channels,
-        rand_style_channels,
         end_layer=0
     )
 
@@ -113,7 +111,6 @@ def train(
     saver = Saver(
         output_dir, save_every=1000,
         rand_channels=rand_channels,
-        rand_style_channels=rand_style_channels,
         rand_height=height,
         rand_width=width
     )
@@ -151,14 +148,8 @@ def train(
                     device="cuda"
                 )
 
-                z_style = th.randn(
-                    batch_size,
-                    rand_style_channels,
-                    device="cuda"
-                )
-
                 # gen fake data
-                x_fake = gen(z, z_style, grower.alpha)
+                x_fake = gen(z, grower.alpha)
 
                 # pass real data and gen data to discriminator
                 out_real = disc(x_real, grower.alpha)
@@ -205,14 +196,8 @@ def train(
                         device="cuda"
                     )
 
-                    z_style = th.randn(
-                        batch_size,
-                        rand_style_channels,
-                        device="cuda"
-                    )
-
                     # generate fake data
-                    x_fake = gen(z, z_style, grower.alpha)
+                    x_fake = gen(z, grower.alpha)
 
                     # pass to discriminator
                     out_fake = disc(x_fake, grower.alpha)
