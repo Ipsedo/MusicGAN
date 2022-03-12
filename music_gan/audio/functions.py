@@ -64,7 +64,8 @@ def wav_to_stft(
 
 def stft_to_phase_magn(
         complex_values: th.Tensor,
-        nb_vec: int = constant.N_VEC
+        nb_vec: int = constant.N_VEC,
+        epsilon: float = 1e-8
 ) -> Tuple[th.Tensor, th.Tensor]:
     magn = th.abs(complex_values)
     phase = th.angle(complex_values)
@@ -81,8 +82,8 @@ def stft_to_phase_magn(
     max_phase = phase.max()
     min_phase = phase.min()
 
-    magn = (magn - min_magn) / (max_magn - min_magn)
-    phase = (phase - min_phase) / (max_phase - min_phase)
+    magn = (magn - min_magn) / (max_magn - min_magn + epsilon)
+    phase = (phase - min_phase) / (max_phase - min_phase + epsilon)
 
     magn, phase = magn * 2. - 1., phase * 2. - 1.
 
@@ -94,7 +95,12 @@ def stft_to_phase_magn(
     return magn, phase
 
 
-def magn_phase_to_wav(magn_phase: th.Tensor, wav_path: str, sample_rate: int) -> None:
+def magn_phase_to_wav(
+        magn_phase: th.Tensor,
+        wav_path: str,
+        sample_rate: int,
+        epsilon: float = 1e-8
+) -> None:
     assert len(magn_phase.size()) == 4, \
         f"(N, 2, H, W), actual = {magn_phase.size()}"
 
@@ -110,7 +116,7 @@ def magn_phase_to_wav(magn_phase: th.Tensor, wav_path: str, sample_rate: int) ->
 
     magn = (magn + 1.) / 2.
     magn = bark_magn_scale(magn, unscale=True)
-    magn = magn / (magn.max() - magn.min())
+    magn = magn / (magn.max() - magn.min() + epsilon)
 
     phase = (phase + 1.) / 2. * 2. * np.pi - np.pi
 
