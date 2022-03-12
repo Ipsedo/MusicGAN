@@ -1,4 +1,6 @@
-N_FFT = 1024
-N_VEC = 512
-STFT_STRIDE = 256
-SAMPLE_RATE = 44100
+from typing import Final
+
+N_FFT: Final[int] = 1024
+N_VEC: Final[int] = 512
+STFT_STRIDE: Final[int] = 256
+SAMPLE_RATE: Final[int] = 44100

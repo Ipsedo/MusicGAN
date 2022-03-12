@@ -4,18 +4,20 @@ from . import Generator, Discriminator
 if __name__ == '__main__':
     batch_size = 5
     rand_channels = 8
+    rand_style_channels = 16
 
     alpha = 0.5
 
-    gen = Generator(rand_channels)
+    gen = Generator(rand_channels, rand_style_channels)
     disc = Discriminator(7)
 
     for i in range(gen.down_sample + 3):
         z = th.randn(5, rand_channels, 2, 2)
+        z_style = th.randn(5, rand_style_channels)
 
         print("input_size :", z.size())
 
-        out = gen(z, alpha)
+        out = gen(z, z_style, alpha)
 
         print("A", out.size())
 
