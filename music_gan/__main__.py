@@ -65,10 +65,6 @@ def main() -> None:
     )
 
     generate_parser.add_argument(
-        "rand_style_channels", type=int
-    )
-
-    generate_parser.add_argument(
         "-n", "--nb-vec",
         type=int, default=10
     )
