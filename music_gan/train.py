@@ -35,8 +35,8 @@ def train(
     height = 2
     width = 2
 
-    disc_lr = 1e-4
-    gen_lr = 1e-4
+    disc_lr = 4e-4
+    gen_lr = 4e-4
     betas = (0.0, 0.99)
 
     nb_epoch = 1000
@@ -260,7 +260,7 @@ def train(
                     disc.next_layer()
 
                     optim_gen.add_param_group({
-                        "params": gen.end_block_params(),
+                        "params": gen.end_block_parameters(),
                         "lr": gen_lr,
                         "betas": betas
                     })
