@@ -3,7 +3,7 @@ import torch.nn as nn
 
 from typing import Iterator
 
-from .layers import NoiseLayer, PixelNorm, ToMagnPhase
+from .layers import PixelNorm, ToMagnPhase
 
 
 class Block(nn.Sequential):
@@ -21,7 +21,6 @@ class Block(nn.Sequential):
                 stride=(2, 2),
                 output_padding=(1, 1)
             ),
-            NoiseLayer(out_channels),
             nn.LeakyReLU(2e-1),
             PixelNorm(),
 
@@ -32,7 +31,6 @@ class Block(nn.Sequential):
                 padding=(1, 1),
                 stride=(1, 1)
             ),
-            NoiseLayer(out_channels),
             nn.LeakyReLU(2e-1),
             PixelNorm()
         )
@@ -150,5 +148,5 @@ class Generator(nn.Module):
     def growing(self) -> bool:
         return self.curr_layer < len(self.__gen_blocks) - 1
 
-    def end_block_params(self) -> Iterator[nn.Parameter]:
+    def end_block_parameters(self) -> Iterator[nn.Parameter]:
         return self.__end_block.parameters()
