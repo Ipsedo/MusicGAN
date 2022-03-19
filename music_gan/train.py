@@ -31,17 +31,16 @@ def train(
 
     sample_rate = audio.SAMPLE_RATE
 
-    rand_channels = 8
-    rand_style_channels = 16
+    rand_channels = 32
     height = 2
     width = 2
 
-    disc_lr = 1e-3
-    gen_lr = 1e-3
+    disc_lr = 4e-4
+    gen_lr = 4e-4
     betas = (0.0, 0.99)
 
     nb_epoch = 1000
-    batch_size = 8
+    batch_size = 6
 
     if not exists(output_dir):
         mkdir(output_dir)
@@ -52,7 +51,6 @@ def train(
 
     gen = networks.Generator(
         rand_channels,
-        rand_style_channels,
         end_layer=0
     )
 
@@ -103,18 +101,16 @@ def train(
     grower = Grower(
         n_grow=7,
         fadein_lengths=[
-            1, 5000, 5000, 5000, 5000, 5000, 5000, 5000,
+            1, 200000, 200000, 200000, 200000, 200000, 200000, 200000,
         ],
         train_lengths=[
-            5000, 10000, 10000, 10000, 10000, 10000, 10000,
+            200000, 400000, 400000, 400000, 400000, 400000, 400000,
         ]
     )
 
     saver = Saver(
-        output_dir,
-        save_every=1000,
+        output_dir, save_every=1000,
         rand_channels=rand_channels,
-        rand_style_channels=rand_style_channels,
         rand_height=height,
         rand_width=width
     )
@@ -152,14 +148,8 @@ def train(
                     device="cuda"
                 )
 
-                z_style = th.randn(
-                    batch_size,
-                    rand_style_channels,
-                    device="cuda"
-                )
-
                 # gen fake data
-                x_fake = gen(z, z_style, grower.alpha)
+                x_fake = gen(z, grower.alpha)
 
                 # pass real data and gen data to discriminator
                 out_real = disc(x_real, grower.alpha)
@@ -206,14 +196,8 @@ def train(
                         device="cuda"
                     )
 
-                    z_style = th.randn(
-                        batch_size,
-                        rand_style_channels,
-                        device="cuda"
-                    )
-
                     # generate fake data
-                    x_fake = gen(z, z_style, grower.alpha)
+                    x_fake = gen(z, grower.alpha)
 
                     # pass to discriminator
                     out_fake = disc(x_fake, grower.alpha)
@@ -275,13 +259,17 @@ def train(
                     gen.next_layer()
                     disc.next_layer()
 
-                    optim_gen = th.optim.Adam(
-                        gen.parameters(), lr=gen_lr, betas=betas
-                    )
+                    optim_gen.add_param_group({
+                        "params": gen.end_block_parameters(),
+                        "lr": gen_lr,
+                        "betas": betas
+                    })
 
-                    optim_disc = th.optim.Adam(
-                        disc.parameters(), lr=disc_lr, betas=betas
-                    )
+                    optim_disc.add_param_group({
+                        "params": disc.start_block_parameters(),
+                        "lr": disc_lr,
+                        "betas": betas
+                    })
 
                     tqdm_bar.write(
                         "\n"

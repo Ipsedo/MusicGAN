@@ -118,3 +118,28 @@ class MiniBatchStdDev(nn.Module):
 
     def __str__(self) -> str:
         return self.__repr__()
+
+
+class ToMagnPhase(nn.Sequential):
+    def __init__(self, in_channels: int):
+        super(ToMagnPhase, self).__init__(
+            nn.Conv2d(
+                in_channels, 2,
+                kernel_size=(1, 1),
+                stride=(1, 1),
+            ),
+            nn.Tanh()
+        )
+
+
+class FromMagnPhase(nn.Sequential):
+    def __init__(self, out_channels: int):
+        super(FromMagnPhase, self).__init__(
+            nn.Conv2d(
+                2,
+                out_channels,
+                kernel_size=(1, 1),
+                stride=(1, 1)
+            ),
+            nn.LeakyReLU(2e-1)
+        )

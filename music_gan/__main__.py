@@ -65,10 +65,6 @@ def main() -> None:
     )
 
     generate_parser.add_argument(
-        "rand_style_channels", type=int
-    )
-
-    generate_parser.add_argument(
         "-n", "--nb-vec",
         type=int, default=10
     )
@@ -113,7 +109,6 @@ def main() -> None:
         generate(
             args.output_dir,
             args.rand_channels,
-            args.rand_style_channels,
             args.gen_dict_state,
             args.nb_vec,
             args.nb_music
