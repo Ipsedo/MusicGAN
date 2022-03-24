@@ -186,7 +186,7 @@ def train(
                 grad_pen_list.append(grad_pen.item())
 
                 # train generator
-                if iter_idx % 5 == 0:
+                if iter_idx % 4 == 0:
                     # sample random latent data
                     z = th.randn(
                         batch_size,
