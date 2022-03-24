@@ -120,11 +120,11 @@ class MiniBatchStdDev(nn.Module):
         return self.__repr__()
 
 
-class ToMagnPhase(nn.Sequential):
+class ToWavelets(nn.Sequential):
     def __init__(self, in_channels: int):
-        super(ToMagnPhase, self).__init__(
+        super(ToWavelets, self).__init__(
             nn.Conv2d(
-                in_channels, 2,
+                in_channels, 1,
                 kernel_size=(1, 1),
                 stride=(1, 1),
             ),
@@ -132,11 +132,11 @@ class ToMagnPhase(nn.Sequential):
         )
 
 
-class FromMagnPhase(nn.Sequential):
+class FromWavelets(nn.Sequential):
     def __init__(self, out_channels: int):
-        super(FromMagnPhase, self).__init__(
+        super(FromWavelets, self).__init__(
             nn.Conv2d(
-                2,
+                1,
                 out_channels,
                 kernel_size=(1, 1),
                 stride=(1, 1)

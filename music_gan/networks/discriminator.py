@@ -2,7 +2,7 @@ import torch as th
 import torch.nn as nn
 import torch.autograd as th_autograd
 
-from .layers import MiniBatchStdDev, FromMagnPhase
+from .layers import MiniBatchStdDev, FromWavelets
 
 from typing import Iterator
 
@@ -86,7 +86,7 @@ class Discriminator(nn.Module):
 
         self.__last_start_block = None
 
-        self.__start_block = FromMagnPhase(
+        self.__start_block = FromWavelets(
             conv_channels[self.curr_layer][0]
         )
 
@@ -131,7 +131,7 @@ class Discriminator(nn.Module):
                 self.__start_block
             )
 
-            self.__start_block = FromMagnPhase(
+            self.__start_block = FromWavelets(
                 self.__channels[self.curr_layer][0]
             )
 

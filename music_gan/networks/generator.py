@@ -3,7 +3,7 @@ import torch.nn as nn
 
 from typing import Iterator
 
-from .layers import PixelNorm, ToMagnPhase
+from .layers import PixelNorm, ToWavelets
 
 
 class Block(nn.Sequential):
@@ -71,14 +71,14 @@ class Generator(nn.Module):
         ])
 
         # for progressive gan
-        self.__end_block = ToMagnPhase(
+        self.__end_block = ToWavelets(
             channels[self.curr_layer][1]
         )
 
         self.__last_end_block = (
             None if self.__curr_layer == 0
             else nn.Sequential(
-                ToMagnPhase(
+                ToWavelets(
                     channels[self.curr_layer - 1][1]
                 ),
                 nn.Upsample(
@@ -122,7 +122,7 @@ class Generator(nn.Module):
                 )
             )
 
-            self.__end_block = ToMagnPhase(
+            self.__end_block = ToWavelets(
                 self.__channels[self.curr_layer][1]
             )
 
