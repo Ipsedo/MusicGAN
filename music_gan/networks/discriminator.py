@@ -178,7 +178,7 @@ class Discriminator(nn.Module):
         gradients_norm = gradients.norm(2, dim=1)
         gradient_penalty = ((gradients_norm - 1.) ** 2.).mean()
 
-        grad_pen_factor = 10.
+        grad_pen_factor = 16.
 
         return grad_pen_factor * gradient_penalty
 
