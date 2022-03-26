@@ -24,7 +24,7 @@ def create_dataset(
             f"\"{dataset_output_dir}\" is not a directory"
         )
 
-    nperseg = audio.N_FFT
+    nperseg = audio.N_WAVELETS
 
     nb_vec = audio.N_VEC
 
@@ -53,4 +53,3 @@ def create_dataset(
             th.save(c_a[s_idx].to(th.float64), wavelets_path)
 
             idx += 1
-        return

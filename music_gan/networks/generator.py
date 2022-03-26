@@ -46,17 +46,15 @@ class Generator(nn.Module):
 
         self.__curr_layer = end_layer
 
-        self.__nb_downsample = 7
+        self.__nb_downsample = 5
 
         channels = [
-            (rand_channels, 128),
-            (128, 112),
-            (112, 96),
-            (96, 80),
-            (80, 64),
-            (64, 48),
-            (48, 32),
-            (32, 16)
+            (rand_channels, 192),
+            (192, 160),
+            (160, 128),
+            (128, 96),
+            (96, 64),
+            (64, 32)
         ]
 
         self.__channels = channels

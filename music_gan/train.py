@@ -35,12 +35,12 @@ def train(
     height = 2
     width = 2
 
-    disc_lr = 4e-4
-    gen_lr = 4e-4
+    disc_lr = 1e-4
+    gen_lr = 1e-4
     betas = (0.0, 0.99)
 
     nb_epoch = 1000
-    batch_size = 6
+    batch_size = 8
 
     if not exists(output_dir):
         mkdir(output_dir)
@@ -55,7 +55,7 @@ def train(
     )
 
     disc = networks.Discriminator(
-        start_layer=7
+        start_layer=5
     )
 
     gen.cuda()
@@ -99,12 +99,12 @@ def train(
     })
 
     grower = Grower(
-        n_grow=7,
+        n_grow=5,
         fadein_lengths=[
-            1, 200000, 200000, 200000, 200000, 200000, 200000, 200000,
+            1, 200000, 200000, 200000, 200000, 200000,
         ],
         train_lengths=[
-            200000, 400000, 400000, 400000, 400000, 400000, 400000,
+            200000, 400000, 400000, 400000, 400000,
         ]
     )
 
@@ -186,7 +186,7 @@ def train(
                 grad_pen_list.append(grad_pen.item())
 
                 # train generator
-                if iter_idx % 5 == 0:
+                if iter_idx % 4 == 0:
                     # sample random latent data
                     z = th.randn(
                         batch_size,

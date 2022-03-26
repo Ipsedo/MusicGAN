@@ -27,7 +27,7 @@ class Grower:
         self.__step_sample_idx = 0
 
         # image downscale factor
-        self.__downscale = 7
+        self.__downscale = 5
         # image/tensor transformation
         self.__transform = Grower.__get_transform(self.__downscale)
 
@@ -69,7 +69,7 @@ class Grower:
 
     @staticmethod
     def __get_transform(downscale_factor: int) -> Compose:
-        size = 512
+        size = 128
 
         target_size = size // 2 ** downscale_factor
 
@@ -184,7 +184,6 @@ class Saver:
                 ))
 
                 plt.close()
-
 
     def request_save(
             self,

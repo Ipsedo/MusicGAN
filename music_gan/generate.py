@@ -28,7 +28,7 @@ def generate(
 
     gen = Generator(
         rand_channels,
-        end_layer=7
+        end_layer=5
     )
 
     gen.load_state_dict(

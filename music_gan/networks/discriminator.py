@@ -51,20 +51,18 @@ class Block(nn.Sequential):
 class Discriminator(nn.Module):
     def __init__(
             self,
-            start_layer: int = 7
+            start_layer: int = 5
     ):
         super(Discriminator, self).__init__()
 
         conv_channels = [
-            (16, 32),
-            (32, 48),
-            (48, 64),
-            (64, 80),
-            (80, 96),
-            (96, 112),
-            (112, 128),
-            (128, 144),
-            (144, 160)
+            (32, 64),
+            (64, 96),
+            (96, 128),
+            (128, 160),
+            (160, 192),
+            (192, 224),
+            (224, 256)
         ]
 
         self.__channels = conv_channels
@@ -90,8 +88,8 @@ class Discriminator(nn.Module):
             conv_channels[self.curr_layer][0]
         )
 
-        nb_time = 512
-        nb_freq = 512
+        nb_time = 128
+        nb_freq = 128
 
         out_size = (
                 conv_channels[-1][1] *
@@ -178,7 +176,7 @@ class Discriminator(nn.Module):
         gradients_norm = gradients.norm(2, dim=1)
         gradient_penalty = ((gradients_norm - 1.) ** 2.).mean()
 
-        grad_pen_factor = 10.
+        grad_pen_factor = 16.
 
         return grad_pen_factor * gradient_penalty
 
