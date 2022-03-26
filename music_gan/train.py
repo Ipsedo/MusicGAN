@@ -99,12 +99,12 @@ def train(
     })
 
     grower = Grower(
-        n_grow=5,
+        n_grow=7,
         fadein_lengths=[
-            1, 200000, 200000, 200000, 200000, 200000,
+            1, 200000, 200000, 200000, 200000, 200000, 200000, 200000,
         ],
         train_lengths=[
-            200000, 400000, 400000, 400000, 400000,
+            200000, 400000, 400000, 400000, 400000, 400000, 400000,
         ]
     )
 
@@ -186,7 +186,7 @@ def train(
                 grad_pen_list.append(grad_pen.item())
 
                 # train generator
-                if iter_idx % 4 == 0:
+                if iter_idx % 5 == 0:
                     # sample random latent data
                     z = th.randn(
                         batch_size,
