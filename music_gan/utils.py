@@ -185,7 +185,6 @@ class Saver:
 
                 plt.close()
 
-
     def request_save(
             self,
             gen: Generator,
