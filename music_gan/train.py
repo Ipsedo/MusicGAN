@@ -31,13 +31,13 @@ def train(
 
     sample_rate = audio.SAMPLE_RATE
 
-    rand_channels = 32
+    rand_channels = 64
     height = 2
     width = 2
 
     disc_lr = 4e-4
     gen_lr = 4e-4
-    betas = (0.0, 0.99)
+    betas = (0.0, 0.9)
 
     nb_epoch = 1000
     batch_size = 6
@@ -101,10 +101,10 @@ def train(
     grower = Grower(
         n_grow=7,
         fadein_lengths=[
-            1, 200000, 200000, 200000, 200000, 200000, 200000, 200000,
+            1, 400000, 400000, 400000, 400000, 400000, 400000, 400000,
         ],
         train_lengths=[
-            200000, 400000, 400000, 400000, 400000, 400000, 400000,
+            400000, 800000, 800000, 800000, 800000, 800000, 800000,
         ]
     )
 

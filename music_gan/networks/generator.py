@@ -15,7 +15,7 @@ class Block(nn.Sequential):
         super(Block, self).__init__(
             nn.ConvTranspose2d(
                 in_channels,
-                out_channels,
+                in_channels,
                 kernel_size=(3, 3),
                 padding=(1, 1),
                 stride=(2, 2),
@@ -25,7 +25,7 @@ class Block(nn.Sequential):
             PixelNorm(),
 
             nn.ConvTranspose2d(
-                out_channels,
+                in_channels,
                 out_channels,
                 kernel_size=(3, 3),
                 padding=(1, 1),
@@ -83,8 +83,9 @@ class Generator(nn.Module):
                 ),
                 nn.Upsample(
                     scale_factor=2.,
-                    mode="nearest"
-                )
+                    mode="bilinear",
+                    align_corners=True
+                ),
             )
         )
 
@@ -118,7 +119,8 @@ class Generator(nn.Module):
                 self.__end_block,
                 nn.Upsample(
                     scale_factor=2.,
-                    mode="nearest"
+                    mode="bilinear",
+                    align_corners=True
                 )
             )
 

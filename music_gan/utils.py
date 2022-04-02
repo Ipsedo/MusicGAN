@@ -166,42 +166,34 @@ class Saver:
                 magn = x_fake[0, 0, :, :].detach().cpu().numpy()
                 phase = x_fake[0, 1, :, :].detach().cpu().numpy()
 
-                # Plot magnitude
-                fig, ax = plt.subplots()
+                # create two subplots
+                fig, (magn_ax, phase_ax) = plt.subplots(1, 2)
 
-                ax.matshow(
+                # Plot magnitude
+                magn_ax.matshow(
                     magn / (magn.max() - magn.min()),
                     cmap='plasma'
                 )
 
-                plt.title(
+                magn_ax.set_title(
                     "gen magn " + str(self.__curr_save) +
                     " grow=" + str(gen.curr_layer)
                 )
 
-                fig.savefig(join(
-                    self.__output_dir,
-                    f"magn_{self.__curr_save}_ID{gen_idx}.png"
-                ))
-
-                plt.close()
-
                 # Plot phase
-                fig, ax = plt.subplots()
-
-                ax.matshow(
+                phase_ax.matshow(
                     phase / (phase.max() - phase.min()),
                     cmap='plasma'
                 )
 
-                plt.title(
+                phase_ax.set_title(
                     "gen phase " + str(self.__curr_save) +
                     " grow=" + str(gen.curr_layer)
                 )
 
                 fig.savefig(join(
                     self.__output_dir,
-                    f"phase_{self.__curr_save}_ID{gen_idx}.png"
+                    f"magn_phase_{self.__curr_save}_ID{gen_idx}.png"
                 ))
 
                 plt.close()
