@@ -39,9 +39,9 @@ def train(
     height = 2
     width = 2
 
-    disc_lr = 1e-3
-    gen_lr = 1e-3
-    betas = (0., 0.9)
+    disc_lr = 1e-4
+    gen_lr = 1e-4
+    betas = (0.5, 0.999)
 
     nb_epoch = 1000
     unroll_steps = 4
@@ -193,31 +193,44 @@ def train(
                     device="cuda"
                 )
 
+                # use higher to unroll discriminator
                 with higher.innerloop_ctx(disc, optim_disc) as (
                     fun_disc, diff_optim_disc
                 ):
+                    # unroll steps
                     for _ in range(unroll_steps):
+                        # generate fake data
                         x_fake = gen(z, grower.alpha)
 
+                        # use current discriminator
                         out_fake = fun_disc(x_fake, grower.alpha)
                         out_real = fun_disc(x_real, grower.alpha)
 
+                        # compute current loss
                         unrolled_disc_loss = networks.discriminator_loss(
                             out_real, out_fake
                         )
 
+                        # produce next discriminator
                         diff_optim_disc.step(unrolled_disc_loss)
 
+                    # generate fake data
                     x_fake = gen(z, grower.alpha)
 
+                    # use unrolled discriminators
                     out_fake = fun_disc(x_fake, grower.alpha)
 
+                    # compute generator loss
                     gen_loss = networks.generator_loss(out_fake)
 
+                    # reset gradient
                     optim_gen.zero_grad()
+
+                    # backward pass and weight update
                     gen_loss.backward()
                     optim_gen.step()
 
+                # load discriminator before unroll updates
                 disc.load_state_dict(disc_backup.state_dict())
                 del disc_backup
 

@@ -2,7 +2,7 @@ import torch as th
 import torch.nn as nn
 import torch.autograd as th_autograd
 
-from .layers import FromMagnPhase
+from .layers import FromMagnPhase, PixelNorm
 
 from typing import Iterator
 
@@ -22,6 +22,7 @@ class Block(nn.Sequential):
                 padding=(1, 1)
             ),
             nn.LeakyReLU(2e-1),
+            PixelNorm(),
 
             nn.Conv2d(
                 out_channels,
@@ -31,6 +32,7 @@ class Block(nn.Sequential):
                 padding=(1, 1),
             ),
             nn.LeakyReLU(2e-1),
+            PixelNorm(),
         ])
 
 
