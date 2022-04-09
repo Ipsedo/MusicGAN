@@ -42,15 +42,15 @@ class Discriminator(nn.Module):
         super(Discriminator, self).__init__()
 
         conv_channels = [
-            (16, 32),
-            (32, 48),
-            (48, 64),
-            (64, 80),
-            (80, 96),
-            (96, 112),
-            (112, 128),
-            (128, 144),
-            (144, 160)
+            (8, 16),
+            (16, 24),
+            (24, 32),
+            (32, 40),
+            (40, 48),
+            (48, 56),
+            (56, 64),
+            (64, 72),
+            (72, 80)
         ]
 
         self.__channels = conv_channels
@@ -83,7 +83,8 @@ class Discriminator(nn.Module):
         )
 
         self.__clf = nn.Sequential(
-            nn.Linear(out_size, 1)
+            nn.Linear(out_size, 1),
+            nn.Sigmoid()
         )
 
     def forward(self, x: th.Tensor, alpha: float) -> th.Tensor:

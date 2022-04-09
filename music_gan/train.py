@@ -5,8 +5,12 @@ from .utils import Grower, Saver
 import torch as th
 from torch.utils.data import DataLoader
 
+import higher
+
 from os import mkdir
 from os.path import exists, isdir
+
+import copy
 
 import mlflow
 
@@ -35,12 +39,13 @@ def train(
     height = 2
     width = 2
 
-    disc_lr = 4e-4
-    gen_lr = 4e-4
-    betas = (0.0, 0.9)
+    disc_lr = 1e-3
+    gen_lr = 1e-3
+    betas = (0., 0.9)
 
     nb_epoch = 1000
-    batch_size = 6
+    unroll_steps = 4
+    batch_size = 8
 
     if not exists(output_dir):
         mkdir(output_dir)
@@ -101,10 +106,10 @@ def train(
     grower = Grower(
         n_grow=7,
         fadein_lengths=[
-            1, 400000, 400000, 400000, 400000, 400000, 400000, 400000,
+            1, 100000, 100000, 100000, 100000, 100000, 100000, 100000,
         ],
         train_lengths=[
-            400000, 800000, 800000, 800000, 800000, 800000, 800000,
+            100000, 200000, 200000, 200000, 200000, 200000, 200000,
         ]
     )
 
@@ -123,7 +128,6 @@ def train(
         error_gen = [0. for _ in range(metric_window)]
 
         disc_loss_list = [0. for _ in range(metric_window)]
-        grad_pen_list = [0. for _ in range(metric_window)]
         gen_loss_list = [0. for _ in range(metric_window)]
 
         iter_idx = 0
@@ -133,7 +137,7 @@ def train(
             tqdm_bar = tqdm(data_loader)
 
             for x_real in tqdm_bar:
-                # train discriminator
+                # [1] train discriminator
 
                 # pass data to cuda
                 x_real = x_real.to(th.float)
@@ -156,22 +160,16 @@ def train(
                 out_fake = disc(x_fake, grower.alpha)
 
                 # compute discriminator loss
-                disc_loss = networks.wasserstein_discriminator_loss(
+                disc_loss = networks.discriminator_loss(
                     out_real, out_fake
                 )
-
-                # compute gradient penalty
-                grad_pen = disc.gradient_penalty(x_real, x_fake, grower.alpha)
-
-                # add gradient penalty
-                disc_loss_gp = disc_loss + grad_pen
 
                 # reset grad
                 gen.zero_grad()
                 disc.zero_grad()
 
                 # backward and optim step
-                disc_loss_gp.backward()
+                disc_loss.backward()
                 optim_disc.step()
 
                 # discriminator metrics
@@ -181,44 +179,54 @@ def train(
                 error_tn.append(out_fake.mean().item())
 
                 del disc_loss_list[0]
-                del grad_pen_list[0]
                 disc_loss_list.append(disc_loss.item())
-                grad_pen_list.append(grad_pen.item())
 
-                # train generator
-                if iter_idx % 4 == 0:
-                    # sample random latent data
-                    z = th.randn(
-                        batch_size,
-                        rand_channels,
-                        height,
-                        width,
-                        device="cuda"
-                    )
+                # [2] train generator
 
-                    # generate fake data
+                disc_backup = copy.deepcopy(disc)
+
+                z = th.randn(
+                    batch_size,
+                    rand_channels,
+                    height,
+                    width,
+                    device="cuda"
+                )
+
+                with higher.innerloop_ctx(disc, optim_disc) as (
+                    fun_disc, diff_optim_disc
+                ):
+                    for _ in range(unroll_steps):
+                        x_fake = gen(z, grower.alpha)
+
+                        out_fake = fun_disc(x_fake, grower.alpha)
+                        out_real = fun_disc(x_real, grower.alpha)
+
+                        unrolled_disc_loss = networks.discriminator_loss(
+                            out_real, out_fake
+                        )
+
+                        diff_optim_disc.step(unrolled_disc_loss)
+
                     x_fake = gen(z, grower.alpha)
 
-                    # pass to discriminator
-                    out_fake = disc(x_fake, grower.alpha)
+                    out_fake = fun_disc(x_fake, grower.alpha)
 
-                    # compute generator loss
-                    gen_loss = networks.wasserstein_generator_loss(out_fake)
+                    gen_loss = networks.generator_loss(out_fake)
 
-                    # reset gradient
-                    gen.zero_grad()
-                    disc.zero_grad()
-
-                    # backward and optim step
+                    optim_gen.zero_grad()
                     gen_loss.backward()
                     optim_gen.step()
 
-                    # generator metrics
-                    del error_gen[0]
-                    error_gen.append(out_fake.mean().item())
+                disc.load_state_dict(disc_backup.state_dict())
+                del disc_backup
 
-                    del gen_loss_list[0]
-                    gen_loss_list.append(gen_loss.item())
+                # generator metrics
+                del error_gen[0]
+                error_gen.append(out_fake.mean().item())
+
+                del gen_loss_list[0]
+                gen_loss_list.append(gen_loss.item())
 
                 # update tqdm bar
                 tqdm_bar.set_description(
@@ -227,7 +235,6 @@ def train(
                     f"{saver.save_counter:03}], "
                     f"disc_l = {mean(disc_loss_list):.4f}, "
                     f"gen_l = {mean(gen_loss_list):.2f}, "
-                    f"grad_p = {mean(grad_pen_list):.4f}, "
                     f"e_tp = {mean(error_tp):.2f}, "
                     f"e_tn = {mean(error_tn):.2f}, "
                     f"e_gen = {mean(error_gen):.2f}, "
