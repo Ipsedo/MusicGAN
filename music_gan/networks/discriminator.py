@@ -2,7 +2,7 @@ import torch as th
 import torch.nn as nn
 import torch.autograd as th_autograd
 
-from .layers import MiniBatchStdDev, FromMagnPhase
+from .layers import FromMagnPhase
 
 from typing import Iterator
 
@@ -11,19 +11,9 @@ class Block(nn.Sequential):
     def __init__(
             self,
             in_channels: int,
-            out_channels: int,
-            minibatch_std: bool
+            out_channels: int
     ):
-        module_list = []
-
-        if minibatch_std:
-            module_list.append(
-                MiniBatchStdDev()
-            )
-
-            in_channels += 1
-
-        module_list += [
+        super(Block, self).__init__(*[
             nn.Conv2d(
                 in_channels,
                 out_channels,
@@ -40,12 +30,8 @@ class Block(nn.Sequential):
                 stride=(2, 2),
                 padding=(1, 1),
             ),
-            nn.LeakyReLU(2e-1)
-        ]
-
-        super(Block, self).__init__(
-            *module_list
-        )
+            nn.LeakyReLU(2e-1),
+        ])
 
 
 class Discriminator(nn.Module):
@@ -77,10 +63,7 @@ class Discriminator(nn.Module):
         assert 0 <= start_layer <= len(conv_channels)
 
         self.__conv_blocks = nn.ModuleList([
-            Block(
-                c[0], c[1],
-                i == len(conv_channels) - 1
-            )
+            Block(c[0], c[1])
             for i, c in enumerate(conv_channels)
         ])
 
@@ -178,7 +161,7 @@ class Discriminator(nn.Module):
         gradients_norm = gradients.norm(2, dim=1)
         gradient_penalty = ((gradients_norm - 1.) ** 2.).mean()
 
-        grad_pen_factor = 16.
+        grad_pen_factor = 20.
 
         return grad_pen_factor * gradient_penalty
 
