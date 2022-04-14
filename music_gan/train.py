@@ -35,17 +35,18 @@ def train(
 
     sample_rate = audio.SAMPLE_RATE
 
-    rand_channels = 64
+    rand_channels = 16
     height = 2
     width = 2
 
-    disc_lr = 1e-4
-    gen_lr = 1e-4
-    betas = (0.5, 0.999)
+    disc_lr = 4e-4
+    gen_lr = 4e-4
+    betas = (0., 0.9)
 
     nb_epoch = 1000
     unroll_steps = 4
-    batch_size = 8
+    batch_size = 4
+    train_gen_every = 1
 
     if not exists(output_dir):
         mkdir(output_dir)
@@ -109,12 +110,13 @@ def train(
             1, 100000, 100000, 100000, 100000, 100000, 100000, 100000,
         ],
         train_lengths=[
-            100000, 200000, 200000, 200000, 200000, 200000, 200000,
+            300000, 400000, 400000, 400000, 400000, 400000, 400000,
         ]
     )
 
     saver = Saver(
-        output_dir, save_every=1000,
+        output_dir,
+        save_every=1000,
         rand_channels=rand_channels,
         rand_height=height,
         rand_width=width
@@ -165,7 +167,6 @@ def train(
                 )
 
                 # reset grad
-                gen.zero_grad()
                 disc.zero_grad()
 
                 # backward and optim step
@@ -182,64 +183,65 @@ def train(
                 disc_loss_list.append(disc_loss.item())
 
                 # [2] train generator
+                # train every N discriminator update
+                if iter_idx % train_gen_every == 0:
+                    disc_backup = copy.deepcopy(disc)
 
-                disc_backup = copy.deepcopy(disc)
+                    z = th.randn(
+                        batch_size,
+                        rand_channels,
+                        height,
+                        width,
+                        device="cuda"
+                    )
 
-                z = th.randn(
-                    batch_size,
-                    rand_channels,
-                    height,
-                    width,
-                    device="cuda"
-                )
+                    # use higher to unroll discriminator
+                    with higher.innerloop_ctx(disc, optim_disc) as (
+                        fun_disc, diff_optim_disc
+                    ):
+                        # unroll steps
+                        for _ in range(unroll_steps):
+                            # generate fake data
+                            x_fake = gen(z, grower.alpha)
 
-                # use higher to unroll discriminator
-                with higher.innerloop_ctx(disc, optim_disc) as (
-                    fun_disc, diff_optim_disc
-                ):
-                    # unroll steps
-                    for _ in range(unroll_steps):
+                            # use current discriminator
+                            out_fake = fun_disc(x_fake, grower.alpha)
+                            out_real = fun_disc(x_real, grower.alpha)
+
+                            # compute current loss
+                            unrolled_disc_loss = networks.discriminator_loss(
+                                out_real, out_fake
+                            )
+
+                            # produce next discriminator
+                            diff_optim_disc.step(unrolled_disc_loss)
+
                         # generate fake data
                         x_fake = gen(z, grower.alpha)
 
-                        # use current discriminator
+                        # use unrolled discriminators
                         out_fake = fun_disc(x_fake, grower.alpha)
-                        out_real = fun_disc(x_real, grower.alpha)
 
-                        # compute current loss
-                        unrolled_disc_loss = networks.discriminator_loss(
-                            out_real, out_fake
-                        )
+                        # compute generator loss
+                        gen_loss = networks.generator_loss(out_fake)
 
-                        # produce next discriminator
-                        diff_optim_disc.step(unrolled_disc_loss)
+                        # reset gradient
+                        optim_gen.zero_grad()
 
-                    # generate fake data
-                    x_fake = gen(z, grower.alpha)
+                        # backward pass and weight update
+                        gen_loss.backward()
+                        optim_gen.step()
 
-                    # use unrolled discriminators
-                    out_fake = fun_disc(x_fake, grower.alpha)
+                    # load discriminator before unroll updates
+                    disc.load_state_dict(disc_backup.state_dict())
+                    del disc_backup
 
-                    # compute generator loss
-                    gen_loss = networks.generator_loss(out_fake)
+                    # generator metrics
+                    del error_gen[0]
+                    error_gen.append(out_fake.mean().item())
 
-                    # reset gradient
-                    optim_gen.zero_grad()
-
-                    # backward pass and weight update
-                    gen_loss.backward()
-                    optim_gen.step()
-
-                # load discriminator before unroll updates
-                disc.load_state_dict(disc_backup.state_dict())
-                del disc_backup
-
-                # generator metrics
-                del error_gen[0]
-                error_gen.append(out_fake.mean().item())
-
-                del gen_loss_list[0]
-                gen_loss_list.append(gen_loss.item())
+                    del gen_loss_list[0]
+                    gen_loss_list.append(gen_loss.item())
 
                 # update tqdm bar
                 tqdm_bar.set_description(
@@ -279,17 +281,17 @@ def train(
                     gen.next_layer()
                     disc.next_layer()
 
-                    optim_gen.add_param_group({
-                        "params": gen.end_block_parameters(),
-                        "lr": gen_lr,
-                        "betas": betas
-                    })
+                    optim_gen = th.optim.Adam(
+                        gen.parameters(),
+                        lr=gen_lr,
+                        betas=betas
+                    )
 
-                    optim_disc.add_param_group({
-                        "params": disc.start_block_parameters(),
-                        "lr": disc_lr,
-                        "betas": betas
-                    })
+                    optim_disc = th.optim.Adam(
+                        disc.parameters(),
+                        lr=disc_lr,
+                        betas=betas
+                    )
 
                     tqdm_bar.write(
                         "\n"

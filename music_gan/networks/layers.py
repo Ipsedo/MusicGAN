@@ -123,7 +123,7 @@ class MiniBatchStdDev(nn.Module):
 class ToMagnPhase(nn.Sequential):
     def __init__(self, in_channels: int):
         super(ToMagnPhase, self).__init__(
-            nn.Conv2d(
+            nn.ConvTranspose2d(
                 in_channels, 2,
                 kernel_size=(1, 1),
                 stride=(1, 1),
@@ -141,5 +141,6 @@ class FromMagnPhase(nn.Sequential):
                 kernel_size=(1, 1),
                 stride=(1, 1)
             ),
-            nn.LeakyReLU(2e-1)
+            nn.LeakyReLU(2e-1),
+            PixelNorm()
         )

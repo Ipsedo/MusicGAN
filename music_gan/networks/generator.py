@@ -83,8 +83,7 @@ class Generator(nn.Module):
                 ),
                 nn.Upsample(
                     scale_factor=2.,
-                    mode="bilinear",
-                    align_corners=True
+                    mode="nearest",
                 ),
             )
         )
@@ -119,8 +118,7 @@ class Generator(nn.Module):
                 self.__end_block,
                 nn.Upsample(
                     scale_factor=2.,
-                    mode="bilinear",
-                    align_corners=True
+                    mode="nearest"
                 )
             )
 
