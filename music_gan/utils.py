@@ -8,6 +8,8 @@ from torchvision.transforms import Compose, Resize
 
 import matplotlib.pyplot as plt
 
+from tqdm import tqdm
+
 from typing import List
 
 
@@ -35,26 +37,62 @@ class Grower:
         assert len(fadein_lengths) == self.__n_grow + 1
         assert len(train_lengths) == self.__n_grow
 
-        self.__fadein_l = fadein_lengths
-        self.__train_l = (
+        self.__fadein_lengths = fadein_lengths
+
+        self.__train_lenghts = train_lengths
+        self.__train_lenghts_cumsum = (
             th.tensor(train_lengths)
             .cumsum(dim=0)
             .tolist()
         )
 
-    def grow(self, viewed_samples: int) -> bool:
-        self.__sample_idx += viewed_samples
-        self.__step_sample_idx += viewed_samples
+        self.__init_tqdm_bars()
+
+    def __init_tqdm_bars(self) -> None:
+        self.__tqdm_bar_fadein = tqdm(
+            range(self.__fadein_lengths[self.__curr_grow]),
+            position=1,
+            leave=False
+        )
+
+        self.__tqdm_bar_grow = tqdm(
+            range(self.__train_lenghts[self.__curr_grow]),
+            position=2,
+            leave=False
+        )
+
+    def __update_bars(self) -> None:
+
+        self.__tqdm_bar_fadein.set_description(
+            f"⌙> fade in "
+        )
+
+        self.__tqdm_bar_grow.set_description(
+            f"⌙> grow [{self.__curr_grow} / {self.__n_grow}] "
+        )
+
+        if self.__step_sample_idx <= self.__fadein_lengths[self.__curr_grow]:
+            self.__tqdm_bar_fadein.update(1)
+        self.__tqdm_bar_grow.update(1)
+
+    def grow(self) -> bool:
+        self.__sample_idx += 1
+        self.__step_sample_idx += 1
+
+        self.__update_bars()
 
         if self.__curr_grow >= self.__n_grow:
             return False
 
-        if self.__train_l[self.__curr_grow] < self.__sample_idx:
+        if self.__train_lenghts_cumsum[self.__curr_grow] < self.__sample_idx:
             self.__step_sample_idx = 0
             self.__curr_grow += 1
 
             self.__downscale -= 1
             self.__transform = Grower.__get_transform(self.__downscale)
+
+            self.__init_tqdm_bars()
+
             return True
 
         return False
@@ -64,7 +102,7 @@ class Grower:
         return min(
             1.,
             (1. + self.__step_sample_idx) /
-            self.__fadein_l[self.__curr_grow]
+            self.__fadein_lengths[self.__curr_grow]
         )
 
     @staticmethod

@@ -4,6 +4,7 @@ tqdm
 torch
 torchaudio
 torchvision
+higher
 matplotlib
 numpy
 

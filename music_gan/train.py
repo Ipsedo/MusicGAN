@@ -39,14 +39,13 @@ def train(
     height = 2
     width = 2
 
-    disc_lr = 4e-4
-    gen_lr = 4e-4
+    disc_lr = 1e-4
+    gen_lr = 2e-3
     betas = (0., 0.9)
 
     nb_epoch = 1000
     unroll_steps = 4
     batch_size = 4
-    train_gen_every = 1
 
     if not exists(output_dir):
         mkdir(output_dir)
@@ -60,9 +59,7 @@ def train(
         end_layer=0
     )
 
-    disc = networks.Discriminator(
-        start_layer=7
-    )
+    disc = networks.Discriminator()
 
     gen.cuda()
     disc.cuda()
@@ -96,6 +93,7 @@ def train(
         "rand_channels": rand_channels,
         "nb_epoch": nb_epoch,
         "batch_size": batch_size,
+        "unroll_steps": unroll_steps,
         "disc_lr": disc_lr,
         "gen_lr": gen_lr,
         "betas": betas,
@@ -107,10 +105,10 @@ def train(
     grower = Grower(
         n_grow=7,
         fadein_lengths=[
-            1, 100000, 100000, 100000, 100000, 100000, 100000, 100000,
+            1, 10000, 10000, 10000, 10000, 10000, 10000, 10000,
         ],
         train_lengths=[
-            300000, 400000, 400000, 400000, 400000, 400000, 400000,
+            5000, 30000, 30000, 30000, 30000, 30000, 30000,
         ]
     )
 
@@ -137,8 +135,9 @@ def train(
         for e in range(nb_epoch):
 
             tqdm_bar = tqdm(data_loader)
+            tqdm_iterator = iter(tqdm_bar)
 
-            for x_real in tqdm_bar:
+            for x_real in tqdm_iterator:
                 # [1] train discriminator
 
                 # pass data to cuda
@@ -183,65 +182,71 @@ def train(
                 disc_loss_list.append(disc_loss.item())
 
                 # [2] train generator
-                # train every N discriminator update
-                if iter_idx % train_gen_every == 0:
-                    disc_backup = copy.deepcopy(disc)
+                disc_backup = copy.deepcopy(disc)
 
-                    z = th.randn(
-                        batch_size,
-                        rand_channels,
-                        height,
-                        width,
-                        device="cuda"
-                    )
+                z = th.randn(
+                    batch_size,
+                    rand_channels,
+                    height,
+                    width,
+                    device="cuda"
+                )
 
-                    # use higher to unroll discriminator
-                    with higher.innerloop_ctx(disc, optim_disc) as (
+                # use higher to unroll discriminator
+                with higher.innerloop_ctx(disc, optim_disc) as (
                         fun_disc, diff_optim_disc
-                    ):
-                        # unroll steps
-                        for _ in range(unroll_steps):
-                            # generate fake data
-                            x_fake = gen(z, grower.alpha)
-
-                            # use current discriminator
-                            out_fake = fun_disc(x_fake, grower.alpha)
-                            out_real = fun_disc(x_real, grower.alpha)
-
-                            # compute current loss
-                            unrolled_disc_loss = networks.discriminator_loss(
-                                out_real, out_fake
-                            )
-
-                            # produce next discriminator
-                            diff_optim_disc.step(unrolled_disc_loss)
+                ):
+                    # unroll steps
+                    for _ in range(unroll_steps):
+                        try:
+                            x_real = next(tqdm_iterator).to(th.float)
+                            x_real = grower.scale_transform(x_real).cuda()
+                        except StopIteration:
+                            # in case of iterator ending
+                            pass
 
                         # generate fake data
                         x_fake = gen(z, grower.alpha)
 
-                        # use unrolled discriminators
+                        # use current discriminator
                         out_fake = fun_disc(x_fake, grower.alpha)
+                        out_real = fun_disc(x_real, grower.alpha)
 
-                        # compute generator loss
-                        gen_loss = networks.generator_loss(out_fake)
+                        # compute current loss
+                        unrolled_disc_loss = \
+                            networks.discriminator_loss(
+                                out_real, out_fake
+                            )
 
-                        # reset gradient
-                        optim_gen.zero_grad()
+                        # produce next discriminator and optimizer
+                        diff_optim_disc.step(unrolled_disc_loss)
 
-                        # backward pass and weight update
-                        gen_loss.backward()
-                        optim_gen.step()
+                    # generate fake data
+                    x_fake = gen(z, grower.alpha)
 
-                    # load discriminator before unroll updates
-                    disc.load_state_dict(disc_backup.state_dict())
-                    del disc_backup
+                    # use unrolled discriminators
+                    out_fake = fun_disc(x_fake, grower.alpha)
 
-                    # generator metrics
-                    del error_gen[0]
-                    error_gen.append(out_fake.mean().item())
+                    # compute generator loss
+                    gen_loss = networks.generator_loss(out_fake)
 
-                    del gen_loss_list[0]
-                    gen_loss_list.append(gen_loss.item())
+                    # reset gradient
+                    optim_gen.zero_grad()
+
+                    # backward pass and weight update
+                    gen_loss.backward()
+                    optim_gen.step()
+
+                # load discriminator before unroll updates
+                disc.load_state_dict(disc_backup.state_dict())
+                del disc_backup
+
+                # generator metrics
+                del error_gen[0]
+                error_gen.append(out_fake.mean().item())
+
+                del gen_loss_list[0]
+                gen_loss_list.append(gen_loss.item())
 
                 # update tqdm bar
                 tqdm_bar.set_description(
@@ -253,7 +258,7 @@ def train(
                     f"e_tp = {mean(error_tp):.2f}, "
                     f"e_tn = {mean(error_tn):.2f}, "
                     f"e_gen = {mean(error_gen):.2f}, "
-                    f"alpha = {grower.alpha:.3f}"
+                    f"alpha = {grower.alpha:.3f} "
                 )
 
                 # log metrics
@@ -277,21 +282,9 @@ def train(
 
                 # ProGAN : add next layer
                 # IF time_to_grow AND growing
-                if grower.grow(batch_size) and gen.growing:
+                if grower.grow() and gen.growing:
                     gen.next_layer()
                     disc.next_layer()
-
-                    optim_gen = th.optim.Adam(
-                        gen.parameters(),
-                        lr=gen_lr,
-                        betas=betas
-                    )
-
-                    optim_disc = th.optim.Adam(
-                        disc.parameters(),
-                        lr=disc_lr,
-                        betas=betas
-                    )
 
                     tqdm_bar.write(
                         "\n"
