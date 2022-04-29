@@ -55,11 +55,12 @@ class Grower:
             leave=False
         )
 
-        self.__tqdm_bar_grow = tqdm(
-            range(self.__train_lenghts[self.__curr_grow]),
-            position=2,
-            leave=False
-        )
+        if self.__curr_grow < self.__n_grow:
+            self.__tqdm_bar_grow = tqdm(
+                range(self.__train_lenghts[self.__curr_grow]),
+                position=2,
+                leave=False
+            )
 
     def __update_bars(self) -> None:
 
@@ -73,7 +74,9 @@ class Grower:
 
         if self.__step_sample_idx <= self.__fadein_lengths[self.__curr_grow]:
             self.__tqdm_bar_fadein.update(1)
-        self.__tqdm_bar_grow.update(1)
+
+        if self.__curr_grow < self.__n_grow:
+            self.__tqdm_bar_grow.update(1)
 
     def grow(self) -> bool:
         self.__sample_idx += 1

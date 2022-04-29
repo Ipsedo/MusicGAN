@@ -21,7 +21,7 @@ class Block(nn.Sequential):
                 stride=(1, 1),
                 padding=(1, 1)
             ),
-            nn.LeakyReLU(2e-1),
+            nn.ReLU(),
             PixelNorm(),
 
             nn.Conv2d(
@@ -31,8 +31,8 @@ class Block(nn.Sequential):
                 stride=(2, 2),
                 padding=(1, 1),
             ),
-            nn.LeakyReLU(2e-1),
-            PixelNorm()
+            nn.ReLU(),
+            PixelNorm(),
         ])
 
 
@@ -72,12 +72,11 @@ class Discriminator(nn.Module):
             for i, c in enumerate(conv_channels)
         ])
 
-        self.__start_blocks = nn.ModuleList([
-            FromMagnPhase(c[0])
-            for c in conv_channels[:start_layer + 1]
-        ])
+        self.__start_block = FromMagnPhase(
+            conv_channels[start_layer][0]
+        )
 
-        self.__down_sample = nn.AvgPool2d(2, 2)
+        self.__last_start_block = None
 
         nb_time = 512
         nb_freq = 512
@@ -90,16 +89,14 @@ class Discriminator(nn.Module):
 
         self.__clf = nn.Sequential(
             nn.Linear(out_size, 1),
-            nn.Sigmoid()
         )
 
     def forward(self, x: th.Tensor, alpha: float) -> th.Tensor:
-        out_new = self.__start_blocks[self.__curr_layer](x)
+        out_new = self.__start_block(x)
         out_new = self.__conv_blocks[self.__curr_layer](out_new)
 
         if self.__grew_up:
-            out_old = self.__down_sample(x)
-            out_old = self.__start_blocks[self.__curr_layer + 1](out_old)
+            out_old = self.__last_start_block(x)
             out = alpha * out_new + (1 - alpha) * out_old
         else:
             out = out_new
@@ -118,6 +115,21 @@ class Discriminator(nn.Module):
             self.__curr_layer -= 1
 
             self.__grew_up = True
+
+            self.__last_start_block = nn.Sequential(
+                nn.AvgPool2d(2, 2),
+                self.__start_block
+            )
+
+            self.__start_block = FromMagnPhase(
+                self.__channels[self.curr_layer][0]
+            )
+
+            device = "cuda" \
+                if next(self.__conv_blocks.parameters()).is_cuda \
+                else "cpu"
+
+            self.__start_block.to(device)
 
             return True
 

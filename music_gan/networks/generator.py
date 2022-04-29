@@ -21,7 +21,7 @@ class Block(nn.Sequential):
                 stride=(2, 2),
                 output_padding=(1, 1)
             ),
-            nn.LeakyReLU(2e-1),
+            nn.ReLU(),
             PixelNorm(),
 
             nn.ConvTranspose2d(
@@ -31,8 +31,8 @@ class Block(nn.Sequential):
                 padding=(1, 1),
                 stride=(1, 1)
             ),
-            nn.LeakyReLU(2e-1),
-            PixelNorm()
+            nn.ReLU(),
+            PixelNorm(),
         )
 
 
@@ -73,15 +73,22 @@ class Generator(nn.Module):
         ])
 
         # for progressive gan
-        self.__end_blocks = nn.ModuleList([
-            ToMagnPhase(c[1])
-            for c in channels
-        ])
+        self.__end_block = ToMagnPhase(
+            channels[end_layer][1]
+        )
 
-        self.__up_sample = nn.Upsample(
-            scale_factor=2,
-            mode="bilinear",
-            align_corners=True
+        self.__last_end_block = (
+            None if self.__curr_layer == 0
+            else nn.Sequential(
+                ToMagnPhase(
+                    channels[self.curr_layer - 1][1]
+                ),
+                nn.Upsample(
+                    scale_factor=2.,
+                    mode="bilinear",
+                    align_corners=True
+                )
+            )
         )
 
     def forward(
@@ -98,12 +105,10 @@ class Generator(nn.Module):
 
         out_block = self.__gen_blocks[self.curr_layer](out)
 
-        out_mp = self.__end_blocks[self.curr_layer](out_block)
+        out_mp = self.__end_block(out_block)
 
         if self.__grew_up:
-            out_old_mp = self.__end_blocks[self.curr_layer - 1](out)
-            out_old_mp = self.__up_sample(out_old_mp)
-
+            out_old_mp = self.__last_end_block(out)
             return alpha * out_mp + (1. - alpha) * out_old_mp
 
         return out_mp
@@ -112,6 +117,25 @@ class Generator(nn.Module):
         if self.growing:
             self.__curr_layer += 1
             self.__grew_up = True
+
+            self.__last_end_block = nn.Sequential(
+                self.__end_block,
+                nn.Upsample(
+                    scale_factor=2.,
+                    mode="bilinear",
+                    align_corners=True
+                )
+            )
+
+            self.__end_block = ToMagnPhase(
+                self.__channels[self.curr_layer][1]
+            )
+
+            device = "cuda" \
+                if next(self.__gen_blocks.parameters()).is_cuda \
+                else "cpu"
+
+            self.__end_block.to(device)
 
             return True
 
