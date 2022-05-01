@@ -141,6 +141,5 @@ class FromMagnPhase(nn.Sequential):
                 kernel_size=(1, 1),
                 stride=(1, 1)
             ),
-            nn.ReLU(),
-            PixelNorm()
+            nn.LeakyReLU(2e-1),
         )

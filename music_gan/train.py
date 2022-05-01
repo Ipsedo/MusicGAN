@@ -44,8 +44,8 @@ def train(
     betas = (0., 0.9)
 
     nb_epoch = 1000
-    unroll_steps = 4
-    batch_size = 4
+    batch_size = 8
+    train_gen_every = 4
 
     if not exists(output_dir):
         mkdir(output_dir)
@@ -93,7 +93,7 @@ def train(
         "rand_channels": rand_channels,
         "nb_epoch": nb_epoch,
         "batch_size": batch_size,
-        "unroll_steps": unroll_steps,
+        "train_gen_every": train_gen_every,
         "disc_lr": disc_lr,
         "gen_lr": gen_lr,
         "betas": betas,
@@ -105,11 +105,11 @@ def train(
     grower = Grower(
         n_grow=7,
         fadein_lengths=[
-            1, 10000, 10000, 10000, 10000, 10000, 10000, 10000,
+            1, 40000, 40000, 40000, 40000, 40000, 40000, 40000,
             #1,1,1,1,1,1,1,1
         ],
         train_lengths=[
-            10000, 30000, 30000, 30000, 30000, 30000, 30000,
+            40000, 80000, 80000, 80000, 80000, 80000, 80000,
             #1,1,1,1,1,1,1
         ]
     )
@@ -138,9 +138,8 @@ def train(
         for e in range(nb_epoch):
 
             tqdm_bar = tqdm(data_loader)
-            tqdm_iterator = iter(tqdm_bar)
 
-            for x_real in tqdm_iterator:
+            for x_real in tqdm_bar:
                 # [1] train discriminator
 
                 # pass data to cuda
@@ -193,64 +192,27 @@ def train(
                 grad_pen_list.append(grad_pen.item())
 
                 # [2] train generator
-                disc_backup = copy.deepcopy(disc)
-                optim_disc_backup = copy.deepcopy(optim_disc)
 
-                # sample random latent data
-                z = th.randn(
-                    batch_size,
-                    rand_channels,
-                    height,
-                    width,
-                    device="cuda"
-                )
+                if iter_idx % train_gen_every == 0:
 
-                # reset gradient
-                optim_disc.zero_grad()
-                optim_gen.zero_grad()
+                    # sample random latent data
+                    z = th.randn(
+                        batch_size,
+                        rand_channels,
+                        height,
+                        width,
+                        device="cuda"
+                    )
 
-                # use higher to unroll discriminator
-                with higher.innerloop_ctx(disc, optim_disc) as (
-                        fun_disc, diff_optim_disc
-                ):
-                    # unroll steps
-                    for _ in range(unroll_steps):
-                        try:
-                            x_real = next(tqdm_iterator).to(th.float)
-                            x_real = grower.scale_transform(x_real).cuda()
-                        except StopIteration:
-                            # in case of iterator ending,
-                            # re-use old real data
-                            pass
-
-                        # generate fake data
-                        x_fake = gen(z, grower.alpha)
-
-                        # use current discriminator
-                        out_fake = fun_disc(x_fake, grower.alpha)
-                        out_real = fun_disc(x_real, grower.alpha)
-
-                        # compute current loss
-                        unrolled_disc_loss = \
-                            networks.wasserstein_discriminator_loss(
-                                out_real, out_fake
-                            )
-
-                        unrolled_grad_pen = fun_disc.gradient_penalty(
-                            x_real, x_fake, grower.alpha
-                        )
-
-                        unrolled_disc_loss_gp = \
-                            unrolled_disc_loss + unrolled_grad_pen
-
-                        # produce next discriminator and optimizer
-                        diff_optim_disc.step(unrolled_disc_loss_gp)
+                    # reset gradient
+                    optim_disc.zero_grad()
+                    optim_gen.zero_grad()
 
                     # generate fake data
                     x_fake = gen(z, grower.alpha)
 
                     # use unrolled discriminators
-                    out_fake = fun_disc(x_fake, grower.alpha)
+                    out_fake = disc(x_fake, grower.alpha)
 
                     # compute generator loss
                     gen_loss = networks.wasserstein_generator_loss(out_fake)
@@ -262,18 +224,12 @@ def train(
                     gen_loss.backward()
                     optim_gen.step()
 
-                # load discriminator & optim before unroll updates
-                disc.load_state_dict(disc_backup.state_dict())
-                optim_disc.load_state_dict(optim_disc_backup.state_dict())
-                del disc_backup
-                del optim_disc_backup
+                    # generator metrics
+                    del error_gen[0]
+                    error_gen.append(out_fake.mean().item())
 
-                # generator metrics
-                del error_gen[0]
-                error_gen.append(out_fake.mean().item())
-
-                del gen_loss_list[0]
-                gen_loss_list.append(gen_loss.item())
+                    del gen_loss_list[0]
+                    gen_loss_list.append(gen_loss.item())
 
                 # update tqdm bar
                 tqdm_bar.set_description(
@@ -315,17 +271,17 @@ def train(
                     gen.next_layer()
                     disc.next_layer()
 
-                    optim_gen = th.optim.Adam(
-                        gen.parameters(),
-                        lr=gen_lr,
-                        betas=betas
-                    )
+                    optim_gen.add_param_group({
+                        "params": gen.end_block_parameters(),
+                        "lr": gen_lr,
+                        "betas": betas
+                    })
 
-                    optim_disc = th.optim.Adam(
-                        disc.parameters(),
-                        lr=disc_lr,
-                        betas=betas
-                    )
+                    optim_disc.add_param_group({
+                        "params": disc.start_block_parameters(),
+                        "lr": disc_lr,
+                        "betas": betas
+                    })
 
                     tqdm_bar.write(
                         "\n"

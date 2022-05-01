@@ -21,8 +21,7 @@ class Block(nn.Sequential):
                 stride=(1, 1),
                 padding=(1, 1)
             ),
-            nn.ReLU(),
-            PixelNorm(),
+            nn.LeakyReLU(2e-1),
 
             nn.Conv2d(
                 out_channels,
@@ -31,8 +30,7 @@ class Block(nn.Sequential):
                 stride=(2, 2),
                 padding=(1, 1),
             ),
-            nn.ReLU(),
-            PixelNorm(),
+            nn.LeakyReLU(2e-1),
         ])
 
 
@@ -174,4 +172,4 @@ class Discriminator(nn.Module):
         return grad_pen_factor * gradient_penalty
 
     def start_block_parameters(self) -> Iterator[nn.Parameter]:
-        return self.__start_blocks.parameters()
+        return self.__start_block.parameters()
