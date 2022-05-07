@@ -21,8 +21,7 @@ class Block(nn.Sequential):
                 stride=(2, 2),
                 output_padding=(1, 1)
             ),
-            nn.ReLU(),
-            PixelNorm(),
+            nn.LeakyReLU(2e-1),
 
             nn.ConvTranspose2d(
                 in_channels,
@@ -31,8 +30,7 @@ class Block(nn.Sequential):
                 padding=(1, 1),
                 stride=(1, 1)
             ),
-            nn.ReLU(),
-            PixelNorm(),
+            nn.LeakyReLU(2e-1),
         )
 
 
@@ -87,7 +85,7 @@ class Generator(nn.Module):
                     scale_factor=2.,
                     mode="bilinear",
                     align_corners=True
-                )
+                ),
             )
         )
 
@@ -124,7 +122,7 @@ class Generator(nn.Module):
                     scale_factor=2.,
                     mode="bilinear",
                     align_corners=True
-                )
+                ),
             )
 
             self.__end_block = ToMagnPhase(
