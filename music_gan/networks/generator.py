@@ -85,9 +85,8 @@ class Generator(nn.Module):
                 ),
                 nn.Upsample(
                     scale_factor=2.,
-                    mode="bilinear",
-                    align_corners=True
-                )
+                    mode="nearest",
+                ),
             )
         )
 
@@ -122,9 +121,8 @@ class Generator(nn.Module):
                 self.__end_block,
                 nn.Upsample(
                     scale_factor=2.,
-                    mode="bilinear",
-                    align_corners=True
-                )
+                    mode="nearest",
+                ),
             )
 
             self.__end_block = ToMagnPhase(
@@ -161,5 +159,8 @@ class Generator(nn.Module):
     def end_block(self) -> nn.Module:
         return self.__end_block
 
-    def end_block_parameters(self) -> Iterator[nn.Parameter]:
-        return self.__end_block.parameters()
+    def end_block_parameters(
+            self, recurse: bool = True
+    ) -> Iterator[nn.Parameter]:
+        return self.__end_block.parameters(recurse)
+
