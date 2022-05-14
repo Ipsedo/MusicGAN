@@ -5,12 +5,8 @@ from .utils import Grower, Saver
 import torch as th
 from torch.utils.data import DataLoader
 
-import higher
-
 from os import mkdir
 from os.path import exists, isdir
-
-import copy
 
 import mlflow
 
