@@ -171,5 +171,7 @@ class Discriminator(nn.Module):
 
         return grad_pen_factor * gradient_penalty
 
-    def start_block_parameters(self) -> Iterator[nn.Parameter]:
-        return self.__start_block.parameters()
+    def start_block_parameters(
+            self, recurse: bool = True
+    ) -> Iterator[nn.Parameter]:
+        return self.__start_block.parameters(recurse)
