@@ -153,5 +153,13 @@ class Generator(nn.Module):
     def growing(self) -> bool:
         return self.curr_layer < len(self.__gen_blocks) - 1
 
+    @property
+    def conv_blocks(self) -> nn.ModuleList:
+        return self.__gen_blocks
+
+    @property
+    def end_block(self) -> nn.Module:
+        return self.__end_block
+
     def end_block_parameters(self) -> Iterator[nn.Parameter]:
         return self.__end_block.parameters()

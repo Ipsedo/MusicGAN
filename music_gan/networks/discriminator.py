@@ -36,11 +36,10 @@ class Block(nn.Sequential):
 
 class Discriminator(nn.Module):
     def __init__(
-            self
+            self,
+            start_layer: int = 7
     ):
         super(Discriminator, self).__init__()
-
-        start_layer = 7
 
         conv_channels = [
             (8, 16),
@@ -74,10 +73,21 @@ class Discriminator(nn.Module):
             conv_channels[start_layer][0]
         )
 
-        self.__last_start_block = None
+        self.__last_start_block = (
+            None if start_layer == 7 else
+            nn.Sequential(
+                nn.AvgPool2d(2, 2),
+                FromMagnPhase(
+                    conv_channels[start_layer][0]
+                )
+            )
+        )
 
         nb_time = 512
         nb_freq = 512
+
+        # for recurrent we won't keep the last block
+        self.__end_layer_channels = conv_channels[-2][1]
 
         out_size = (
                 conv_channels[-1][1] *
@@ -173,3 +183,15 @@ class Discriminator(nn.Module):
 
     def start_block_parameters(self) -> Iterator[nn.Parameter]:
         return self.__start_block.parameters()
+
+    @property
+    def conv_blocks(self) -> nn.ModuleList:
+        return self.__conv_blocks
+
+    @property
+    def start_block(self) -> nn.Module:
+        return self.__start_block
+
+    @property
+    def end_layer_channels(self) -> int:
+        return self.__end_layer_channels
