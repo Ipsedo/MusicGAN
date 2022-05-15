@@ -60,6 +60,9 @@ class DecBlock(nn.Module):
             padding=(1, 1)
         )
 
+        self.__in_channels = in_channels
+        self.__out_channels = out_channels
+
     def forward(self, x: th.Tensor, alpha: float) -> th.Tensor:
         out = self.__conv(x)
         out = F.leaky_relu(out, alpha)
@@ -70,23 +73,20 @@ class DecBlock(nn.Module):
         return out
 
     def from_layer(self, layer: FromMagnPhase) -> None:
-        in_channels = self.__conv.weight.size()[1]
-        out_channels = self.__conv.weight.size()[0]
-
-        # Init first conv
+        # Init first conv - from last layer
         self.__conv.bias.data = layer.conv.bias.data.clone()
 
         m = layer.conv.weight.data[:, :, 0, 0]
-        linear_decomp_1, _ = decomposition(m, in_channels)
+        linear_decomp_1, _ = decomposition(m, self.__in_channels)
 
         nn.init.zeros_(self.__conv.weight)
         self.__conv.weight.data[:, :, 1, 1] = linear_decomp_1.clone()
 
-        # Init second conv
+        # Init second conv - identity
         nn.init.zeros_(self.__conv_down.bias)
         nn.init.zeros_(self.__conv_down.weight)
         self.__conv_down.weight.data[:, :, :, :] = (
-            th.eye(out_channels)[:, :, None, None]
+            th.eye(self.__out_channels)[:, :, None, None]
             .repeat(1, 1, 3, 3)
         )
 

@@ -77,7 +77,7 @@ class DecBlock(nn.Module):
 
     def from_layer(self, layer: ToMagnPhase) -> None:
 
-        # Init Conv Up
+        # Init first conv - identity
         nn.init.zeros_(self.__conv_up.bias)
 
         self.__conv_up.weight.data[:, :, :, :] = (
@@ -85,7 +85,7 @@ class DecBlock(nn.Module):
             .repeat(1, 1, 3, 3)
         )
 
-        # Init Conv
+        # Init second conv - from last layer
         nn.init.zeros_(self.__conv.bias)
 
         m = layer.conv.weight.data[:, :, 0, 0]
