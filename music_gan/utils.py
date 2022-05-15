@@ -102,9 +102,10 @@ class Grower:
 
     @property
     def alpha(self) -> float:
+        leaky_relu_max = 2e-1
         return max(
-            2e-1,
-            1. - (1. + self.__step_sample_idx) /
+            leaky_relu_max,
+            1. - (1 - leaky_relu_max) * (1. + self.__step_sample_idx) /
             self.__fadein_lengths[self.__curr_grow]
         )
 
