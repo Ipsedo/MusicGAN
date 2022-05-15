@@ -102,9 +102,9 @@ class Grower:
 
     @property
     def alpha(self) -> float:
-        return min(
-            1.,
-            (1. + self.__step_sample_idx) /
+        return max(
+            2e-1,
+            1. - (1. + self.__step_sample_idx) /
             self.__fadein_lengths[self.__curr_grow]
         )
 

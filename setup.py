@@ -15,5 +15,6 @@ setup(
     description='GANSynth and ProGAN with bark scale for music synthesis',
     entry_points={
         'console_scripts': ['music_gan = music_gan.__main__:main']
-    }
+    },
+    test_suite="tests"
 )

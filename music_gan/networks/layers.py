@@ -1,5 +1,8 @@
 import torch as th
 import torch.nn as nn
+import torch.nn.functional as F
+
+from .functions import decomposition
 
 
 class PixelNorm(nn.Module):
@@ -120,26 +123,67 @@ class MiniBatchStdDev(nn.Module):
         return self.__repr__()
 
 
-class ToMagnPhase(nn.Sequential):
+class ToMagnPhase(nn.Module):
     def __init__(self, in_channels: int):
-        super(ToMagnPhase, self).__init__(
-            nn.ConvTranspose2d(
-                in_channels, 2,
-                kernel_size=(1, 1),
-                stride=(1, 1),
-            ),
-            nn.Tanh()
+        super(ToMagnPhase, self).__init__()
+
+        self.__conv = nn.ConvTranspose2d(
+            in_channels, 2,
+            kernel_size=(1, 1),
+            stride=(1, 1),
         )
 
+        self.__tanh = nn.Tanh()
 
-class FromMagnPhase(nn.Sequential):
+    @property
+    def conv(self) -> nn.ConvTranspose2d:
+        return self.__conv
+
+    def forward(self, x: th.Tensor):
+        out = self.__conv(x)
+        out = self.__tanh(out)
+
+        return out
+
+    def from_layer(self, layer: 'ToMagnPhase') -> None:
+
+        self.__conv.bias.data = layer.__conv.bias.data.clone()
+
+        in_channels = self.__conv.weight.size()[0]
+        m = layer.__conv.weight.data[:, :, 0, 0]
+        _, dec_2 = decomposition(m, in_channels)
+        self.__conv.weight.data[:, :, 0, 0] = dec_2
+
+
+class FromMagnPhase(nn.Module):
     def __init__(self, out_channels: int):
-        super(FromMagnPhase, self).__init__(
-            nn.Conv2d(
-                2,
-                out_channels,
-                kernel_size=(1, 1),
-                stride=(1, 1)
-            ),
-            nn.LeakyReLU(2e-1),
+        super(FromMagnPhase, self).__init__()
+
+        self.__conv = nn.Conv2d(
+            2,
+            out_channels,
+            kernel_size=(1, 1),
+            stride=(1, 1)
         )
+
+    @property
+    def conv(self) -> nn.Conv2d:
+        return self.__conv
+
+    def forward(self, magn_phase: th.Tensor, alpha: float) -> th.Tensor:
+        out = self.__conv(magn_phase)
+        out = F.leaky_relu(out, alpha)
+
+        return out
+
+    def from_layer(self, layer: 'FromMagnPhase') -> None:
+        out_channels = self.__conv.weight.size()[0]
+
+        nn.init.zeros_(self.__conv.bias)
+
+        m = layer.__conv.weight.data[:, :, 0, 0]
+        _, linear_decomp_2 = decomposition(m, out_channels)
+        self.__conv.weight.data[:, :, 0, 0] = linear_decomp_2.clone()
+
+
+

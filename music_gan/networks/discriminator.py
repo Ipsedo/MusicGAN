@@ -1,10 +1,12 @@
 import torch as th
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.autograd as th_autograd
 
 from .layers import FromMagnPhase, PixelNorm
+from .functions import decomposition
 
-from typing import Iterator
+from typing import Iterator, OrderedDict, Optional
 
 
 class Block(nn.Sequential):
@@ -32,6 +34,61 @@ class Block(nn.Sequential):
             ),
             nn.LeakyReLU(2e-1),
         ])
+
+
+class DecBlock(nn.Module):
+    def __init__(
+            self,
+            in_channels: int,
+            out_channels: int
+    ):
+        super(DecBlock, self).__init__()
+
+        self.__conv = nn.Conv2d(
+            in_channels,
+            out_channels,
+            kernel_size=(3, 3),
+            stride=(1, 1),
+            padding=(1, 1),
+        )
+
+        self.__conv_down = nn.Conv2d(
+            out_channels,
+            out_channels,
+            kernel_size=(3, 3),
+            stride=(2, 2),
+            padding=(1, 1)
+        )
+
+    def forward(self, x: th.Tensor, alpha: float) -> th.Tensor:
+        out = self.__conv(x)
+        out = F.leaky_relu(out, alpha)
+
+        out = self.__conv_down(out)
+        out = F.leaky_relu(out, alpha)
+
+        return out
+
+    def from_layer(self, layer: FromMagnPhase) -> None:
+        in_channels = self.__conv.weight.size()[1]
+        out_channels = self.__conv.weight.size()[0]
+
+        # Init first conv
+        self.__conv.bias.data = layer.conv.bias.data.clone()
+
+        m = layer.conv.weight.data[:, :, 0, 0]
+        linear_decomp_1, _ = decomposition(m, in_channels)
+
+        nn.init.zeros_(self.__conv.weight)
+        self.__conv.weight.data[:, :, 1, 1] = linear_decomp_1.clone()
+
+        # Init second conv
+        nn.init.zeros_(self.__conv_down.bias)
+        nn.init.zeros_(self.__conv_down.weight)
+        self.__conv_down.weight.data[:, :, :, :] = (
+            th.eye(out_channels)[:, :, None, None]
+            .repeat(1, 1, 3, 3)
+        )
 
 
 class Discriminator(nn.Module):
@@ -65,22 +122,12 @@ class Discriminator(nn.Module):
         assert 0 <= start_layer <= len(conv_channels)
 
         self.__conv_blocks = nn.ModuleList([
-            Block(c[0], c[1])
+            DecBlock(c[0], c[1])
             for i, c in enumerate(conv_channels)
         ])
 
         self.__start_block = FromMagnPhase(
             conv_channels[start_layer][0]
-        )
-
-        self.__last_start_block = (
-            None if start_layer == 7 else
-            nn.Sequential(
-                nn.AvgPool2d(2, 2),
-                FromMagnPhase(
-                    conv_channels[start_layer][0]
-                )
-            )
         )
 
         nb_time = 512
@@ -100,17 +147,11 @@ class Discriminator(nn.Module):
         )
 
     def forward(self, x: th.Tensor, alpha: float) -> th.Tensor:
-        out_new = self.__start_block(x)
-        out_new = self.__conv_blocks[self.__curr_layer](out_new)
-
-        if self.__grew_up:
-            out_old = self.__last_start_block(x)
-            out = alpha * out_new + (1 - alpha) * out_old
-        else:
-            out = out_new
+        out = self.__start_block(x, alpha)
+        out = self.__conv_blocks[self.__curr_layer](out, alpha)
 
         for i in range(self.__curr_layer + 1, len(self.__conv_blocks)):
-            out = self.__conv_blocks[i](out)
+            out = self.__conv_blocks[i](out, 2e-1)
 
         out = out.flatten(1, -1)
 
@@ -124,14 +165,14 @@ class Discriminator(nn.Module):
 
             self.__grew_up = True
 
-            self.__last_start_block = nn.Sequential(
-                nn.AvgPool2d(2, 2),
-                self.__start_block
-            )
+            last_start_block = self.__start_block
 
             self.__start_block = FromMagnPhase(
                 self.__channels[self.curr_layer][0]
             )
+
+            self.__start_block.from_layer(last_start_block)
+            self.__conv_blocks[self.__curr_layer].from_layer(last_start_block)
 
             device = "cuda" \
                 if next(self.__conv_blocks.parameters()).is_cuda \
@@ -188,7 +229,12 @@ class Discriminator(nn.Module):
 
     @property
     def conv_blocks(self) -> nn.ModuleList:
-        return self.__conv_blocks
+        return nn.ModuleList([
+            layer
+            for i, layer in enumerate(self.__conv_blocks)
+            # skip last layer
+            if i < len(self.__conv_blocks) - 1
+        ])
 
     @property
     def start_block(self) -> nn.Module:
@@ -197,3 +243,50 @@ class Discriminator(nn.Module):
     @property
     def end_layer_channels(self) -> int:
         return self.__end_layer_channels
+
+
+############
+# Recurrent
+############
+
+class RecurrentDiscriminator(nn.Module):
+    def __init__(self, cnn_state_dict: OrderedDict[str, th.Tensor]):
+        super(RecurrentDiscriminator, self).__init__()
+
+        conv_disc = Discriminator(start_layer=0)
+        conv_disc.load_state_dict(cnn_state_dict)
+
+        self.__start_block = conv_disc.start_block
+        self.__conv_blocks = conv_disc.conv_blocks
+
+        rnn_out_size = 64
+
+        self.__rnn = nn.RNN(
+            conv_disc.end_layer_channels * 2,
+            rnn_out_size,
+            batch_first=True
+        )
+
+        self.__clf = nn.Linear(
+            rnn_out_size,
+            1
+        )
+
+    def forward(self, data: th.Tensor) -> th.Tensor:
+        out = self.__start_block(data)
+        for layer in self.__conv_blocks:
+            out = layer(out)
+
+        out = (
+            # flatten channels and freq
+            th.flatten(out, 1, 2)
+            # permute <batch, time, channels * freq>
+            .permute(0, 2, 1)
+        )
+
+        out, _ = self.__rnn(out)
+
+        out = self.__clf(out)
+        out = out.mean(dim=1)
+
+        return out
