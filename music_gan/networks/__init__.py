@@ -8,3 +8,5 @@ from .criterion import (
 from .generator import Generator
 
 from .discriminator import Discriminator
+
+from .functions import matrix_multiple
