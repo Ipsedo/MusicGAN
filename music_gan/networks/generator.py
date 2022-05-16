@@ -66,7 +66,7 @@ class DecBlock(nn.Module):
         self.__in_channels = in_channels
         self.__out_channels = out_channels
 
-    def forward(self, x: th.Tensor, alpha: float) -> th.Tensor:
+    def forward(self, x: th.Tensor, alpha: float = 2e-1) -> th.Tensor:
         out = self.__conv_up(x)
         out = F.leaky_relu(out, alpha)
 
@@ -80,15 +80,17 @@ class DecBlock(nn.Module):
         # Init first conv - identity
         nn.init.zeros_(self.__conv_up.bias)
 
-        self.__conv_up.weight.data[:, :, :, :] = (
+        stride = 2
+        # output_padding is at left, so with stride of 2 identity needs fo be filled on 2 * 2 pixel kernel
+        self.__conv_up.weight.data[:, :, 1:, 1:] = (
             th.eye(self.__in_channels)[:, :, None, None]
-            .repeat(1, 1, 3, 3)
+            .repeat(1, 1, 2, 2)
         )
 
         # Init second conv - from last layer
         nn.init.zeros_(self.__conv.bias)
 
-        m = layer.conv.weight.data[:, :, 0, 0]
+        m = layer.conv.weight.data[:, :, 0, 0].clone()
 
         dec_1, _ = decomposition(m, self.__out_channels)
 
@@ -145,7 +147,7 @@ class Generator(nn.Module):
         out = z
 
         for i in range(self.curr_layer):
-            out = self.__gen_blocks[i](out, 2e-1)
+            out = self.__gen_blocks[i](out)
 
         out_block = self.__gen_blocks[self.curr_layer](out, alpha)
 

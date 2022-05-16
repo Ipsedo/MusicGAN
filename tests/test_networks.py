@@ -15,11 +15,8 @@ class TestNetworks(unittest.TestCase):
             gen = Generator(rand_channels)
             disc = Discriminator(7)
 
-            gen.cuda()
-            disc.cuda()
-
             for i in range(gen.down_sample + 3):
-                z = th.randn(batch_size, rand_channels, 2, 2, device="cuda")
+                z = th.randn(batch_size, rand_channels, 2, 2)
 
                 out = gen(z, alpha)
 
