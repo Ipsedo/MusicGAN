@@ -11,10 +11,7 @@ class ChannelMinMaxNorm:
 
         batch_size = x.size()[0]
 
-        tmp_x = (
-            x
-            .view(batch_size, 2, -1)
-        )
+        tmp_x = x.view(batch_size, 2, -1)
 
         x_max = (
             tmp_x
