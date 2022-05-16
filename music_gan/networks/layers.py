@@ -2,7 +2,7 @@ import torch as th
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .functions import decomposition
+from .functions import matrix_multiple
 
 
 class PixelNorm(nn.Module):
@@ -151,7 +151,7 @@ class ToMagnPhase(nn.Module):
 
         in_channels = self.__conv.weight.size()[0]
         m = layer.__conv.weight.data[:, :, 0, 0]
-        _, dec_2 = decomposition(m, in_channels)
+        _, dec_2 = matrix_multiple(m, in_channels)
         self.__conv.weight.data[:, :, 0, 0] = dec_2
 
 
@@ -182,7 +182,7 @@ class FromMagnPhase(nn.Module):
         nn.init.zeros_(self.__conv.bias)
 
         m = layer.__conv.weight.data[:, :, 0, 0]
-        _, linear_decomp_2 = decomposition(m, out_channels)
+        _, linear_decomp_2 = matrix_multiple(m, out_channels)
         self.__conv.weight.data[:, :, 0, 0] = linear_decomp_2.clone()
 
 
