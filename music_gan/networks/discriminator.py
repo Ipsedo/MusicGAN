@@ -63,7 +63,7 @@ class DecBlock(nn.Module):
         self.__in_channels = in_channels
         self.__out_channels = out_channels
 
-    def forward(self, x: th.Tensor, alpha: float) -> th.Tensor:
+    def forward(self, x: th.Tensor, alpha: float = 2e-1) -> th.Tensor:
         out = self.__conv(x)
         out = F.leaky_relu(out, alpha)
 
@@ -76,7 +76,7 @@ class DecBlock(nn.Module):
         # Init first conv - from last layer
         self.__conv.bias.data = layer.conv.bias.data.clone()
 
-        m = layer.conv.weight.data[:, :, 0, 0]
+        m = layer.conv.weight.data[:, :, 0, 0].clone()
         linear_decomp_1, _ = decomposition(m, self.__in_channels)
 
         nn.init.zeros_(self.__conv.weight)
@@ -85,9 +85,10 @@ class DecBlock(nn.Module):
         # Init second conv - identity
         nn.init.zeros_(self.__conv_down.bias)
         nn.init.zeros_(self.__conv_down.weight)
-        self.__conv_down.weight.data[:, :, :, :] = (
+        # with stride of 2, only fill with identity 2 * 2 kernel pixel
+        self.__conv_down.weight.data[:, :, 1:, 1:] = (
             th.eye(self.__out_channels)[:, :, None, None]
-            .repeat(1, 1, 3, 3)
+            .repeat(1, 1, 2, 2) / 4  # kernel is 3 * 3 and we want to fill 2 * 2
         )
 
 
@@ -151,7 +152,7 @@ class Discriminator(nn.Module):
         out = self.__conv_blocks[self.__curr_layer](out, alpha)
 
         for i in range(self.__curr_layer + 1, len(self.__conv_blocks)):
-            out = self.__conv_blocks[i](out, 2e-1)
+            out = self.__conv_blocks[i](out)
 
         out = out.flatten(1, -1)
 
