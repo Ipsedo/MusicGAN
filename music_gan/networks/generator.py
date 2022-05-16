@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from typing import Iterator, OrderedDict
 
 from .layers import PixelNorm, ToMagnPhase
-from .functions import decomposition
+from .functions import matrix_multiple
 
 
 class Block(nn.Sequential):
@@ -91,7 +91,7 @@ class DecBlock(nn.Module):
 
         m = layer.conv.weight.data[:, :, 0, 0].clone()
 
-        dec_1, _ = decomposition(m, self.__out_channels)
+        dec_1, _ = matrix_multiple(m, self.__out_channels)
 
         self.__conv.weight.data[:, :, 1, 1] = dec_1.clone()
 

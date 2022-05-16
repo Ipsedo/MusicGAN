@@ -3,10 +3,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.autograd as th_autograd
 
-from .layers import FromMagnPhase, PixelNorm
-from .functions import decomposition
+from .layers import FromMagnPhase
+from .functions import matrix_multiple
 
-from typing import Iterator, OrderedDict, Optional
+from typing import Iterator, OrderedDict
 
 
 class Block(nn.Sequential):
@@ -77,7 +77,7 @@ class DecBlock(nn.Module):
         self.__conv.bias.data = layer.conv.bias.data.clone()
 
         m = layer.conv.weight.data[:, :, 0, 0].clone()
-        linear_decomp_1, _ = decomposition(m, self.__in_channels)
+        linear_decomp_1, _ = matrix_multiple(m, self.__in_channels)
 
         nn.init.zeros_(self.__conv.weight)
         self.__conv.weight.data[:, :, 1, 1] = linear_decomp_1.clone()
