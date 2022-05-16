@@ -76,11 +76,11 @@ class DecBlock(nn.Module):
         # Init first conv - from last layer
         self.__conv.bias.data = layer.conv.bias.data.clone()
 
-        m = layer.conv.weight.data[:, :, 0, 0].clone()
-        linear_decomp_1, _ = matrix_multiple(m, self.__in_channels)
+        m = layer.conv.weight.data[:, :, 0, 0].clone().transpose(1, 0)
+        _, linear_decomp_2 = matrix_multiple(m, self.__in_channels)
 
         nn.init.zeros_(self.__conv.weight)
-        self.__conv.weight.data[:, :, 1, 1] = linear_decomp_1.clone()
+        self.__conv.weight.data[:, :, 1, 1] = linear_decomp_2.transpose(1, 0).clone()
 
         # Init second conv - identity
         nn.init.zeros_(self.__conv_down.bias)

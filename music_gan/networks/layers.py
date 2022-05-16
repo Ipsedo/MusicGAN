@@ -181,9 +181,6 @@ class FromMagnPhase(nn.Module):
 
         nn.init.zeros_(self.__conv.bias)
 
-        m = layer.__conv.weight.data[:, :, 0, 0]
-        _, linear_decomp_2 = matrix_multiple(m, out_channels)
-        self.__conv.weight.data[:, :, 0, 0] = linear_decomp_2.clone()
-
-
-
+        m = layer.__conv.weight.data[:, :, 0, 0].transpose(1, 0)
+        linear_decomp_1, _ = matrix_multiple(m, out_channels)
+        self.__conv.weight.data[:, :, 0, 0] = linear_decomp_1.transpose(1, 0).clone()
