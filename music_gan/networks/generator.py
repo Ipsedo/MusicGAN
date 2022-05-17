@@ -80,7 +80,9 @@ class DecBlock(nn.Module):
         nn.init.zeros_(self.__conv_up.bias)
         nn.init.zeros_(self.__conv_up.weight)
 
-        # output_padding is at left, so with stride of 2 identity needs fo be filled on 2 * 2 pixel kernel
+        # output_padding is at left,
+        # so with stride of 2, identity needs to
+        # be filled on 2 * 2 pixel kernel
         self.__conv_up.weight.data[:, :, 1:, 1:] = (
             th.eye(self.__in_channels)[:, :, None, None]
             .repeat(1, 1, 2, 2)
