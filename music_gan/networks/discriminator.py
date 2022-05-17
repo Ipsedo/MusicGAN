@@ -74,17 +74,18 @@ class DecBlock(nn.Module):
 
     def from_layer(self, layer: FromMagnPhase) -> None:
         # Init first conv - from last layer
-        self.__conv.bias.data = layer.conv.bias.data.clone()
+        self.__conv.bias.data[:] = layer.conv.bias.data.clone()
+        nn.init.zeros_(self.__conv.weight)
 
         m = layer.conv.weight.data[:, :, 0, 0].clone().transpose(1, 0)
         _, linear_decomp_2 = matrix_multiple(m, self.__in_channels)
 
-        nn.init.zeros_(self.__conv.weight)
         self.__conv.weight.data[:, :, 1, 1] = linear_decomp_2.transpose(1, 0).clone()
 
         # Init second conv - identity
         nn.init.zeros_(self.__conv_down.bias)
         nn.init.zeros_(self.__conv_down.weight)
+
         # with stride of 2, only fill with identity 2 * 2 kernel pixel
         self.__conv_down.weight.data[:, :, 1:, 1:] = (
             th.eye(self.__out_channels)[:, :, None, None]

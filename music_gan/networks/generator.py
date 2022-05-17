@@ -76,9 +76,9 @@ class DecBlock(nn.Module):
         return out
 
     def from_layer(self, layer: ToMagnPhase) -> None:
-
         # Init first conv - identity
         nn.init.zeros_(self.__conv_up.bias)
+        nn.init.zeros_(self.__conv_up.weight)
 
         # output_padding is at left, so with stride of 2 identity needs fo be filled on 2 * 2 pixel kernel
         self.__conv_up.weight.data[:, :, 1:, 1:] = (
@@ -88,11 +88,10 @@ class DecBlock(nn.Module):
 
         # Init second conv - from last layer
         nn.init.zeros_(self.__conv.bias)
+        nn.init.zeros_(self.__conv.weight)
 
         m = layer.conv.weight.data[:, :, 0, 0].clone()
-
         dec_1, _ = matrix_multiple(m, self.__out_channels)
-
         self.__conv.weight.data[:, :, 1, 1] = dec_1.clone()
 
 

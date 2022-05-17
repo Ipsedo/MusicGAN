@@ -63,18 +63,19 @@ class Grower:
             )
 
     def __update_bars(self) -> None:
-        if self.__step_sample_idx <= self.__fadein_lengths[self.__curr_grow]:
-            self.__tqdm_bar_fadein.set_description(
-                f"⌙> fade in "
-            )
 
+        self.__tqdm_bar_fadein.set_description(
+            f"⌙> fade in "
+        )
+
+        self.__tqdm_bar_grow.set_description(
+            f"⌙> grow [{self.__curr_grow} / {self.__n_grow}] "
+        )
+
+        if self.__step_sample_idx <= self.__fadein_lengths[self.__curr_grow]:
             self.__tqdm_bar_fadein.update(1)
 
         if self.__curr_grow < self.__n_grow:
-            self.__tqdm_bar_grow.set_description(
-                f"⌙> grow [{self.__curr_grow} / {self.__n_grow}] "
-            )
-
             self.__tqdm_bar_grow.update(1)
 
     def grow(self) -> bool:
