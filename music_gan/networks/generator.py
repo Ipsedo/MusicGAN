@@ -166,14 +166,14 @@ class Generator(nn.Module):
                 self.__channels[self.curr_layer][1]
             )
 
-            self.__end_block.from_layer(last_end_block)
-            self.__gen_blocks[self.curr_layer].from_layer(last_end_block)
-
             device = "cuda" \
                 if next(self.__gen_blocks.parameters()).is_cuda \
                 else "cpu"
 
             self.__end_block.to(device)
+
+            self.__end_block.from_layer(last_end_block)
+            self.__gen_blocks[self.curr_layer].from_layer(last_end_block)
 
             return True
 

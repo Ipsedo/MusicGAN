@@ -173,14 +173,14 @@ class Discriminator(nn.Module):
                 self.__channels[self.curr_layer][0]
             )
 
-            self.__start_block.from_layer(last_start_block)
-            self.__conv_blocks[self.__curr_layer].from_layer(last_start_block)
-
             device = "cuda" \
                 if next(self.__conv_blocks.parameters()).is_cuda \
                 else "cpu"
 
             self.__start_block.to(device)
+
+            self.__start_block.from_layer(last_start_block)
+            self.__conv_blocks[self.__curr_layer].from_layer(last_start_block)
 
             return True
 
@@ -220,7 +220,7 @@ class Discriminator(nn.Module):
         gradients_norm = gradients.norm(2, dim=1)
         gradient_penalty = ((gradients_norm - 1.) ** 2.).mean()
 
-        grad_pen_factor = 8.
+        grad_pen_factor = 32.
 
         return grad_pen_factor * gradient_penalty
 
