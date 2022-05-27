@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.autograd as th_autograd
 
-from .layers import FromMagnPhase
+from .layers import FromMagnPhase, PixelNorm
 from .functions import matrix_multiple
 
 from typing import Iterator, OrderedDict
@@ -220,7 +220,7 @@ class Discriminator(nn.Module):
         gradients_norm = gradients.norm(2, dim=1)
         gradient_penalty = ((gradients_norm - 1.) ** 2.).mean()
 
-        grad_pen_factor = 32.
+        grad_pen_factor = 8.
 
         return grad_pen_factor * gradient_penalty
 
