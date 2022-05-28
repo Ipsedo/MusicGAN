@@ -43,7 +43,7 @@ class Grower:
             .tolist()
         )
 
-        self.__init_tqdm_bars()
+        #self.__init_tqdm_bars()
 
     def __init_tqdm_bars(self) -> None:
         self.__tqdm_bar_fadein = tqdm(
@@ -76,7 +76,7 @@ class Grower:
             self.__tqdm_bar_grow.update(1)
 
     def grow(self) -> bool:
-        self.__update_bars()
+        #self.__update_bars()
 
         self.__sample_idx += 1
         self.__step_sample_idx += 1
@@ -91,7 +91,7 @@ class Grower:
             self.__downscale -= 1
             self.__transform = Grower.__get_transform(self.__downscale)
 
-            self.__init_tqdm_bars()
+            #self.__init_tqdm_bars()
 
             return True
 
