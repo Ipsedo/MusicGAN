@@ -10,13 +10,13 @@ from .functions import matrix_multiple
 from .layers import FromMagnPhase, PixelNorm
 
 
-class Block(nn.Sequential):
+class OldBlock(nn.Sequential):
     def __init__(
             self,
             in_channels: int,
             out_channels: int
     ):
-        super(Block, self).__init__(*[
+        super(OldBlock, self).__init__(*[
             nn.Conv2d(
                 in_channels,
                 out_channels,
@@ -37,13 +37,13 @@ class Block(nn.Sequential):
         ])
 
 
-class DecBlock(nn.Module):
+class DiscBlock(nn.Module):
     def __init__(
             self,
             in_channels: int,
             out_channels: int
     ):
-        super(DecBlock, self).__init__()
+        super(DiscBlock, self).__init__()
 
         self.__conv = nn.Conv2d(
             in_channels,
@@ -78,7 +78,7 @@ class DecBlock(nn.Module):
         self.__conv.bias.data[:] = bias.clone()
         nn.init.zeros_(self.__conv.weight)
 
-        self.__conv.weight.data[:, :, 1, 1] = factor_2.transpose(1, 0).clone()
+        self.__conv.weight.data[:, :, 1, 1] = factor_2.clone()
 
         # Init second conv - identity
         nn.init.zeros_(self.__conv_down.bias)
@@ -122,7 +122,7 @@ class Discriminator(nn.Module):
         assert 0 <= start_layer <= len(conv_channels)
 
         self.__conv_blocks = nn.ModuleList([
-            DecBlock(c[0], c[1])
+            DiscBlock(c[0], c[1])
             for i, c in enumerate(conv_channels)
         ])
 
@@ -178,11 +178,13 @@ class Discriminator(nn.Module):
             self.__start_block.to(device)
 
             b = last_start_block.conv.bias.data
+            # transpose to fit matrix_multiple dims
             m = last_start_block.conv.weight.data[:, :, 0, 0].transpose(1, 0)
             factor_1, factor_2 = matrix_multiple(m, self.__channels[self.curr_layer][0])
 
-            self.__start_block.from_layer(factor_1)
-            self.__conv_blocks[self.__curr_layer].from_layer(factor_2, b)
+            # transpose back to fit PyTorch dims
+            self.__start_block.from_layer(factor_1.transpose(1, 0))
+            self.__conv_blocks[self.__curr_layer].from_layer(factor_2.transpose(1, 0), b)
 
             return True
 
