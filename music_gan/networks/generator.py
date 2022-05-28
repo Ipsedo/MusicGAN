@@ -9,13 +9,13 @@ from .functions import matrix_multiple
 from .layers import PixelNorm, ToMagnPhase
 
 
-class Block(nn.Sequential):
+class OldBlock(nn.Sequential):
     def __init__(
             self,
             in_channels: int,
             out_channels: int
     ):
-        super(Block, self).__init__(
+        super(OldBlock, self).__init__(
             nn.ConvTranspose2d(
                 in_channels,
                 in_channels,
@@ -39,13 +39,13 @@ class Block(nn.Sequential):
         )
 
 
-class DecBlock(nn.Module):
+class GenBlock(nn.Module):
     def __init__(
             self,
             in_channels: int,
             out_channels: int
     ):
-        super(DecBlock, self).__init__()
+        super(GenBlock, self).__init__()
 
         self.__conv_up = nn.ConvTranspose2d(
             in_channels,
@@ -67,8 +67,6 @@ class DecBlock(nn.Module):
         self.__in_channels = in_channels
         self.__out_channels = out_channels
 
-        self.__pn = PixelNorm()
-
     def forward(self, x: th.Tensor, alpha: float = LEAKY_RELU_SLOPE) -> th.Tensor:
         out = self.__conv_up(x)
         out = F.leaky_relu(out, alpha)
@@ -87,7 +85,7 @@ class DecBlock(nn.Module):
         # so with stride of 2, identity needs to
         # be filled on 2 * 2 pixel kernel
         self.__conv_up.weight.data[:, :, 1:, 1:] = (
-            th.eye(self.__in_channels).transpose(1, 0)[:, :, None, None]
+            th.eye(self.__in_channels)[:, :, None, None]
             .repeat(1, 1, 2, 2)
         )
 
@@ -130,7 +128,7 @@ class Generator(nn.Module):
 
         # Generator layers
         self.__gen_blocks = nn.ModuleList([
-            DecBlock(c[0], c[1])
+            GenBlock(c[0], c[1])
             for i, c in enumerate(channels)
         ])
 
@@ -177,8 +175,8 @@ class Generator(nn.Module):
             m = last_end_block.conv.weight.data[:, :, 0, 0]
             factor_1, factor_2 = matrix_multiple(m, self.__channels[self.curr_layer][1])
 
-            self.__end_block.from_layer(factor_2, b)
             self.__gen_blocks[self.curr_layer].from_layer(factor_1)
+            self.__end_block.from_layer(factor_2, b)
 
             return True
 
