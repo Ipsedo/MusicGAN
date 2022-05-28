@@ -164,10 +164,6 @@ class FromMagnPhase(nn.Module):
             stride=(1, 1)
         )
 
-        self.__inst_norm = nn.InstanceNorm2d(
-            out_channels, affine=False
-        )
-
     @property
     def conv(self) -> nn.Conv2d:
         return self.__conv
@@ -175,7 +171,6 @@ class FromMagnPhase(nn.Module):
     def forward(self, magn_phase: th.Tensor, alpha: float) -> th.Tensor:
         out = self.__conv(magn_phase)
         out = F.leaky_relu(out, alpha)
-        out = self.__inst_norm(out)
 
         return out
 
