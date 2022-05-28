@@ -1,11 +1,12 @@
+from typing import Iterator, OrderedDict
+
 import torch as th
 import torch.nn as nn
 import torch.nn.functional as F
 
-from typing import Iterator, OrderedDict
-
-from .layers import PixelNorm, ToMagnPhase
+from .constants import LEAKY_RELU_SLOPE
 from .functions import matrix_multiple
+from .layers import PixelNorm, ToMagnPhase
 
 
 class Block(nn.Sequential):
@@ -66,7 +67,7 @@ class DecBlock(nn.Module):
         self.__in_channels = in_channels
         self.__out_channels = out_channels
 
-    def forward(self, x: th.Tensor, alpha: float = 2e-1) -> th.Tensor:
+    def forward(self, x: th.Tensor, alpha: float = LEAKY_RELU_SLOPE) -> th.Tensor:
         out = self.__conv_up(x)
         out = F.leaky_relu(out, alpha)
 
@@ -93,8 +94,8 @@ class DecBlock(nn.Module):
         nn.init.zeros_(self.__conv.weight)
 
         m = layer.conv.weight.data[:, :, 0, 0].clone()
-        dec_1, _ = matrix_multiple(m, self.__out_channels)
-        self.__conv.weight.data[:, :, 1, 1] = dec_1.clone()
+        factor_1, _ = matrix_multiple(m, self.__out_channels)
+        self.__conv.weight.data[:, :, 1, 1] = factor_1.clone()
 
 
 class Generator(nn.Module):

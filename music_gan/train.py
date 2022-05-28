@@ -1,18 +1,15 @@
+from os import mkdir
+from os.path import exists, isdir
+from statistics import mean
+
+import mlflow
+import torch as th
+from torch.utils.data import DataLoader
+from tqdm import tqdm
+
 from . import audio
 from . import networks
 from .utils import Grower, Saver
-
-import torch as th
-from torch.utils.data import DataLoader
-
-from os import mkdir
-from os.path import exists, isdir
-
-import mlflow
-
-from tqdm import tqdm
-
-from statistics import mean
 
 
 def train(
@@ -37,11 +34,11 @@ def train(
 
     disc_lr = 4e-4
     gen_lr = 4e-4
-    betas = (0., 0.99)
+    betas = (0., 0.9)
 
     nb_epoch = 1000
     batch_size = 8
-    train_gen_every = 4
+    train_gen_every = 2
 
     if not exists(output_dir):
         mkdir(output_dir)
@@ -101,11 +98,11 @@ def train(
     grower = Grower(
         n_grow=7,
         fadein_lengths=[
-            1, 10000, 10000, 10000, 10000, 10000, 20000, 40000,
+            1, 10000, 10000, 10000, 10000, 10000, 10000, 10000,
             #1,1,1,1,1,1,1,1
         ],
         train_lengths=[
-            30000, 40000, 40000, 40000, 40000, 40000, 80000,
+            30000, 40000, 40000, 40000, 40000, 40000, 40000,
             #1,1,1,1,1,1,1
         ]
     )

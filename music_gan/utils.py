@@ -1,16 +1,13 @@
-from . import audio
-from .networks import Discriminator, Generator
-
 from os.path import join
-
-import torch as th
-from torchvision.transforms import Compose, Resize
+from typing import List
 
 import matplotlib.pyplot as plt
-
+import torch as th
+from torchvision.transforms import Compose, Resize
 from tqdm import tqdm
 
-from typing import List
+from . import audio
+from .networks import Discriminator, Generator, LEAKY_RELU_SLOPE
 
 
 class Grower:
@@ -102,10 +99,9 @@ class Grower:
 
     @property
     def alpha(self) -> float:
-        leaky_relu_max = 2e-1
         return max(
-            leaky_relu_max,
-            1. - (1 - leaky_relu_max) * (1. + self.__step_sample_idx) /
+            LEAKY_RELU_SLOPE,
+            1. - (1 - LEAKY_RELU_SLOPE) * (1. + self.__step_sample_idx) /
             self.__fadein_lengths[self.__curr_grow]
         )
 

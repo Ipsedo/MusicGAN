@@ -1,13 +1,10 @@
-import torch as th
-from torch.utils.data import Dataset
-
-import numpy as np
-
+import re
 from os import listdir
 from os.path import isdir, isfile, join
 
-import re
-
+import numpy as np
+import torch as th
+from torch.utils.data import Dataset
 from tqdm import tqdm
 
 
