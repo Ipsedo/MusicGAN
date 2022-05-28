@@ -179,4 +179,4 @@ class FromMagnPhase(nn.Module):
         nn.init.zeros_(self.__conv.bias)
         nn.init.zeros_(self.__conv.weight)
 
-        self.__conv.weight.data[:, :, 0, 0] = factor_1.transpose(1, 0).clone()
+        self.__conv.weight.data[:, :, 0, 0] = factor_1.clone()
