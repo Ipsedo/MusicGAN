@@ -7,7 +7,7 @@ import torch.nn.functional as F
 
 from .constants import LEAKY_RELU_SLOPE
 from .functions import matrix_multiple
-from .layers import FromMagnPhase, PixelNorm
+from .layers import FromMagnPhase
 
 
 class OldBlock(nn.Sequential):
@@ -178,11 +178,11 @@ class Discriminator(nn.Module):
             self.__start_block.to(device)
 
             b = last_start_block.conv.bias.data
-            # transpose to fit matrix_multiple dims
+            # transpose to fit matrix_multiple dims order
             m = last_start_block.conv.weight.data[:, :, 0, 0].transpose(1, 0)
             factor_1, factor_2 = matrix_multiple(m, self.__channels[self.curr_layer][0])
 
-            # transpose back to fit PyTorch dims
+            # transpose back to fit PyTorch dims order
             self.__start_block.from_layer(factor_1.transpose(1, 0))
             self.__conv_blocks[self.__curr_layer].from_layer(factor_2.transpose(1, 0), b)
 
@@ -270,7 +270,8 @@ class RecurrentDiscriminator(nn.Module):
         self.__rnn = nn.RNN(
             conv_disc.end_layer_channels * 2,
             rnn_out_size,
-            batch_first=True
+            batch_first=True,
+            nonlinearity="tanh"  # Use ReLU or tanh ? (symmetry with generator)
         )
 
         self.__clf = nn.Linear(
