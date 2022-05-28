@@ -56,20 +56,12 @@ class DecBlock(nn.Module):
             output_padding=(1, 1)
         )
 
-        self.__inst_norm_1 = nn.InstanceNorm2d(
-            in_channels, affine=False
-        )
-
         self.__conv = nn.ConvTranspose2d(
             in_channels,
             out_channels,
             kernel_size=(3, 3),
             padding=(1, 1),
             stride=(1, 1)
-        )
-
-        self.__inst_norm_2 = nn.InstanceNorm2d(
-            out_channels, affine=False
         )
 
         self.__in_channels = in_channels
@@ -79,11 +71,9 @@ class DecBlock(nn.Module):
 
     def forward(self, x: th.Tensor, alpha: float = LEAKY_RELU_SLOPE) -> th.Tensor:
         out = self.__conv_up(x)
-        #out = self.__inst_norm_1(out)
         out = F.leaky_relu(out, alpha)
 
         out = self.__conv(out)
-        #out = self.__inst_norm_2(out)
         out = F.leaky_relu(out, alpha)
 
         return out

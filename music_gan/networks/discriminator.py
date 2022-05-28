@@ -53,20 +53,12 @@ class DecBlock(nn.Module):
             padding=(1, 1),
         )
 
-        self.__inst_norm = nn.InstanceNorm2d(
-            out_channels, affine=False
-        )
-
         self.__conv_down = nn.Conv2d(
             out_channels,
             out_channels,
             kernel_size=(3, 3),
             stride=(2, 2),
             padding=(1, 1)
-        )
-
-        self.__inst_norm = nn.InstanceNorm2d(
-            out_channels, affine=False
         )
 
         self.__in_channels = in_channels
