@@ -1,11 +1,9 @@
-import torch as th
-
-from tqdm import tqdm
-
 import glob
-
-from os.path import exists, join, isdir
 from os import mkdir
+from os.path import exists, join, isdir
+
+import torch as th
+from tqdm import tqdm
 
 from . import audio
 

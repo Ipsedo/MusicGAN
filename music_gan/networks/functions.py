@@ -1,6 +1,6 @@
-import torch as th
-
 from typing import Tuple
+
+import torch as th
 
 
 def __fill_diag(m: th.Tensor, v: th.Tensor) -> th.Tensor:

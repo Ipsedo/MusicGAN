@@ -152,9 +152,9 @@ class ToMagnPhase(nn.Module):
 
         in_channels = self.__conv.weight.size()[0]
         m = layer.__conv.weight.data[:, :, 0, 0]
-        _, dec_2 = matrix_multiple(m, in_channels)
+        _, factor_2 = matrix_multiple(m, in_channels)
 
-        self.__conv.weight.data[:, :, 0, 0] = dec_2
+        self.__conv.weight.data[:, :, 0, 0] = factor_2
 
 
 class FromMagnPhase(nn.Module):
@@ -185,5 +185,5 @@ class FromMagnPhase(nn.Module):
         nn.init.zeros_(self.__conv.weight)
 
         m = layer.__conv.weight.data[:, :, 0, 0].transpose(1, 0)
-        linear_decomp_1, _ = matrix_multiple(m, out_channels)
-        self.__conv.weight.data[:, :, 0, 0] = linear_decomp_1.transpose(1, 0).clone()
+        factor_1, _ = matrix_multiple(m, out_channels)
+        self.__conv.weight.data[:, :, 0, 0] = factor_1.transpose(1, 0).clone()

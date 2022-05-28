@@ -1,12 +1,11 @@
-from .networks import Generator
-from . import audio
-
-import torch as th
-
 from os import mkdir
 from os.path import exists, isdir, join
 
+import torch as th
 from tqdm import tqdm
+
+from . import audio
+from .networks import Generator
 
 
 def generate(

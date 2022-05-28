@@ -1,12 +1,13 @@
+from typing import Iterator, OrderedDict
+
 import torch as th
+import torch.autograd as th_autograd
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.autograd as th_autograd
 
-from .layers import FromMagnPhase, PixelNorm
+from .constants import LEAKY_RELU_SLOPE
 from .functions import matrix_multiple
-
-from typing import Iterator, OrderedDict
+from .layers import FromMagnPhase
 
 
 class Block(nn.Sequential):
@@ -63,7 +64,7 @@ class DecBlock(nn.Module):
         self.__in_channels = in_channels
         self.__out_channels = out_channels
 
-    def forward(self, x: th.Tensor, alpha: float = 2e-1) -> th.Tensor:
+    def forward(self, x: th.Tensor, alpha: float = LEAKY_RELU_SLOPE) -> th.Tensor:
         out = self.__conv(x)
         out = F.leaky_relu(out, alpha)
 
@@ -78,9 +79,9 @@ class DecBlock(nn.Module):
         nn.init.zeros_(self.__conv.weight)
 
         m = layer.conv.weight.data[:, :, 0, 0].clone().transpose(1, 0)
-        _, linear_decomp_2 = matrix_multiple(m, self.__in_channels)
+        _, factor_2 = matrix_multiple(m, self.__in_channels)
 
-        self.__conv.weight.data[:, :, 1, 1] = linear_decomp_2.transpose(1, 0).clone()
+        self.__conv.weight.data[:, :, 1, 1] = factor_2.transpose(1, 0).clone()
 
         # Init second conv - identity
         nn.init.zeros_(self.__conv_down.bias)
@@ -89,7 +90,7 @@ class DecBlock(nn.Module):
         # with stride of 2, only fill with identity 2 * 2 kernel pixel
         self.__conv_down.weight.data[:, :, 1:, 1:] = (
             th.eye(self.__out_channels)[:, :, None, None]
-            .repeat(1, 1, 2, 2) / 4  # kernel is 3 * 3 and we want to fill 2 * 2
+            .repeat(1, 1, 2, 2) / 4  # kernel is 3 * 3, and we want to fill 2 * 2
         )
 
 
@@ -282,7 +283,7 @@ class RecurrentDiscriminator(nn.Module):
         out = (
             # flatten channels and freq
             th.flatten(out, 1, 2)
-            # permute <batch, time, channels * freq>
+            # permute <0: batch, 2: time, 1: channels * freq>
             .permute(0, 2, 1)
         )
 

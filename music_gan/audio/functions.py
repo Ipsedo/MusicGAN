@@ -1,13 +1,12 @@
+from typing import Tuple
+
+import numpy as np
 import torch as th
 import torch.nn.functional as th_f
 import torchaudio as th_audio
 import torchaudio.functional as th_audio_f
 
-import numpy as np
-
-from typing import Tuple
-
-from . import constant
+from . import constants
 
 
 def diff(x: th.Tensor) -> th.Tensor:
@@ -37,13 +36,13 @@ def bark_magn_scale(magn: th.Tensor, unscale: bool = False) -> th.Tensor:
 
 def wav_to_stft(
         wav_p: str,
-        nperseg: int = constant.N_FFT,
-        stride: int = constant.STFT_STRIDE,
+        nperseg: int = constants.N_FFT,
+        stride: int = constants.STFT_STRIDE,
 ) -> th.Tensor:
     raw_audio, sr = th_audio.load(wav_p)
 
-    assert sr == constant.SAMPLE_RATE, \
-        f"Audio sample rate must be {constant.SAMPLE_RATE}Hz, " \
+    assert sr == constants.SAMPLE_RATE, \
+        f"Audio sample rate must be {constants.SAMPLE_RATE}Hz, " \
         f"file \"{wav_p}\" is {sr}Hz"
 
     raw_audio_mono = raw_audio.mean(0)
@@ -64,7 +63,7 @@ def wav_to_stft(
 
 def stft_to_phase_magn(
         complex_values: th.Tensor,
-        nb_vec: int = constant.N_VEC,
+        nb_vec: int = constants.N_VEC,
         epsilon: float = 1e-8
 ) -> Tuple[th.Tensor, th.Tensor]:
     magn = th.abs(complex_values)
@@ -107,8 +106,8 @@ def magn_phase_to_wav(
     assert magn_phase.size()[1] == 2, \
         f"Channels must be equal to 2, actual = {magn_phase.size()[1]}"
 
-    assert magn_phase.size()[2] == constant.N_FFT // 2, \
-        f"Frequency size must be equal to {constant.N_FFT // 2}, " \
+    assert magn_phase.size()[2] == constants.N_FFT // 2, \
+        f"Frequency size must be equal to {constants.N_FFT // 2}, " \
         f"actual = {magn_phase.size()[2]}"
 
     magn = magn_phase.permute(1, 2, 0, 3).flatten(2, 3)[0, :]
@@ -133,13 +132,13 @@ def magn_phase_to_wav(
 
     z = real_res + imag_res * 1j
 
-    hann_window = th.hann_window(constant.N_FFT)
+    hann_window = th.hann_window(constants.N_FFT)
 
     raw_audio = th_audio_f.inverse_spectrogram(
         z, length=None,
         pad=0, window=hann_window,
-        n_fft=constant.N_FFT, hop_length=constant.STFT_STRIDE,
-        win_length=constant.N_FFT, normalized=True
+        n_fft=constants.N_FFT, hop_length=constants.STFT_STRIDE,
+        win_length=constants.N_FFT, normalized=True
     )
 
     th_audio.save(wav_path, raw_audio[None, :], sample_rate)
