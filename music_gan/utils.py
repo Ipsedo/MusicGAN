@@ -76,10 +76,10 @@ class Grower:
             self.__tqdm_bar_grow.update(1)
 
     def grow(self) -> bool:
+        self.__update_bars()
+
         self.__sample_idx += 1
         self.__step_sample_idx += 1
-
-        self.__update_bars()
 
         if self.__curr_grow >= self.__n_grow:
             return False
