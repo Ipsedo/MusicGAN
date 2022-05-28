@@ -7,7 +7,7 @@ import torch.nn.functional as F
 
 from .constants import LEAKY_RELU_SLOPE
 from .functions import matrix_multiple
-from .layers import FromMagnPhase
+from .layers import FromMagnPhase, PixelNorm
 
 
 class Block(nn.Sequential):
@@ -53,12 +53,20 @@ class DecBlock(nn.Module):
             padding=(1, 1),
         )
 
+        self.__inst_norm = nn.InstanceNorm2d(
+            out_channels, affine=False
+        )
+
         self.__conv_down = nn.Conv2d(
             out_channels,
             out_channels,
             kernel_size=(3, 3),
             stride=(2, 2),
             padding=(1, 1)
+        )
+
+        self.__inst_norm = nn.InstanceNorm2d(
+            out_channels, affine=False
         )
 
         self.__in_channels = in_channels
@@ -73,13 +81,10 @@ class DecBlock(nn.Module):
 
         return out
 
-    def from_layer(self, layer: FromMagnPhase) -> None:
+    def from_layer(self, factor_2: th.Tensor, bias: th.Tensor) -> None:
         # Init first conv - from last layer
-        self.__conv.bias.data[:] = layer.conv.bias.data.clone()
+        self.__conv.bias.data[:] = bias.clone()
         nn.init.zeros_(self.__conv.weight)
-
-        m = layer.conv.weight.data[:, :, 0, 0].clone().transpose(1, 0)
-        _, factor_2 = matrix_multiple(m, self.__in_channels)
 
         self.__conv.weight.data[:, :, 1, 1] = factor_2.transpose(1, 0).clone()
 
@@ -180,8 +185,12 @@ class Discriminator(nn.Module):
 
             self.__start_block.to(device)
 
-            self.__start_block.from_layer(last_start_block)
-            self.__conv_blocks[self.__curr_layer].from_layer(last_start_block)
+            b = last_start_block.conv.bias.data
+            m = last_start_block.conv.weight.data[:, :, 0, 0].transpose(1, 0)
+            factor_1, factor_2 = matrix_multiple(m, self.__channels[self.curr_layer][0])
+
+            self.__start_block.from_layer(factor_1)
+            self.__conv_blocks[self.__curr_layer].from_layer(factor_2, b)
 
             return True
 

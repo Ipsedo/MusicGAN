@@ -145,16 +145,12 @@ class ToMagnPhase(nn.Module):
 
         return out
 
-    def from_layer(self, layer: 'ToMagnPhase') -> None:
+    def from_layer(self, factor_2: th.Tensor, bias: th.Tensor) -> None:
 
-        self.__conv.bias.data[:] = layer.__conv.bias.data.clone()
+        self.__conv.bias.data[:] = bias.clone()
         nn.init.zeros_(self.__conv.weight)
 
-        in_channels = self.__conv.weight.size()[0]
-        m = layer.__conv.weight.data[:, :, 0, 0]
-        _, factor_2 = matrix_multiple(m, in_channels)
-
-        self.__conv.weight.data[:, :, 0, 0] = factor_2
+        self.__conv.weight.data[:, :, 0, 0] = factor_2.clone()
 
 
 class FromMagnPhase(nn.Module):
@@ -168,6 +164,10 @@ class FromMagnPhase(nn.Module):
             stride=(1, 1)
         )
 
+        self.__inst_norm = nn.InstanceNorm2d(
+            out_channels, affine=False
+        )
+
     @property
     def conv(self) -> nn.Conv2d:
         return self.__conv
@@ -175,15 +175,13 @@ class FromMagnPhase(nn.Module):
     def forward(self, magn_phase: th.Tensor, alpha: float) -> th.Tensor:
         out = self.__conv(magn_phase)
         out = F.leaky_relu(out, alpha)
+        out = self.__inst_norm(out)
 
         return out
 
-    def from_layer(self, layer: 'FromMagnPhase') -> None:
-        out_channels = self.__conv.weight.size()[0]
+    def from_layer(self, factor_1: th.Tensor) -> None:
 
         nn.init.zeros_(self.__conv.bias)
         nn.init.zeros_(self.__conv.weight)
 
-        m = layer.__conv.weight.data[:, :, 0, 0].transpose(1, 0)
-        factor_1, _ = matrix_multiple(m, out_channels)
         self.__conv.weight.data[:, :, 0, 0] = factor_1.transpose(1, 0).clone()

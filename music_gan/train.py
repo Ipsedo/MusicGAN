@@ -38,7 +38,7 @@ def train(
 
     nb_epoch = 1000
     batch_size = 8
-    train_gen_every = 2
+    train_gen_every = 4
 
     if not exists(output_dir):
         mkdir(output_dir)

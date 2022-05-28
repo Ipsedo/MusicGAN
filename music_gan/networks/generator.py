@@ -56,6 +56,10 @@ class DecBlock(nn.Module):
             output_padding=(1, 1)
         )
 
+        self.__inst_norm_1 = nn.InstanceNorm2d(
+            in_channels, affine=False
+        )
+
         self.__conv = nn.ConvTranspose2d(
             in_channels,
             out_channels,
@@ -64,19 +68,27 @@ class DecBlock(nn.Module):
             stride=(1, 1)
         )
 
+        self.__inst_norm_2 = nn.InstanceNorm2d(
+            out_channels, affine=False
+        )
+
         self.__in_channels = in_channels
         self.__out_channels = out_channels
 
+        self.__pn = PixelNorm()
+
     def forward(self, x: th.Tensor, alpha: float = LEAKY_RELU_SLOPE) -> th.Tensor:
         out = self.__conv_up(x)
+        #out = self.__inst_norm_1(out)
         out = F.leaky_relu(out, alpha)
 
         out = self.__conv(out)
+        #out = self.__inst_norm_2(out)
         out = F.leaky_relu(out, alpha)
 
         return out
 
-    def from_layer(self, layer: ToMagnPhase) -> None:
+    def from_layer(self, factor_1: th.Tensor) -> None:
         # Init first conv - identity
         nn.init.zeros_(self.__conv_up.bias)
         nn.init.zeros_(self.__conv_up.weight)
@@ -85,7 +97,7 @@ class DecBlock(nn.Module):
         # so with stride of 2, identity needs to
         # be filled on 2 * 2 pixel kernel
         self.__conv_up.weight.data[:, :, 1:, 1:] = (
-            th.eye(self.__in_channels)[:, :, None, None]
+            th.eye(self.__in_channels).transpose(1, 0)[:, :, None, None]
             .repeat(1, 1, 2, 2)
         )
 
@@ -93,8 +105,6 @@ class DecBlock(nn.Module):
         nn.init.zeros_(self.__conv.bias)
         nn.init.zeros_(self.__conv.weight)
 
-        m = layer.conv.weight.data[:, :, 0, 0].clone()
-        factor_1, _ = matrix_multiple(m, self.__out_channels)
         self.__conv.weight.data[:, :, 1, 1] = factor_1.clone()
 
 
@@ -173,8 +183,12 @@ class Generator(nn.Module):
 
             self.__end_block.to(device)
 
-            self.__end_block.from_layer(last_end_block)
-            self.__gen_blocks[self.curr_layer].from_layer(last_end_block)
+            b = last_end_block.conv.bias.data
+            m = last_end_block.conv.weight.data[:, :, 0, 0]
+            factor_1, factor_2 = matrix_multiple(m, self.__channels[self.curr_layer][1])
+
+            self.__end_block.from_layer(factor_2, b)
+            self.__gen_blocks[self.curr_layer].from_layer(factor_1)
 
             return True
 
