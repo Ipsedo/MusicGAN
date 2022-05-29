@@ -38,7 +38,6 @@ def train(
 
     nb_epoch = 1000
     batch_size = 8
-    train_gen_every = 4
 
     if not exists(output_dir):
         mkdir(output_dir)
@@ -86,7 +85,6 @@ def train(
         "rand_channels": rand_channels,
         "nb_epoch": nb_epoch,
         "batch_size": batch_size,
-        "train_gen_every": train_gen_every,
         "disc_lr": disc_lr,
         "gen_lr": gen_lr,
         "betas": betas,
@@ -98,13 +96,14 @@ def train(
     grower = Grower(
         n_grow=7,
         fadein_lengths=[
-            1, 40000, 40000, 40000, 40000, 40000, 40000, 40000,
+            1, 10000, 10000, 10000, 10000, 10000, 10000, 10000,
             #1,1,1,1,1,1,1,1
         ],
         train_lengths=[
-            40000, 80000, 80000, 80000, 80000, 80000, 80000,
+            30000, 40000, 40000, 40000, 40000, 40000, 40000,
             #1,1,1,1,1,1,1
-        ]
+        ],
+        train_gen_every=[4, 4, 4, 4, 4, 2, 1, 1]
     )
 
     saver = Saver(
@@ -186,7 +185,7 @@ def train(
 
                 # [2] train generator
 
-                if iter_idx % train_gen_every == 0:
+                if iter_idx % grower.train_gen_every == 0:
 
                     # sample random latent data
                     z = th.randn(
