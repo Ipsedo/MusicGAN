@@ -100,10 +100,11 @@ def train(
             #1,1,1,1,1,1,1,1
         ],
         train_lengths=[
-            30000, 40000, 40000, 40000, 40000, 40000, 40000,
+            10000, 20000, 20000, 20000, 20000, 20000, 20000,
             #1,1,1,1,1,1,1
         ],
-        train_gen_every=[4, 4, 4, 4, 4, 4, 3, 2]
+        train_gen_every=[4, 4, 4, 4, 4, 4, 4, 4]
+        #train_gen_every=[1, 1, 1, 1, 1, 1, 1, 1]
     )
 
     saver = Saver(
@@ -148,11 +149,11 @@ def train(
                 )
 
                 # gen fake data
-                x_fake = gen(z, grower.alpha)
+                x_fake = gen(z, grower.alpha_gen)
 
                 # pass real data and gen data to discriminator
-                out_real = disc(x_real, grower.alpha)
-                out_fake = disc(x_fake, grower.alpha)
+                out_real = disc(x_real, grower.alpha_disc)
+                out_fake = disc(x_fake, grower.alpha_disc)
 
                 # compute discriminator loss
                 disc_loss = networks.wasserstein_discriminator_loss(
@@ -160,7 +161,7 @@ def train(
                 )
 
                 grad_pen = disc.gradient_penalty(
-                    x_real, x_fake, grower.alpha
+                    x_real, x_fake, grower.alpha_disc
                 )
 
                 disc_loss_gp = disc_loss + grad_pen
@@ -184,7 +185,6 @@ def train(
                 grad_pen_list.append(grad_pen.item())
 
                 # [2] train generator
-
                 if iter_idx % grower.train_gen_every == 0:
 
                     # sample random latent data
@@ -201,10 +201,10 @@ def train(
                     optim_gen.zero_grad()
 
                     # generate fake data
-                    x_fake = gen(z, grower.alpha)
+                    x_fake = gen(z, grower.alpha_gen)
 
                     # use unrolled discriminators
-                    out_fake = disc(x_fake, grower.alpha)
+                    out_fake = disc(x_fake, grower.alpha_disc)
 
                     # compute generator loss
                     gen_loss = networks.wasserstein_generator_loss(out_fake)
@@ -234,11 +234,12 @@ def train(
                     f"e_tp = {mean(error_tp):.2f}, "
                     f"e_tn = {mean(error_tn):.2f}, "
                     f"e_gen = {mean(error_gen):.2f}, "
-                    f"alpha = {grower.alpha:.3f} "
+                    f"alpha_gen = {grower.alpha_gen:.3f}, "
+                    f"alpha_disc = {grower.alpha_disc:.3f} "
                 )
 
                 # log metrics
-                if iter_idx % 200 == 0:
+                if iter_idx % 20 == 0:
                     mlflow.log_metrics(step=gen.curr_layer, metrics={
                         "disc_loss": disc_loss.item(),
                         "gen_loss": gen_loss.item(),
@@ -252,7 +253,7 @@ def train(
                 saver.request_save(
                     gen, disc,
                     optim_gen, optim_disc,
-                    grower.alpha
+                    grower.alpha_gen
                 )
 
                 iter_idx += 1

@@ -7,7 +7,7 @@ from music_gan.networks import matrix_multiple
 
 class TestMatrixMultiple(unittest.TestCase):
     def setUp(self):
-        self.__decimal = 4
+        self.__decimal = 2
 
         self.__input_dim_max = 64
         self.__input_dim_min = 2

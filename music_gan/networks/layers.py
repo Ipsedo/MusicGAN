@@ -1,8 +1,56 @@
+from typing import Tuple
+
 import torch as th
 import torch.nn as nn
 import torch.nn.functional as F
+from torch import Tensor
 
-from .functions import matrix_multiple
+
+class Conv2dPadding(nn.Conv2d):
+
+    def __init__(
+            self,
+            in_channels: int,
+            out_channels: int,
+            kernel_size: Tuple[int, int],
+            stride: Tuple[int, int] = (1, 1),
+            padding: Tuple[int, int] = (0, 0),
+            dilation: Tuple[int, int] = (1, 1),
+            groups: int = 1,
+            bias: bool = True,
+            padding_mode: str = 'zeros',
+            device=None,
+            dtype=None
+    ) -> None:
+        super().__init__(
+            in_channels,
+            out_channels,
+            kernel_size,
+            stride,
+            (0, 0),
+            dilation,
+            groups,
+            bias,
+            padding_mode,
+            device,
+            dtype
+        )
+
+        assert len(padding) == 2
+        assert padding[0] == padding[1]
+
+        self.__repl = nn.ReplicationPad2d(
+            (padding[0], padding[0], 0, 0)
+        )
+
+        self.__zero = nn.ZeroPad2d(
+            (0, 0, padding[1], padding[1])
+        )
+
+    def forward(self, x: Tensor) -> Tensor:
+        x_padded = self.__repl(x)
+        x_padded = self.__zero(x_padded)
+        return super()._conv_forward(x_padded, self.weight, self.bias)
 
 
 class PixelNorm(nn.Module):
@@ -127,7 +175,7 @@ class ToMagnPhase(nn.Module):
     def __init__(self, in_channels: int):
         super(ToMagnPhase, self).__init__()
 
-        self.__conv = nn.ConvTranspose2d(
+        self.__conv = nn.Conv2d(
             in_channels, 2,
             kernel_size=(1, 1),
             stride=(1, 1),
@@ -136,7 +184,7 @@ class ToMagnPhase(nn.Module):
         self.__tanh = nn.Tanh()
 
     @property
-    def conv(self) -> nn.ConvTranspose2d:
+    def conv(self) -> nn.Conv2d:
         return self.__conv
 
     def forward(self, x: th.Tensor):

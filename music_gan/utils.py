@@ -7,7 +7,7 @@ from torchvision.transforms import Compose, Resize
 from tqdm import tqdm
 
 from . import audio
-from .networks import Discriminator, Generator, LEAKY_RELU_SLOPE
+from .networks import Discriminator, Generator, LEAKY_RELU_SLOPE_DISC, LEAKY_RELU_SLOPE_GEN
 
 
 class Grower:
@@ -102,10 +102,18 @@ class Grower:
         return False
 
     @property
-    def alpha(self) -> float:
+    def alpha_disc(self) -> float:
         return max(
-            LEAKY_RELU_SLOPE,
-            1. - (1 - LEAKY_RELU_SLOPE) * (1. + self.__step_sample_idx) /
+            LEAKY_RELU_SLOPE_DISC,
+            1. - (1 - LEAKY_RELU_SLOPE_DISC) * (1. + self.__step_sample_idx) /
+            self.__fadein_lengths[self.__curr_grow]
+        )
+
+    @property
+    def alpha_gen(self) -> float:
+        return max(
+            LEAKY_RELU_SLOPE_GEN,
+            1. - (1 - LEAKY_RELU_SLOPE_GEN) * (1. + self.__step_sample_idx) /
             self.__fadein_lengths[self.__curr_grow]
         )
 
@@ -193,7 +201,7 @@ class Saver:
     def __save_outputs(
             self,
             gen: Generator,
-            alpha: float
+            alpha_gen: float,
     ):
         # Generate sound
         with th.no_grad():
@@ -207,7 +215,7 @@ class Saver:
                     device="cuda"
                 )
 
-                x_fake = gen(z, alpha)
+                x_fake = gen(z, alpha_gen)
 
                 magn = x_fake[0, 0, :, :].detach().cpu().numpy()
                 phase = x_fake[0, 1, :, :].detach().cpu().numpy()
@@ -250,7 +258,7 @@ class Saver:
             disc: Discriminator,
             optim_gen: th.optim.Adam,
             optim_disc: th.optim.Adam,
-            alpha: float
+            alpha_gen: float,
     ) -> bool:
         self.__counter += 1
 
@@ -261,7 +269,7 @@ class Saver:
             )
 
             self.__save_outputs(
-                gen, alpha
+                gen, alpha_gen
             )
 
             self.__curr_save += 1

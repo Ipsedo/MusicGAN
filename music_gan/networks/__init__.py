@@ -1,4 +1,4 @@
-from .constants import LEAKY_RELU_SLOPE
+from .constants import LEAKY_RELU_SLOPE_DISC, LEAKY_RELU_SLOPE_GEN
 from .criterion import (
     generator_loss,
     discriminator_loss,
