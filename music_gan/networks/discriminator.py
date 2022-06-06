@@ -5,9 +5,9 @@ import torch.autograd as th_autograd
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .constants import LEAKY_RELU_SLOPE_DISC
+from .constants import LEAKY_RELU_SLOPE
 from .functions import matrix_multiple
-from .layers import FromMagnPhase, Conv2dPadding
+from .layers import FromMagnPhase, PixelNorm, LayerNorm2d
 
 
 class OldBlock(nn.Sequential):
@@ -24,7 +24,8 @@ class OldBlock(nn.Sequential):
                 stride=(1, 1),
                 padding=(1, 1)
             ),
-            nn.LeakyReLU(2e-1),
+            LayerNorm2d(),
+            nn.LeakyReLU(LEAKY_RELU_SLOPE),
 
             nn.Conv2d(
                 out_channels,
@@ -33,7 +34,8 @@ class OldBlock(nn.Sequential):
                 stride=(2, 2),
                 padding=(1, 1),
             ),
-            nn.LeakyReLU(2e-1),
+            LayerNorm2d(),
+            nn.LeakyReLU(LEAKY_RELU_SLOPE)
         ])
 
 
@@ -64,12 +66,18 @@ class DiscBlock(nn.Module):
         self.__in_channels = in_channels
         self.__out_channels = out_channels
 
-    def forward(self, x: th.Tensor, alpha: float = LEAKY_RELU_SLOPE_DISC) -> th.Tensor:
+    def forward(self, x: th.Tensor) -> th.Tensor:
         out = self.__conv(x)
-        out = F.leaky_relu(out, alpha)
+        #out = F.layer_norm(
+        #    out, [self.__out_channels, out.size()[2], out.size()[3]]
+        #)
+        out = F.leaky_relu(out, LEAKY_RELU_SLOPE)
 
         out = self.__conv_down(out)
-        out = F.leaky_relu(out, alpha)
+        #out = F.layer_norm(
+        #    out, [self.__out_channels, out.size()[2], out.size()[3]]
+        #)
+        out = F.leaky_relu(out, LEAKY_RELU_SLOPE)
 
         return out
 
@@ -120,14 +128,14 @@ class DiscBlock2(nn.Module):
         self.__in_channels = in_channels
         self.__out_channels = out_channels
 
-    def forward(self, x: th.Tensor, alpha: float = LEAKY_RELU_SLOPE_DISC) -> th.Tensor:
+    def forward(self, x: th.Tensor) -> th.Tensor:
         out = self.__conv_1(x)
-        out = F.leaky_relu(out, alpha)
+        out = F.leaky_relu(out, 0.2)
 
         out = self.__avg(out)
 
         out = self.__conv_2(out)
-        out = F.leaky_relu(out, alpha)
+        out = F.leaky_relu(out, 0.2)
 
         return out
 
@@ -178,13 +186,15 @@ class Discriminator(nn.Module):
         assert 0 <= start_layer <= len(conv_channels)
 
         self.__conv_blocks = nn.ModuleList([
-            DiscBlock2(c[0], c[1])
+            OldBlock(c[0], c[1])
             for i, c in enumerate(conv_channels)
         ])
 
         self.__start_block = FromMagnPhase(
             conv_channels[start_layer][0]
         )
+
+        self.__last_start_block = None
 
         nb_time = 512
         nb_freq = 512
@@ -203,8 +213,13 @@ class Discriminator(nn.Module):
         )
 
     def forward(self, x: th.Tensor, alpha: float) -> th.Tensor:
-        out = self.__start_block(x, alpha)
-        out = self.__conv_blocks[self.__curr_layer](out, alpha)
+        out = self.__start_block(x)
+        out = self.__conv_blocks[self.__curr_layer](out)
+
+        if self.__last_start_block is not None:
+            out_old = self.__last_start_block(x)
+
+            out = out * alpha + (1 - alpha) * out_old
 
         for i in range(self.__curr_layer + 1, len(self.__conv_blocks)):
             out = self.__conv_blocks[i](out)
@@ -221,7 +236,10 @@ class Discriminator(nn.Module):
 
             self.__grew_up = True
 
-            last_start_block = self.__start_block
+            self.__last_start_block = nn.Sequential(
+                nn.AvgPool2d(2, 2),
+                self.__start_block
+            )
 
             self.__start_block = FromMagnPhase(
                 self.__channels[self.curr_layer][0]
@@ -233,14 +251,14 @@ class Discriminator(nn.Module):
 
             self.__start_block.to(device)
 
-            b = last_start_block.conv.bias.data
+            """b = last_start_block.conv.bias.data
             # transpose to fit matrix_multiple dims order
             m = last_start_block.conv.weight.data[:, :, 0, 0].transpose(1, 0)
             factor_1, factor_2 = matrix_multiple(m, self.__channels[self.curr_layer][0])
 
             # transpose back to fit PyTorch dims order
             self.__start_block.from_layer(factor_1.transpose(1, 0))
-            self.__conv_blocks[self.__curr_layer].from_layer(factor_2.transpose(1, 0), b)
+            self.__conv_blocks[self.__curr_layer].from_layer(factor_2.transpose(1, 0), b)"""
 
             return True
 

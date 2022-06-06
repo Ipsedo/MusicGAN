@@ -5,6 +5,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
 
+from .constants import LEAKY_RELU_SLOPE
+
 
 class Conv2dPadding(nn.Conv2d):
 
@@ -51,6 +53,19 @@ class Conv2dPadding(nn.Conv2d):
         x_padded = self.__repl(x)
         x_padded = self.__zero(x_padded)
         return super()._conv_forward(x_padded, self.weight, self.bias)
+
+
+class LayerNorm2d(nn.Module):
+    def __init__(self, epsilon: float = 1e-8):
+        super(LayerNorm2d, self).__init__()
+
+        self.__epsilon = epsilon
+
+    def forward(self, x: th.Tensor) -> th.Tensor:
+        mean = x.mean(dim=[1, 2, 3], keepdim=True)
+        std = x.var(dim=[1, 2, 3], keepdim=True)
+
+        return (x - mean) / th.sqrt(std + self.__epsilon)
 
 
 class PixelNorm(nn.Module):
@@ -171,19 +186,18 @@ class MiniBatchStdDev(nn.Module):
         return self.__repr__()
 
 
-class ToMagnPhase(nn.Module):
+class ToMagnPhase(nn.Sequential):
     def __init__(self, in_channels: int):
-        super(ToMagnPhase, self).__init__()
-
-        self.__conv = nn.Conv2d(
-            in_channels, 2,
-            kernel_size=(1, 1),
-            stride=(1, 1),
+        super(ToMagnPhase, self).__init__(
+            nn.ConvTranspose2d(
+                in_channels, 2,
+                kernel_size=(1, 1),
+                stride=(1, 1),
+            ),
+            nn.Tanh()
         )
 
-        self.__tanh = nn.Tanh()
-
-    @property
+    """@property
     def conv(self) -> nn.Conv2d:
         return self.__conv
 
@@ -198,27 +212,29 @@ class ToMagnPhase(nn.Module):
         self.__conv.bias.data[:] = bias.clone()
         nn.init.zeros_(self.__conv.weight)
 
-        self.__conv.weight.data[:, :, 0, 0] = factor_2.clone()
+        self.__conv.weight.data[:, :, 0, 0] = factor_2.clone()"""
 
 
-class FromMagnPhase(nn.Module):
+class FromMagnPhase(nn.Sequential):
     def __init__(self, out_channels: int):
-        super(FromMagnPhase, self).__init__()
-
-        self.__conv = nn.Conv2d(
-            2,
-            out_channels,
-            kernel_size=(1, 1),
-            stride=(1, 1)
+        super(FromMagnPhase, self).__init__(
+            nn.Conv2d(
+                2,
+                out_channels,
+                kernel_size=(1, 1),
+                stride=(1, 1)
+            ),
+            LayerNorm2d(),
+            nn.LeakyReLU(LEAKY_RELU_SLOPE)
         )
 
-    @property
+    """@property
     def conv(self) -> nn.Conv2d:
         return self.__conv
 
-    def forward(self, magn_phase: th.Tensor, alpha: float) -> th.Tensor:
+    def forward(self, magn_phase: th.Tensor) -> th.Tensor:
         out = self.__conv(magn_phase)
-        out = F.leaky_relu(out, alpha)
+        out = F.leaky_relu(out, LEAKY_RELU_SLOPE)
 
         return out
 
@@ -227,4 +243,4 @@ class FromMagnPhase(nn.Module):
         nn.init.zeros_(self.__conv.bias)
         nn.init.zeros_(self.__conv.weight)
 
-        self.__conv.weight.data[:, :, 0, 0] = factor_1.clone()
+        self.__conv.weight.data[:, :, 0, 0] = factor_1.clone()"""

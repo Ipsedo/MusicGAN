@@ -7,7 +7,7 @@ from torchvision.transforms import Compose, Resize
 from tqdm import tqdm
 
 from . import audio
-from .networks import Discriminator, Generator, LEAKY_RELU_SLOPE_DISC, LEAKY_RELU_SLOPE_GEN
+from .networks import Discriminator, Generator
 
 
 class Grower:
@@ -102,18 +102,10 @@ class Grower:
         return False
 
     @property
-    def alpha_disc(self) -> float:
-        return max(
-            LEAKY_RELU_SLOPE_DISC,
-            1. - (1 - LEAKY_RELU_SLOPE_DISC) * (1. + self.__step_sample_idx) /
-            self.__fadein_lengths[self.__curr_grow]
-        )
-
-    @property
-    def alpha_gen(self) -> float:
-        return max(
-            LEAKY_RELU_SLOPE_GEN,
-            1. - (1 - LEAKY_RELU_SLOPE_GEN) * (1. + self.__step_sample_idx) /
+    def alpha(self) -> float:
+        return min(
+            1.,
+            (1. + self.__step_sample_idx) /
             self.__fadein_lengths[self.__curr_grow]
         )
 

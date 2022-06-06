@@ -4,9 +4,9 @@ import torch as th
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .constants import LEAKY_RELU_SLOPE_GEN
+from .constants import LEAKY_RELU_SLOPE
 from .functions import matrix_multiple
-from .layers import PixelNorm, ToMagnPhase, Conv2dPadding
+from .layers import PixelNorm, ToMagnPhase, LayerNorm2d
 
 
 class OldBlock(nn.Sequential):
@@ -24,8 +24,7 @@ class OldBlock(nn.Sequential):
                 stride=(2, 2),
                 output_padding=(1, 1)
             ),
-            nn.ReLU(),
-            PixelNorm(),
+            nn.LeakyReLU(LEAKY_RELU_SLOPE),
 
             nn.ConvTranspose2d(
                 in_channels,
@@ -34,8 +33,7 @@ class OldBlock(nn.Sequential):
                 padding=(1, 1),
                 stride=(1, 1)
             ),
-            nn.ReLU(),
-            PixelNorm(),
+            nn.LeakyReLU(LEAKY_RELU_SLOPE),
         )
 
 
@@ -67,12 +65,18 @@ class GenBlock(nn.Module):
         self.__in_channels = in_channels
         self.__out_channels = out_channels
 
-    def forward(self, x: th.Tensor, alpha: float = LEAKY_RELU_SLOPE_GEN) -> th.Tensor:
+    def forward(self, x: th.Tensor) -> th.Tensor:
         out = self.__conv_up(x)
-        out = F.leaky_relu(out, alpha)
+        out = F.layer_norm(
+            out, [self.__in_channels, out.size()[2], out.size()[3]]
+        )
+        out = F.leaky_relu(out, LEAKY_RELU_SLOPE)
 
         out = self.__conv(out)
-        out = F.leaky_relu(out, alpha)
+        out = F.layer_norm(
+            out, [self.__out_channels, out.size()[2], out.size()[3]]
+        )
+        out = F.leaky_relu(out, LEAKY_RELU_SLOPE)
 
         return out
 
@@ -128,14 +132,14 @@ class GenBlock2(nn.Module):
         self.__in_channels = in_channels
         self.__out_channels = out_channels
 
-    def forward(self, x: th.Tensor, alpha: float = LEAKY_RELU_SLOPE_GEN) -> th.Tensor:
+    def forward(self, x: th.Tensor) -> th.Tensor:
         out = self.__conv_1(x)
-        out = F.leaky_relu(out, alpha)
+        out = F.leaky_relu(out, LEAKY_RELU_SLOPE)
 
         out = self.__up(out)
 
         out = self.__conv_2(out)
-        out = F.leaky_relu(out, alpha)
+        out = F.leaky_relu(out, LEAKY_RELU_SLOPE)
 
         return out
 
@@ -190,13 +194,24 @@ class Generator(nn.Module):
 
         # Generator layers
         self.__gen_blocks = nn.ModuleList([
-            GenBlock2(c[0], c[1])
+            OldBlock(c[0], c[1])
             for i, c in enumerate(channels)
         ])
 
         # for progressive gan
         self.__end_block = ToMagnPhase(
             channels[end_layer][1]
+        )
+
+        self.__last_end_block = (
+            None if end_layer == 0
+            else nn.Sequential(
+                ToMagnPhase(self.__channels[self.curr_layer][1]),
+                nn.Upsample(
+                    scale_factor=2.,
+                    mode="nearest"
+                )
+            )
         )
 
     def forward(
@@ -210,18 +225,29 @@ class Generator(nn.Module):
         for i in range(self.curr_layer):
             out = self.__gen_blocks[i](out)
 
-        out_block = self.__gen_blocks[self.curr_layer](out, alpha)
+        out_block = self.__gen_blocks[self.curr_layer](out)
 
         out_mp = self.__end_block(out_block)
 
-        return out_mp
+        if self.__last_end_block is None:
+            return out_mp
+        else:
+            out_old = self.__last_end_block(out)
+
+            return alpha * out_mp + (1 - alpha) * out_old
 
     def next_layer(self) -> bool:
         if self.growing:
             self.__curr_layer += 1
             self.__grew_up = True
 
-            last_end_block = self.__end_block
+            self.__last_end_block = nn.Sequential(
+                self.__end_block,
+                nn.Upsample(
+                    scale_factor=2.,
+                    mode="nearest"
+                )
+            )
 
             self.__end_block = ToMagnPhase(
                 self.__channels[self.curr_layer][1]
@@ -233,12 +259,12 @@ class Generator(nn.Module):
 
             self.__end_block.to(device)
 
-            b = last_end_block.conv.bias.data
-            m = last_end_block.conv.weight.data[:, :, 0, 0].transpose(1, 0)
+            """b = last_end_block.conv.bias.data
+            m = last_end_block.conv.weight.data[:, :, 0, 0]
             factor_1, factor_2 = matrix_multiple(m, self.__channels[self.curr_layer][1])
 
-            self.__gen_blocks[self.curr_layer].from_layer(factor_1.transpose(1, 0))
-            self.__end_block.from_layer(factor_2.transpose(1, 0), b)
+            self.__gen_blocks[self.curr_layer].from_layer(factor_1)
+            self.__end_block.from_layer(factor_2, b)"""
 
             return True
 

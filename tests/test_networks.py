@@ -29,5 +29,5 @@ class TestNetworks(unittest.TestCase):
                 disc.next_layer()
 
         except Exception as e:
-            print(e)
+            print(e.with_traceback())
             self.fail(str(e))
