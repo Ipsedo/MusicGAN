@@ -11,6 +11,7 @@ class TestNetworks(unittest.TestCase):
             rand_channels = 8
 
             alpha = 0.5
+            slope = 0.5
 
             gen = Generator(rand_channels)
             disc = Discriminator(7)
@@ -18,9 +19,9 @@ class TestNetworks(unittest.TestCase):
             for i in range(gen.down_sample + 3):
                 z = th.randn(batch_size, rand_channels, 2, 2)
 
-                out = gen(z, alpha)
+                out = gen(z, slope, alpha)
 
-                out_disc = disc(out, alpha)
+                out_disc = disc(out, slope, alpha)
 
                 self.assertEqual(gen.growing, disc.growing)
                 self.assertEqual(out_disc.size()[0], batch_size)

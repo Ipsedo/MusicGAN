@@ -65,18 +65,16 @@ class GenBlock(nn.Module):
         self.__in_channels = in_channels
         self.__out_channels = out_channels
 
-    def forward(self, x: th.Tensor) -> th.Tensor:
+        self.__layer_norm = LayerNorm2d()
+
+    def forward(self, x: th.Tensor, slope: float = LEAKY_RELU_SLOPE, alpha: float = 1.) -> th.Tensor:
         out = self.__conv_up(x)
-        out = F.layer_norm(
-            out, [self.__in_channels, out.size()[2], out.size()[3]]
-        )
-        out = F.leaky_relu(out, LEAKY_RELU_SLOPE)
+        #out = self.__layer_norm(out, alpha)
+        out = F.leaky_relu(out, slope)
 
         out = self.__conv(out)
-        out = F.layer_norm(
-            out, [self.__out_channels, out.size()[2], out.size()[3]]
-        )
-        out = F.leaky_relu(out, LEAKY_RELU_SLOPE)
+        #out = self.__layer_norm(out, alpha)
+        out = F.leaky_relu(out, slope)
 
         return out
 
@@ -98,68 +96,6 @@ class GenBlock(nn.Module):
         nn.init.zeros_(self.__conv.weight)
 
         self.__conv.weight.data[:, :, 1, 1] = factor_1.clone()
-
-
-class GenBlock2(nn.Module):
-    def __init__(
-            self,
-            in_channels: int,
-            out_channels: int
-    ):
-        super(GenBlock2, self).__init__()
-
-        self.__conv_1 = nn.Conv2d(
-            in_channels,
-            in_channels,
-            kernel_size=(3, 3),
-            stride=(1, 1),
-            padding=(1, 1)
-        )
-
-        self.__up = nn.Upsample(
-            scale_factor=2.,
-            mode="nearest"
-        )
-
-        self.__conv_2 = nn.Conv2d(
-            in_channels,
-            out_channels,
-            kernel_size=(3, 3),
-            stride=(1, 1),
-            padding=(1, 1)
-        )
-
-        self.__in_channels = in_channels
-        self.__out_channels = out_channels
-
-    def forward(self, x: th.Tensor) -> th.Tensor:
-        out = self.__conv_1(x)
-        out = F.leaky_relu(out, LEAKY_RELU_SLOPE)
-
-        out = self.__up(out)
-
-        out = self.__conv_2(out)
-        out = F.leaky_relu(out, LEAKY_RELU_SLOPE)
-
-        return out
-
-    def from_layer(self, factor_1: th.Tensor) -> None:
-        # Init first conv - identity
-        nn.init.zeros_(self.__conv_1.bias)
-        nn.init.zeros_(self.__conv_1.weight)
-
-        # output_padding is at left,
-        # so with stride of 2, identity needs to
-        # be filled on 2 * 2 pixel kernel
-        self.__conv_1.weight.data[:, :, 1, 1] = (
-            th.eye(self.__in_channels)
-        )
-
-        # Init second conv - from last layer
-        nn.init.zeros_(self.__conv_2.bias)
-        nn.init.zeros_(self.__conv_2.weight)
-
-        self.__conv_2.weight.data[:, :, 1, 1] = factor_1.clone()
 
 
 class Generator(nn.Module):
@@ -194,7 +130,7 @@ class Generator(nn.Module):
 
         # Generator layers
         self.__gen_blocks = nn.ModuleList([
-            OldBlock(c[0], c[1])
+            GenBlock(c[0], c[1])
             for i, c in enumerate(channels)
         ])
 
@@ -203,20 +139,10 @@ class Generator(nn.Module):
             channels[end_layer][1]
         )
 
-        self.__last_end_block = (
-            None if end_layer == 0
-            else nn.Sequential(
-                ToMagnPhase(self.__channels[self.curr_layer][1]),
-                nn.Upsample(
-                    scale_factor=2.,
-                    mode="nearest"
-                )
-            )
-        )
-
     def forward(
             self,
             z: th.Tensor,
+            slope: float,
             alpha: float
     ) -> th.Tensor:
 
@@ -225,29 +151,18 @@ class Generator(nn.Module):
         for i in range(self.curr_layer):
             out = self.__gen_blocks[i](out)
 
-        out_block = self.__gen_blocks[self.curr_layer](out)
+        out_block = self.__gen_blocks[self.curr_layer](out, slope, alpha)
 
         out_mp = self.__end_block(out_block)
 
-        if self.__last_end_block is None:
-            return out_mp
-        else:
-            out_old = self.__last_end_block(out)
-
-            return alpha * out_mp + (1 - alpha) * out_old
+        return out_mp
 
     def next_layer(self) -> bool:
         if self.growing:
             self.__curr_layer += 1
             self.__grew_up = True
 
-            self.__last_end_block = nn.Sequential(
-                self.__end_block,
-                nn.Upsample(
-                    scale_factor=2.,
-                    mode="nearest"
-                )
-            )
+            last_end_block = self.__end_block
 
             self.__end_block = ToMagnPhase(
                 self.__channels[self.curr_layer][1]
@@ -259,12 +174,12 @@ class Generator(nn.Module):
 
             self.__end_block.to(device)
 
-            """b = last_end_block.conv.bias.data
+            b = last_end_block.conv.bias.data
             m = last_end_block.conv.weight.data[:, :, 0, 0]
             factor_1, factor_2 = matrix_multiple(m, self.__channels[self.curr_layer][1])
 
             self.__gen_blocks[self.curr_layer].from_layer(factor_1)
-            self.__end_block.from_layer(factor_2, b)"""
+            self.__end_block.from_layer(factor_2, b)
 
             return True
 
