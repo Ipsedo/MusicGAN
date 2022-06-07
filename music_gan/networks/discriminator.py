@@ -66,15 +66,11 @@ class DiscBlock(nn.Module):
         self.__in_channels = in_channels
         self.__out_channels = out_channels
 
-        self.__layer_norm = LayerNorm2d()
-
-    def forward(self, x: th.Tensor, slope: float = LEAKY_RELU_SLOPE, alpha: float = 1.) -> th.Tensor:
+    def forward(self, x: th.Tensor, slope: float = LEAKY_RELU_SLOPE) -> th.Tensor:
         out = self.__conv(x)
-        #out = self.__layer_norm(out, alpha)
         out = F.leaky_relu(out, slope)
 
         out = self.__conv_down(out)
-        #out = self.__layer_norm(out, alpha)
         out = F.leaky_relu(out, slope)
 
         return out
@@ -153,9 +149,9 @@ class Discriminator(nn.Module):
             nn.Sigmoid()
         )
 
-    def forward(self, x: th.Tensor, slope: float, alpha: float) -> th.Tensor:
-        out = self.__start_block(x, slope, alpha)
-        out = self.__conv_blocks[self.__curr_layer](out, slope, alpha)
+    def forward(self, x: th.Tensor, slope: float) -> th.Tensor:
+        out = self.__start_block(x, slope)
+        out = self.__conv_blocks[self.__curr_layer](out, slope)
 
         for i in range(self.__curr_layer + 1, len(self.__conv_blocks)):
             out = self.__conv_blocks[i](out)

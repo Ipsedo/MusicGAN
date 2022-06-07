@@ -67,13 +67,11 @@ class GenBlock(nn.Module):
 
         self.__layer_norm = LayerNorm2d()
 
-    def forward(self, x: th.Tensor, slope: float = LEAKY_RELU_SLOPE, alpha: float = 1.) -> th.Tensor:
+    def forward(self, x: th.Tensor, slope: float = LEAKY_RELU_SLOPE) -> th.Tensor:
         out = self.__conv_up(x)
-        #out = self.__layer_norm(out, alpha)
         out = F.leaky_relu(out, slope)
 
         out = self.__conv(out)
-        #out = self.__layer_norm(out, alpha)
         out = F.leaky_relu(out, slope)
 
         return out
@@ -142,8 +140,7 @@ class Generator(nn.Module):
     def forward(
             self,
             z: th.Tensor,
-            slope: float,
-            alpha: float
+            slope: float
     ) -> th.Tensor:
 
         out = z
@@ -151,7 +148,7 @@ class Generator(nn.Module):
         for i in range(self.curr_layer):
             out = self.__gen_blocks[i](out)
 
-        out_block = self.__gen_blocks[self.curr_layer](out, slope, alpha)
+        out_block = self.__gen_blocks[self.curr_layer](out, slope)
 
         out_mp = self.__end_block(out_block)
 

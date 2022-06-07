@@ -32,8 +32,8 @@ def train(
     height = networks.INPUT_SIZES[0]
     width = networks.INPUT_SIZES[1]
 
-    disc_lr = 4e-4
-    gen_lr = 4e-4
+    disc_lr = 1e-4
+    gen_lr = 2e-4
     betas = (0., 0.9)
 
     nb_epoch = 1000
@@ -96,15 +96,15 @@ def train(
     grower = Grower(
         n_grow=7,
         fadein_lengths=[
-            1, 10000, 10000, 10000, 10000, 10000, 10000, 10000,
+            1, 20000, 20000, 20000, 20000, 20000, 20000, 20000,
             #1,1,1,1,1,1,1,1
         ],
         train_lengths=[
-            10000, 20000, 20000, 20000, 20000, 20000, 20000,
+            20000, 50000, 50000, 50000, 50000, 50000, 50000,
             #1,1,1,1,1,1,1
         ],
-        train_gen_every=[4, 4, 4, 4, 4, 4, 4, 4]
-        #train_gen_every=[1, 1, 1, 1, 1, 1, 1, 1]
+        #train_gen_every=[4, 4, 4, 4, 4, 4, 4, 4]
+        train_gen_every=[2, 2, 2, 2, 2, 2, 2, 2]
     )
 
     saver = Saver(
@@ -149,11 +149,11 @@ def train(
                 )
 
                 # gen fake data
-                x_fake = gen(z, grower.leaky_relu_slope, grower.alpha)
+                x_fake = gen(z, grower.leaky_relu_slope)
 
                 # pass real data and gen data to discriminator
-                out_real = disc(x_real, grower.leaky_relu_slope, grower.alpha)
-                out_fake = disc(x_fake, grower.leaky_relu_slope, grower.alpha)
+                out_real = disc(x_real, grower.leaky_relu_slope)
+                out_fake = disc(x_fake, grower.leaky_relu_slope)
 
                 # compute discriminator loss
                 disc_loss = networks.discriminator_loss(
@@ -202,10 +202,10 @@ def train(
                     optim_gen.zero_grad()
 
                     # generate fake data
-                    x_fake = gen(z, grower.leaky_relu_slope, grower.alpha)
+                    x_fake = gen(z, grower.leaky_relu_slope)
 
                     # use unrolled discriminators
-                    out_fake = disc(x_fake, grower.leaky_relu_slope, grower.alpha)
+                    out_fake = disc(x_fake, grower.leaky_relu_slope)
 
                     # compute generator loss
                     gen_loss = networks.generator_loss(out_fake)
@@ -235,8 +235,7 @@ def train(
                     f"e_tp = {mean(error_tp):.2f}, "
                     f"e_tn = {mean(error_tn):.2f}, "
                     f"e_gen = {mean(error_gen):.2f}, "
-                    f"slope = {grower.leaky_relu_slope:.3f}, "
-                    f"alpha = {grower.alpha:.3f} "
+                    f"slope = {grower.leaky_relu_slope:.3f} "
                 )
 
                 # log metrics
@@ -254,8 +253,7 @@ def train(
                 saver.request_save(
                     gen, disc,
                     optim_gen, optim_disc,
-                    grower.leaky_relu_slope,
-                    grower.alpha
+                    grower.leaky_relu_slope
                 )
 
                 iter_idx += 1

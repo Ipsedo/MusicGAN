@@ -238,9 +238,8 @@ class FromMagnPhase(nn.Module):
     def conv(self) -> nn.Conv2d:
         return self.__conv
 
-    def forward(self, magn_phase: th.Tensor, slope: float = LEAKY_RELU_SLOPE, alpha: float = 1.) -> th.Tensor:
+    def forward(self, magn_phase: th.Tensor, slope: float = LEAKY_RELU_SLOPE) -> th.Tensor:
         out = self.__conv(magn_phase)
-        #out = self.__layer_norm(out, alpha)
         out = F.leaky_relu(out, slope)
 
         return out

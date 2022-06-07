@@ -102,14 +102,6 @@ class Grower:
         return False
 
     @property
-    def alpha(self) -> float:
-        return min(
-            1.,
-            (1. + self.__step_sample_idx) /
-            self.__fadein_lengths[self.__curr_grow]
-        )
-
-    @property
     def leaky_relu_slope(self) -> float:
         return max(
             LEAKY_RELU_SLOPE,
@@ -201,8 +193,7 @@ class Saver:
     def __save_outputs(
             self,
             gen: Generator,
-            slope: float,
-            alpha: float,
+            slope: float
     ):
         # Generate sound
         with th.no_grad():
@@ -216,7 +207,7 @@ class Saver:
                     device="cuda"
                 )
 
-                x_fake = gen(z, slope, alpha)
+                x_fake = gen(z, slope)
 
                 magn = x_fake[0, 0, :, :].detach().cpu().numpy()
                 phase = x_fake[0, 1, :, :].detach().cpu().numpy()
@@ -260,7 +251,6 @@ class Saver:
             optim_gen: th.optim.Adam,
             optim_disc: th.optim.Adam,
             slope: float,
-            alpha: float,
     ) -> bool:
         self.__counter += 1
 
@@ -271,7 +261,7 @@ class Saver:
             )
 
             self.__save_outputs(
-                gen, slope, alpha
+                gen, slope
             )
 
             self.__curr_save += 1
