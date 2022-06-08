@@ -33,7 +33,7 @@ def train(
     width = networks.INPUT_SIZES[1]
 
     disc_lr = 1e-4
-    gen_lr = 2e-4
+    gen_lr = 1e-4
     betas = (0., 0.9)
 
     nb_epoch = 1000
@@ -104,7 +104,8 @@ def train(
             #1,1,1,1,1,1,1
         ],
         #train_gen_every=[4, 4, 4, 4, 4, 4, 4, 4]
-        train_gen_every=[2, 2, 2, 2, 2, 2, 2, 2]
+        #train_gen_every=[2, 2, 2, 2, 2, 2, 2, 2]
+        train_gen_every=[1, 1, 1, 1, 1, 1, 1, 1]
     )
 
     saver = Saver(
