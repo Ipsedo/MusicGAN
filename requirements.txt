@@ -6,6 +6,7 @@ torchaudio
 torchvision
 matplotlib
 numpy
+higher
 
 # for experiments
 jupyter
