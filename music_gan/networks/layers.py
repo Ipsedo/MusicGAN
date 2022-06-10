@@ -197,6 +197,7 @@ class MiniBatchStdDev(nn.Module):
 class ToMagnPhase(nn.Module):
     def __init__(self, in_channels: int):
         super(ToMagnPhase, self).__init__()
+
         self.__conv = nn.ConvTranspose2d(
             in_channels, 2,
             kernel_size=(1, 1),
@@ -209,6 +210,7 @@ class ToMagnPhase(nn.Module):
 
     def forward(self, x: th.Tensor):
         out = self.__conv(x)
+
         out = th.tanh(out)
 
         return out

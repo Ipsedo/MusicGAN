@@ -34,8 +34,8 @@ def train(
     height = networks.INPUT_SIZES[0]
     width = networks.INPUT_SIZES[1]
 
-    disc_lr = 4e-4
-    gen_lr = 4e-4
+    disc_lr = 1e-4
+    gen_lr = 1e-4
     betas = (0., 0.9)
 
     nb_epoch = 1000
@@ -78,7 +78,7 @@ def train(
         shuffle=True,
         num_workers=6,
         drop_last=True,
-        pin_memory=False
+        pin_memory=True
     )
 
     mlflow.log_params({
@@ -106,10 +106,7 @@ def train(
         train_lengths=[
             10000, 20000, 20000, 20000, 20000, 20000, 20000,
             #1,1,1,1,1,1,1
-        ],
-        train_gen_every=[4, 4, 4, 4, 4, 4, 4, 4]
-        #train_gen_every=[2, 2, 2, 2, 2, 2, 2, 2]
-        #train_gen_every=[1, 1, 1, 1, 1, 1, 1, 1]
+        ]
     )
 
     saver = Saver(
@@ -167,7 +164,7 @@ def train(
                 )
 
                 # reset grad
-                optim_disc.zero_grad()
+                optim_disc.zero_grad(set_to_none=True)
 
                 # backward and optim step
                 disc_loss.backward()
@@ -196,8 +193,8 @@ def train(
                 )
 
                 # reset gradient
-                optim_disc.zero_grad()
-                optim_gen.zero_grad()
+                optim_disc.zero_grad(set_to_none=True)
+                optim_gen.zero_grad(set_to_none=True)
 
                 # use higher to unroll discriminator
                 with higher.innerloop_ctx(disc, optim_disc) as (
@@ -239,7 +236,7 @@ def train(
                     gen_loss = networks.generator_loss(out_fake)
 
                     # reset gradient
-                    optim_gen.zero_grad()
+                    optim_gen.zero_grad(set_to_none=True)
 
                     # backward pass and weight update
                     gen_loss.backward()

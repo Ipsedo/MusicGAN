@@ -15,8 +15,7 @@ class Grower:
             self,
             n_grow: int,
             fadein_lengths: List[int],
-            train_lengths: List[int],
-            train_gen_every: List[int]
+            train_lengths: List[int]
     ):
         self.__curr_grow = 0
         self.__n_grow = n_grow
@@ -33,7 +32,6 @@ class Grower:
 
         # +1 because of last layer
         assert len(fadein_lengths) == self.__n_grow + 1
-        assert len(train_gen_every) == self.__n_grow + 1
         assert len(train_lengths) == self.__n_grow
 
         self.__fadein_lengths = fadein_lengths
@@ -44,8 +42,6 @@ class Grower:
             .cumsum(dim=0)
             .tolist()
         )
-
-        self.__train_gen_every = train_gen_every
 
         self.__init_tqdm_bars()
 
@@ -108,10 +104,6 @@ class Grower:
             1. - (1 - LEAKY_RELU_SLOPE) * (1. + self.__step_sample_idx) /
             self.__fadein_lengths[self.__curr_grow]
         )
-
-    @property
-    def train_gen_every(self) -> int:
-        return self.__train_gen_every[self.__curr_grow]
 
     @staticmethod
     def __get_transform(downscale_factor: int) -> Compose:
