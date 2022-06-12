@@ -1,5 +1,5 @@
 from os.path import join
-from typing import List
+from typing import List, Tuple
 
 import matplotlib.pyplot as plt
 import torch as th
