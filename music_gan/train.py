@@ -57,7 +57,7 @@ def train(
             # 1,1,1,1,1,1,1,1
         ],
         train_lengths=[
-            10000, 20000, 20000, 20000, 20000, 20000, 20000,
+            30000, 40000, 40000, 40000, 40000, 40000, 40000,
             # 1,1,1,1,1,1,1
         ]
     )
@@ -110,6 +110,7 @@ def train(
         "nb_epoch": nb_epoch,
         "batch_size": batch_size,
         "unroll_steps": unroll_steps,
+        "train_gen_every": train_gen_every,
         "disc_lr": disc_lr,
         "gen_lr": gen_lr,
         "betas": betas,
