@@ -128,19 +128,28 @@ class Generator(nn.Module):
 
         # Generator layers
         self.__gen_blocks = nn.ModuleList([
-            GenBlock(c[0], c[1])
-            for i, c in enumerate(channels)
+            OldBlock(c[0], c[1])
+            for c in channels
         ])
 
         # for progressive gan
         self.__end_block = ToMagnPhase(
-            channels[end_layer][1]
+            channels[self.__curr_layer][1]
         )
+
+        self.__last_end_block = nn.Sequential(
+            ToMagnPhase(channels[self.__curr_layer][1]),
+            nn.Upsample(
+                scale_factor=2.,
+                mode="bilinear",
+                align_corners=True
+            )
+        ) if self.__curr_layer > 0 else None
 
     def forward(
             self,
             z: th.Tensor,
-            slope: float
+            alpha: float
     ) -> th.Tensor:
 
         out = z
@@ -148,9 +157,13 @@ class Generator(nn.Module):
         for i in range(self.curr_layer):
             out = self.__gen_blocks[i](out)
 
-        out_block = self.__gen_blocks[self.curr_layer](out, slope)
+        out_block = self.__gen_blocks[self.curr_layer](out)
 
         out_mp = self.__end_block(out_block)
+
+        if self.__grew_up:
+            out_old = self.__last_end_block(out)
+            return alpha * out_mp + (1. - alpha) * out_old
 
         return out_mp
 
@@ -159,7 +172,14 @@ class Generator(nn.Module):
             self.__curr_layer += 1
             self.__grew_up = True
 
-            last_end_block = self.__end_block
+            self.__last_end_block = nn.Sequential(
+                self.__end_block,
+                nn.Upsample(
+                    scale_factor=2.,
+                    mode="bilinear",
+                    align_corners=True
+                )
+            )
 
             self.__end_block = ToMagnPhase(
                 self.__channels[self.curr_layer][1]
@@ -171,12 +191,12 @@ class Generator(nn.Module):
 
             self.__end_block.to(device)
 
-            b = last_end_block.conv.bias.data
-            m = last_end_block.conv.weight.data[:, :, 0, 0]
+            """b = self.__end_block[self.curr_layer - 1].conv.bias.data
+            m = self.__end_block[self.curr_layer - 1].conv.weight.data[:, :, 0, 0]
             factor_1, factor_2 = matrix_multiple(m, self.__channels[self.curr_layer][1])
 
             self.__gen_blocks[self.curr_layer].from_layer(factor_1)
-            self.__end_block.from_layer(factor_2, b)
+            self.__end_block[self.curr_layer].from_layer(factor_2, b)"""
 
             return True
 

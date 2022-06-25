@@ -19,7 +19,6 @@ def train(
         input_dataset_path: str,
         output_dir: str,
 ) -> None:
-
     exp_name = "music_gan"
     mlflow.set_experiment(exp_name)
 
@@ -34,13 +33,12 @@ def train(
     height = networks.INPUT_SIZES[0]
     width = networks.INPUT_SIZES[1]
 
-    disc_lr = 4e-4
-    gen_lr = 4e-4
+    disc_lr = 1e-4
+    gen_lr = 1e-4
     betas = (0., 0.9)
 
     nb_epoch = 1000
     batch_size = 8
-    unroll_steps = 4
     train_gen_every = 4
 
     if not exists(output_dir):
@@ -109,7 +107,6 @@ def train(
         "rand_channels": rand_channels,
         "nb_epoch": nb_epoch,
         "batch_size": batch_size,
-        "unroll_steps": unroll_steps,
         "train_gen_every": train_gen_every,
         "disc_lr": disc_lr,
         "gen_lr": gen_lr,
@@ -127,6 +124,7 @@ def train(
         error_gen = [0. for _ in range(metric_window)]
 
         disc_loss_list = [0. for _ in range(metric_window)]
+        disc_gp_list = [0. for _ in range(metric_window)]
         gen_loss_list = [0. for _ in range(metric_window)]
 
         iter_idx = 0
@@ -134,9 +132,8 @@ def train(
         for e in range(nb_epoch):
 
             tqdm_bar = tqdm(data_loader)
-            tqdm_iterator = iter(tqdm_bar)
 
-            for x_real in tqdm_iterator:
+            for x_real in tqdm_bar:
                 # [1] train discriminator
 
                 # pass data to cuda
@@ -153,22 +150,29 @@ def train(
                 )
 
                 # gen fake data
-                x_fake = gen(z, grower.leaky_relu_slope)
+                x_fake = gen(z, grower.alpha)
 
                 # pass real data and gen data to discriminator
-                out_real = disc(x_real, grower.leaky_relu_slope)
-                out_fake = disc(x_fake, grower.leaky_relu_slope)
+                out_real = disc(x_real, grower.alpha)
+                out_fake = disc(x_fake, grower.alpha)
 
                 # compute discriminator loss
-                disc_loss = networks.discriminator_loss(
+                disc_loss = networks.wasserstein_discriminator_loss(
                     out_real, out_fake
                 )
+
+                # compute gradient penalty
+                disc_gp = disc.gradient_penalty(
+                    x_real, x_fake, grower.alpha
+                )
+
+                disc_loss_gp = disc_loss + disc_gp
 
                 # reset grad
                 optim_disc.zero_grad(set_to_none=True)
 
                 # backward and optim step
-                disc_loss.backward()
+                disc_loss_gp.backward()
                 optim_disc.step()
 
                 # discriminator metrics
@@ -178,13 +182,12 @@ def train(
                 error_tn.append(out_fake.mean().item())
 
                 del disc_loss_list[0]
+                del disc_gp_list[0]
                 disc_loss_list.append(disc_loss.item())
+                disc_gp_list.append(disc_gp.item())
 
                 # [2] train generator
                 if iter_idx % train_gen_every == 0:
-                    disc_backup = copy.deepcopy(disc)
-                    optim_disc_backup = copy.deepcopy(optim_disc)
-
                     # sample random latent data
                     z = th.randn(
                         batch_size,
@@ -198,57 +201,21 @@ def train(
                     optim_disc.zero_grad(set_to_none=True)
                     optim_gen.zero_grad(set_to_none=True)
 
-                    # use higher to unroll discriminator
-                    with higher.innerloop_ctx(disc, optim_disc) as (
-                            fun_disc, diff_optim_disc
-                    ):
-                        # unroll steps
-                        for _ in range(unroll_steps):
-                            try:
-                                x_real = next(tqdm_iterator).to(th.float)
-                                x_real = grower.scale_transform(x_real).cuda()
-                            except StopIteration:
-                                # in case of iterator ending,
-                                # re-use old real data
-                                pass
+                    # generate fake data
+                    x_fake = gen(z, grower.alpha)
 
-                            # generate fake data
-                            x_fake = gen(z, grower.leaky_relu_slope)
+                    # use unrolled discriminators
+                    out_fake = disc(x_fake, grower.alpha)
 
-                            # use current discriminator
-                            out_fake = fun_disc(x_fake, grower.leaky_relu_slope)
-                            out_real = fun_disc(x_real, grower.leaky_relu_slope)
+                    # compute generator loss
+                    gen_loss = networks.wasserstein_generator_loss(out_fake)
 
-                            # compute current loss
-                            unrolled_disc_loss = \
-                                networks.discriminator_loss(
-                                    out_real, out_fake
-                                )
+                    # reset gradient
+                    optim_gen.zero_grad(set_to_none=True)
 
-                            # produce next discriminator and optimizer
-                            diff_optim_disc.step(unrolled_disc_loss)
-
-                        # generate fake data
-                        x_fake = gen(z, grower.leaky_relu_slope)
-
-                        # use unrolled discriminators
-                        out_fake = fun_disc(x_fake, grower.leaky_relu_slope)
-
-                        # compute generator loss
-                        gen_loss = networks.generator_loss(out_fake)
-
-                        # reset gradient
-                        optim_gen.zero_grad(set_to_none=True)
-
-                        # backward pass and weight update
-                        gen_loss.backward()
-                        optim_gen.step()
-
-                    # load discriminator & optim before unroll updates
-                    disc.load_state_dict(disc_backup.state_dict())
-                    optim_disc.load_state_dict(optim_disc_backup.state_dict())
-                    del disc_backup
-                    del optim_disc_backup
+                    # backward pass and weight update
+                    gen_loss.backward()
+                    optim_gen.step()
 
                     # generator metrics
                     del error_gen[0]
@@ -264,17 +231,19 @@ def train(
                     f"{saver.save_counter:03}], "
                     f"disc_l = {mean(disc_loss_list):.4f}, "
                     f"gen_l = {mean(gen_loss_list):.3f}, "
+                    f"disc_gp = {mean(disc_gp_list):.3f}, "
                     f"e_tp = {mean(error_tp):.2f}, "
                     f"e_tn = {mean(error_tn):.2f}, "
                     f"e_gen = {mean(error_gen):.2f}, "
-                    f"slope = {grower.leaky_relu_slope:.3f} "
+                    f"alpha = {grower.alpha:.3f} "
                 )
 
                 # log metrics
-                if iter_idx % 20 == 0:
+                if iter_idx % 10 == 0:
                     mlflow.log_metrics(step=gen.curr_layer, metrics={
                         "disc_loss": disc_loss.item(),
                         "gen_loss": gen_loss.item(),
+                        "disc_gp": disc_gp.item(),
                         "batch_tp_error": error_tp[-1],
                         "batch_tn_error": error_tn[-1]
                     })
@@ -284,7 +253,7 @@ def train(
                 saver.request_save(
                     gen, disc,
                     optim_gen, optim_disc,
-                    grower.leaky_relu_slope
+                    grower.alpha
                 )
 
                 iter_idx += 1
@@ -295,13 +264,17 @@ def train(
                     gen.next_layer()
                     disc.next_layer()
 
-                    optim_gen = th.optim.Adam(
-                        gen.parameters(), lr=gen_lr, betas=betas
-                    )
+                    optim_gen.add_param_group({
+                        "params": gen.end_block_parameters(),
+                        "lr": gen_lr,
+                        "betas": betas
+                    })
 
-                    optim_disc = th.optim.Adam(
-                        disc.parameters(), lr=disc_lr, betas=betas
-                    )
+                    optim_disc.add_param_group({
+                        "params": disc.start_block_parameters(),
+                        "lr": disc_lr,
+                        "betas": betas
+                    })
 
                     tqdm_bar.write(
                         "\n"

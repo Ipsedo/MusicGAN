@@ -24,7 +24,10 @@ class OldBlock(nn.Sequential):
                 stride=(1, 1),
                 padding=(1, 1)
             ),
-            LayerNorm2d(),
+            nn.InstanceNorm2d(
+                out_channels,
+                affine=False
+            ),
             nn.LeakyReLU(LEAKY_RELU_SLOPE),
 
             nn.Conv2d(
@@ -34,7 +37,10 @@ class OldBlock(nn.Sequential):
                 stride=(2, 2),
                 padding=(1, 1),
             ),
-            LayerNorm2d(),
+            nn.InstanceNorm2d(
+                out_channels,
+                affine=False
+            ),
             nn.LeakyReLU(LEAKY_RELU_SLOPE)
         ])
 
@@ -109,7 +115,7 @@ class Discriminator(nn.Module):
             (48, 56),
             (56, 64),
             (64, 72),  # we start here
-            (72, 80)
+            #(72, 80)
         ]
 
         self.__grew_up = False
@@ -124,13 +130,15 @@ class Discriminator(nn.Module):
         assert 0 <= start_layer <= len(conv_channels)
 
         self.__conv_blocks = nn.ModuleList([
-            DiscBlock(c[0], c[1])
-            for i, c in enumerate(conv_channels)
+            OldBlock(c[0], c[1])
+            for c in conv_channels
         ])
 
         self.__start_block = FromMagnPhase(
-            conv_channels[start_layer][0]
+            conv_channels[self.__curr_layer][0]
         )
+
+        self.__last_start_block = None
 
         nb_time = 512
         nb_freq = 512
@@ -145,15 +153,18 @@ class Discriminator(nn.Module):
         )
 
         self.__clf = nn.Sequential(
-            nn.Linear(out_size, 1),
-            nn.Sigmoid()
+            nn.Linear(out_size, 1)
         )
 
-    def forward(self, x: th.Tensor, slope: float) -> th.Tensor:
-        out = self.__start_block(x, slope)
-        out = self.__conv_blocks[self.__curr_layer](out, slope)
+    def forward(self, x: th.Tensor, alpha: float) -> th.Tensor:
+        out = self.__start_block(x)
+        out = self.__conv_blocks[self.curr_layer](out)
 
-        for i in range(self.__curr_layer + 1, len(self.__conv_blocks)):
+        if self.__grew_up:
+            out_old = self.__last_start_block(x)
+            out = alpha * out + (1. - alpha) * out_old
+
+        for i in range(self.curr_layer + 1, len(self.__conv_blocks)):
             out = self.__conv_blocks[i](out)
 
         out = out.flatten(1, -1)
@@ -168,7 +179,10 @@ class Discriminator(nn.Module):
 
             self.__grew_up = True
 
-            last_start_block = self.__start_block
+            self.__last_start_block = nn.Sequential(
+                nn.AvgPool2d(2, 2),
+                self.__start_block
+            )
 
             self.__start_block = FromMagnPhase(
                 self.__channels[self.curr_layer][0]
@@ -180,14 +194,14 @@ class Discriminator(nn.Module):
 
             self.__start_block.to(device)
 
-            b = last_start_block.conv.bias.data
+            """b = self.__start_block[self.curr_layer + 1].conv.bias.data
             # transpose to fit matrix_multiple dims order
-            m = last_start_block.conv.weight.data[:, :, 0, 0].transpose(1, 0)
+            m = self.__start_block[self.curr_layer + 1].conv.weight.data[:, :, 0, 0].transpose(1, 0)
             factor_1, factor_2 = matrix_multiple(m, self.__channels[self.curr_layer][0])
 
             # transpose back to fit PyTorch dims order
-            self.__start_block.from_layer(factor_1.transpose(1, 0))
-            self.__conv_blocks[self.__curr_layer].from_layer(factor_2.transpose(1, 0), b)
+            self.__start_block[self.curr_layer].from_layer(factor_1.transpose(1, 0))
+            self.__conv_blocks[self.curr_layer].from_layer(factor_2.transpose(1, 0), b)"""
 
             return True
 
@@ -205,8 +219,7 @@ class Discriminator(nn.Module):
             self,
             x_real: th.Tensor,
             x_gen: th.Tensor,
-            slope: float,
-            alpha: float
+            slope: float
     ) -> th.Tensor:
         device = "cuda" if next(self.parameters()).is_cuda else "cpu"
 
@@ -216,7 +229,7 @@ class Discriminator(nn.Module):
         x_interpolated = eps * x_real + (1 - eps) * x_gen
         x_interpolated.requires_grad_(True)
 
-        out_interpolated = self(x_interpolated, slope, alpha)
+        out_interpolated = self(x_interpolated, slope)
 
         gradients = th_autograd.grad(
             out_interpolated, x_interpolated,

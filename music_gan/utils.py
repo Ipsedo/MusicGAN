@@ -7,7 +7,7 @@ from torchvision.transforms import Compose, Resize
 from tqdm import tqdm
 
 from . import audio
-from .networks import Discriminator, Generator, LEAKY_RELU_SLOPE
+from .networks import Discriminator, Generator
 
 
 class Grower:
@@ -36,8 +36,8 @@ class Grower:
 
         self.__fadein_lengths = fadein_lengths
 
-        self.__train_lenghts = train_lengths
-        self.__train_lenghts_cumsum = (
+        self.__train_lengths = train_lengths
+        self.__train_lengths_cumsum = (
             th.tensor(train_lengths)
             .cumsum(dim=0)
             .tolist()
@@ -54,7 +54,7 @@ class Grower:
 
         if self.__curr_grow < self.__n_grow:
             self.__tqdm_bar_grow = tqdm(
-                range(self.__train_lenghts[self.__curr_grow]),
+                range(self.__train_lengths[self.__curr_grow]),
                 position=2,
                 leave=False
             )
@@ -84,7 +84,7 @@ class Grower:
         if self.__curr_grow >= self.__n_grow:
             return False
 
-        if self.__train_lenghts_cumsum[self.__curr_grow] < self.__sample_idx:
+        if self.__train_lengths_cumsum[self.__curr_grow] < self.__sample_idx:
             self.__step_sample_idx = 0
             self.__curr_grow += 1
 
@@ -98,10 +98,10 @@ class Grower:
         return False
 
     @property
-    def leaky_relu_slope(self) -> float:
-        return max(
-            LEAKY_RELU_SLOPE,
-            1. - (1 - LEAKY_RELU_SLOPE) * (1. + self.__step_sample_idx) /
+    def alpha(self) -> float:
+        return min(
+            1.,
+            (1. + self.__step_sample_idx) /
             self.__fadein_lengths[self.__curr_grow]
         )
 
@@ -185,7 +185,7 @@ class Saver:
     def __save_outputs(
             self,
             gen: Generator,
-            slope: float
+            alpha: float
     ):
         # Generate sound
         with th.no_grad():
@@ -199,7 +199,7 @@ class Saver:
                     device="cuda"
                 )
 
-                x_fake = gen(z, slope)
+                x_fake = gen(z, alpha)
 
                 magn = x_fake[0, 0, :, :].detach().cpu().numpy()
                 phase = x_fake[0, 1, :, :].detach().cpu().numpy()
@@ -242,7 +242,7 @@ class Saver:
             disc: Discriminator,
             optim_gen: th.optim.Adam,
             optim_disc: th.optim.Adam,
-            slope: float,
+            alpha: float,
     ) -> bool:
         self.__counter += 1
 
@@ -253,7 +253,7 @@ class Saver:
             )
 
             self.__save_outputs(
-                gen, slope
+                gen, alpha
             )
 
             self.__curr_save += 1
