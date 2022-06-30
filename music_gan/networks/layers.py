@@ -9,7 +9,6 @@ from .constants import LEAKY_RELU_SLOPE
 
 
 class Conv2dPadding(nn.Conv2d):
-
     def __init__(
             self,
             in_channels: int,
@@ -42,11 +41,11 @@ class Conv2dPadding(nn.Conv2d):
         assert padding[0] == padding[1]
 
         self.__repl = nn.ReplicationPad2d(
-            (padding[0], padding[0], 0, 0)
+            (padding[0], padding[0], 0, padding[1])
         )
 
         self.__zero = nn.ZeroPad2d(
-            (0, 0, padding[1], padding[1])
+            (0, 0, padding[1], 0)
         )
 
     def forward(self, x: Tensor) -> Tensor:
@@ -61,13 +60,11 @@ class LayerNorm2d(nn.Module):
 
         self.__epsilon = epsilon
 
-    def forward(self, x: th.Tensor, alpha: float = 1.0) -> th.Tensor:
+    def forward(self, x: th.Tensor) -> th.Tensor:
         mean = x.mean(dim=[1, 2, 3], keepdim=True)
         var = x.var(dim=[1, 2, 3], keepdim=True)
 
-        out_norm = (x - mean) / th.sqrt(var + self.__epsilon)
-
-        return out_norm * alpha + x * (1. - alpha)
+        return (x - mean) / th.sqrt(var + self.__epsilon)
 
     def __repr__(self):
         return f"{self.__class__.__name__}(eps={self.__epsilon})"
@@ -194,43 +191,40 @@ class MiniBatchStdDev(nn.Module):
         return self.__repr__()
 
 
-class ToMagnPhase(nn.Sequential):
+class ToMagnPhase(nn.Module):
     def __init__(self, in_channels: int):
-        super(ToMagnPhase, self).__init__(
-            nn.ConvTranspose2d(
-                in_channels, 2,
-                kernel_size=(1, 1),
-                stride=(1, 1),
-            ),
-            nn.Tanh()
+        super(ToMagnPhase, self).__init__()
+
+        self.__conv = nn.Conv2d(
+            in_channels, 2,
+            kernel_size=(1, 1),
+            stride=(1, 1),
         )
 
     @property
-    def conv(self) -> nn.ConvTranspose2d:
+    def conv(self) -> nn.Conv2d:
         return self.__conv
 
     def from_layer(self, factor_2: th.Tensor, bias: th.Tensor) -> None:
-
         self.__conv.bias.data[:] = bias.clone()
         nn.init.zeros_(self.__conv.weight)
 
         self.__conv.weight.data[:, :, 0, 0] = factor_2.clone()
 
+    def forward(self, x: th.Tensor) -> th.Tensor:
+        out = self.__conv(x)
+        return th.tanh(out)
 
-class FromMagnPhase(nn.Sequential):
+
+class FromMagnPhase(nn.Module):
     def __init__(self, out_channels: int):
-        super(FromMagnPhase, self).__init__(
-            nn.Conv2d(
-                2,
-                out_channels,
-                kernel_size=(1, 1),
-                stride=(1, 1)
-            ),
-            nn.InstanceNorm2d(
-                out_channels,
-                affine=False
-            ),
-            nn.LeakyReLU(LEAKY_RELU_SLOPE)
+        super(FromMagnPhase, self).__init__()
+
+        self.__conv = nn.Conv2d(
+            2,
+            out_channels,
+            kernel_size=(1, 1),
+            stride=(1, 1)
         )
 
     @property
@@ -238,8 +232,11 @@ class FromMagnPhase(nn.Sequential):
         return self.__conv
 
     def from_layer(self, factor_1: th.Tensor) -> None:
-
         nn.init.zeros_(self.__conv.bias)
         nn.init.zeros_(self.__conv.weight)
 
         self.__conv.weight.data[:, :, 0, 0] = factor_1.clone()
+
+    def forward(self, x: th.Tensor, slope: float = LEAKY_RELU_SLOPE) -> th.Tensor:
+        out = self.__conv(x)
+        return F.leaky_relu(out, slope)

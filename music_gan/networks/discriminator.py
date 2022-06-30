@@ -7,16 +7,16 @@ import torch.nn.functional as F
 
 from .constants import LEAKY_RELU_SLOPE
 from .functions import matrix_multiple
-from .layers import FromMagnPhase, PixelNorm, LayerNorm2d
+from .layers import FromMagnPhase, PixelNorm, LayerNorm2d, Conv2dPadding
 
 
-class OldBlock(nn.Sequential):
+class DiscBlock(nn.Sequential):
     def __init__(
             self,
             in_channels: int,
             out_channels: int
     ):
-        super(OldBlock, self).__init__(*[
+        super(DiscBlock, self).__init__(
             nn.Conv2d(
                 in_channels,
                 out_channels,
@@ -24,36 +24,30 @@ class OldBlock(nn.Sequential):
                 stride=(1, 1),
                 padding=(1, 1)
             ),
-            nn.InstanceNorm2d(
-                out_channels,
-                affine=False
-            ),
-            nn.LeakyReLU(LEAKY_RELU_SLOPE),
+            nn.SELU(),
+
+            nn.AvgPool2d(2, 2),
 
             nn.Conv2d(
                 out_channels,
                 out_channels,
                 kernel_size=(3, 3),
-                stride=(2, 2),
+                stride=(1, 1),
                 padding=(1, 1),
             ),
-            nn.InstanceNorm2d(
-                out_channels,
-                affine=False
-            ),
-            nn.LeakyReLU(LEAKY_RELU_SLOPE)
-        ])
+            nn.SELU(),
+        )
 
 
-class DiscBlock(nn.Module):
+class LinearityFadeinBlock(nn.Module):
     def __init__(
             self,
             in_channels: int,
             out_channels: int
     ):
-        super(DiscBlock, self).__init__()
+        super(LinearityFadeinBlock, self).__init__()
 
-        self.__conv = nn.Conv2d(
+        self.__conv_1 = nn.Conv2d(
             in_channels,
             out_channels,
             kernel_size=(3, 3),
@@ -61,11 +55,13 @@ class DiscBlock(nn.Module):
             padding=(1, 1),
         )
 
-        self.__conv_down = nn.Conv2d(
+        self.__down = nn.AvgPool2d(2, 2)
+
+        self.__conv_2 = nn.Conv2d(
             out_channels,
             out_channels,
             kernel_size=(3, 3),
-            stride=(2, 2),
+            stride=(1, 1),
             padding=(1, 1)
         )
 
@@ -73,29 +69,29 @@ class DiscBlock(nn.Module):
         self.__out_channels = out_channels
 
     def forward(self, x: th.Tensor, slope: float = LEAKY_RELU_SLOPE) -> th.Tensor:
-        out = self.__conv(x)
+        out = self.__conv_1(x)
         out = F.leaky_relu(out, slope)
 
-        out = self.__conv_down(out)
+        out = self.__down(out)
+
+        out = self.__conv_2(out)
         out = F.leaky_relu(out, slope)
 
         return out
 
     def from_layer(self, factor_2: th.Tensor, bias: th.Tensor) -> None:
         # Init first conv - from last layer
-        self.__conv.bias.data[:] = bias.clone()
-        nn.init.zeros_(self.__conv.weight)
+        self.__conv_1.bias.data[:] = bias.clone()
+        nn.init.zeros_(self.__conv_1.weight)
 
-        self.__conv.weight.data[:, :, 1, 1] = factor_2.clone()
+        self.__conv_1.weight.data[:, :, 1, 1] = factor_2.clone()
 
         # Init second conv - identity
-        nn.init.zeros_(self.__conv_down.bias)
-        nn.init.zeros_(self.__conv_down.weight)
+        nn.init.zeros_(self.__conv_2.bias)
+        nn.init.zeros_(self.__conv_2.weight)
 
-        # with stride of 2, only fill with identity 2 * 2 kernel pixel
-        self.__conv_down.weight.data[:, :, 1:, 1:] = (
-            th.eye(self.__out_channels)[:, :, None, None]
-            .repeat(1, 1, 2, 2) / 4  # kernel is 3 * 3, and we want to fill 2 * 2
+        self.__conv_2.weight.data[:, :, 1, 1] = (
+            th.eye(self.__out_channels)
         )
 
 
@@ -115,7 +111,7 @@ class Discriminator(nn.Module):
             (48, 56),
             (56, 64),
             (64, 72),  # we start here
-            #(72, 80)
+            (72, 80)
         ]
 
         self.__grew_up = False
@@ -130,15 +126,14 @@ class Discriminator(nn.Module):
         assert 0 <= start_layer <= len(conv_channels)
 
         self.__conv_blocks = nn.ModuleList([
-            OldBlock(c[0], c[1])
+            LinearityFadeinBlock(c[0], c[1])
             for c in conv_channels
         ])
 
-        self.__start_block = FromMagnPhase(
-            conv_channels[self.__curr_layer][0]
+        self.__start_block = nn.ModuleList(
+            FromMagnPhase(c[0])
+            for c in conv_channels[:-1]
         )
-
-        self.__last_start_block = None
 
         nb_time = 512
         nb_freq = 512
@@ -156,13 +151,9 @@ class Discriminator(nn.Module):
             nn.Linear(out_size, 1)
         )
 
-    def forward(self, x: th.Tensor, alpha: float) -> th.Tensor:
-        out = self.__start_block(x)
-        out = self.__conv_blocks[self.curr_layer](out)
-
-        if self.__grew_up:
-            out_old = self.__last_start_block(x)
-            out = alpha * out + (1. - alpha) * out_old
+    def forward(self, x: th.Tensor, slope: float) -> th.Tensor:
+        out = self.__start_block[self.curr_layer](x, slope)
+        out = self.__conv_blocks[self.curr_layer](out, slope)
 
         for i in range(self.curr_layer + 1, len(self.__conv_blocks)):
             out = self.__conv_blocks[i](out)
@@ -179,29 +170,14 @@ class Discriminator(nn.Module):
 
             self.__grew_up = True
 
-            self.__last_start_block = nn.Sequential(
-                nn.AvgPool2d(2, 2),
-                self.__start_block
-            )
-
-            self.__start_block = FromMagnPhase(
-                self.__channels[self.curr_layer][0]
-            )
-
-            device = "cuda" \
-                if next(self.__conv_blocks.parameters()).is_cuda \
-                else "cpu"
-
-            self.__start_block.to(device)
-
-            """b = self.__start_block[self.curr_layer + 1].conv.bias.data
+            b = self.__start_block[self.curr_layer + 1].conv.bias.data
             # transpose to fit matrix_multiple dims order
             m = self.__start_block[self.curr_layer + 1].conv.weight.data[:, :, 0, 0].transpose(1, 0)
             factor_1, factor_2 = matrix_multiple(m, self.__channels[self.curr_layer][0])
 
             # transpose back to fit PyTorch dims order
             self.__start_block[self.curr_layer].from_layer(factor_1.transpose(1, 0))
-            self.__conv_blocks[self.curr_layer].from_layer(factor_2.transpose(1, 0), b)"""
+            self.__conv_blocks[self.curr_layer].from_layer(factor_2.transpose(1, 0), b)
 
             return True
 
@@ -219,7 +195,7 @@ class Discriminator(nn.Module):
             self,
             x_real: th.Tensor,
             x_gen: th.Tensor,
-            slope: float
+            alpha: float
     ) -> th.Tensor:
         device = "cuda" if next(self.parameters()).is_cuda else "cpu"
 
@@ -229,7 +205,7 @@ class Discriminator(nn.Module):
         x_interpolated = eps * x_real + (1 - eps) * x_gen
         x_interpolated.requires_grad_(True)
 
-        out_interpolated = self(x_interpolated, slope)
+        out_interpolated = self(x_interpolated, alpha)
 
         gradients = th_autograd.grad(
             out_interpolated, x_interpolated,

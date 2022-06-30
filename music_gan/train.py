@@ -38,7 +38,7 @@ def train(
     betas = (0., 0.9)
 
     nb_epoch = 1000
-    batch_size = 8
+    batch_size = 4
     train_gen_every = 4
 
     if not exists(output_dir):
@@ -51,11 +51,11 @@ def train(
     grower = Grower(
         n_grow=7,
         fadein_lengths=[
-            1, 10000, 10000, 10000, 10000, 10000, 10000, 10000,
+            1, 20000, 20000, 20000, 20000, 20000, 20000, 20000,
             # 1,1,1,1,1,1,1,1
         ],
         train_lengths=[
-            30000, 40000, 40000, 40000, 40000, 40000, 40000,
+            20000, 40000, 40000, 40000, 40000, 40000, 40000,
             # 1,1,1,1,1,1,1
         ]
     )
@@ -150,11 +150,11 @@ def train(
                 )
 
                 # gen fake data
-                x_fake = gen(z, grower.alpha)
+                x_fake = gen(z, grower.leaky_relu_slope)
 
                 # pass real data and gen data to discriminator
-                out_real = disc(x_real, grower.alpha)
-                out_fake = disc(x_fake, grower.alpha)
+                out_real = disc(x_real, grower.leaky_relu_slope)
+                out_fake = disc(x_fake, grower.leaky_relu_slope)
 
                 # compute discriminator loss
                 disc_loss = networks.wasserstein_discriminator_loss(
@@ -163,7 +163,7 @@ def train(
 
                 # compute gradient penalty
                 disc_gp = disc.gradient_penalty(
-                    x_real, x_fake, grower.alpha
+                    x_real, x_fake, grower.leaky_relu_slope
                 )
 
                 disc_loss_gp = disc_loss + disc_gp
@@ -202,10 +202,10 @@ def train(
                     optim_gen.zero_grad(set_to_none=True)
 
                     # generate fake data
-                    x_fake = gen(z, grower.alpha)
+                    x_fake = gen(z, grower.leaky_relu_slope)
 
                     # use unrolled discriminators
-                    out_fake = disc(x_fake, grower.alpha)
+                    out_fake = disc(x_fake, grower.leaky_relu_slope)
 
                     # compute generator loss
                     gen_loss = networks.wasserstein_generator_loss(out_fake)
@@ -235,11 +235,11 @@ def train(
                     f"e_tp = {mean(error_tp):.2f}, "
                     f"e_tn = {mean(error_tn):.2f}, "
                     f"e_gen = {mean(error_gen):.2f}, "
-                    f"alpha = {grower.alpha:.3f} "
+                    f"slope = {grower.leaky_relu_slope:.3f} "
                 )
 
                 # log metrics
-                if iter_idx % 10 == 0:
+                if iter_idx % 100 == 0:
                     mlflow.log_metrics(step=gen.curr_layer, metrics={
                         "disc_loss": disc_loss.item(),
                         "gen_loss": gen_loss.item(),
@@ -253,7 +253,7 @@ def train(
                 saver.request_save(
                     gen, disc,
                     optim_gen, optim_disc,
-                    grower.alpha
+                    grower.leaky_relu_slope
                 )
 
                 iter_idx += 1
@@ -263,18 +263,6 @@ def train(
                 if grower.grow() and gen.growing:
                     gen.next_layer()
                     disc.next_layer()
-
-                    optim_gen.add_param_group({
-                        "params": gen.end_block_parameters(),
-                        "lr": gen_lr,
-                        "betas": betas
-                    })
-
-                    optim_disc.add_param_group({
-                        "params": disc.start_block_parameters(),
-                        "lr": disc_lr,
-                        "betas": betas
-                    })
 
                     tqdm_bar.write(
                         "\n"
