@@ -110,8 +110,6 @@ class Generator(nn.Module):
 
         self.__curr_layer = end_layer
 
-        self.__grew_up = False
-
         self.__nb_downsample = 7
 
         channels = [
@@ -147,7 +145,6 @@ class Generator(nn.Module):
             z: th.Tensor,
             slope: float
     ) -> th.Tensor:
-
         out = z
 
         for i in range(self.curr_layer):
@@ -161,7 +158,6 @@ class Generator(nn.Module):
     def next_layer(self) -> bool:
         if self.growing:
             self.__curr_layer += 1
-            self.__grew_up = True
 
             b = self.__end_blocks[self.curr_layer - 1].conv.bias.data
             m = self.__end_blocks[self.curr_layer - 1].conv.weight.data[:, :, 0, 0].transpose(1, 0)

@@ -114,8 +114,6 @@ class Discriminator(nn.Module):
             (72, 80)
         ]
 
-        self.__grew_up = False
-
         self.__channels = conv_channels
 
         self.__curr_layer = start_layer
@@ -130,7 +128,7 @@ class Discriminator(nn.Module):
             for c in conv_channels
         ])
 
-        self.__start_block = nn.ModuleList(
+        self.__start_blocks = nn.ModuleList(
             FromMagnPhase(c[0])
             for c in conv_channels[:-1]
         )
@@ -152,7 +150,7 @@ class Discriminator(nn.Module):
         )
 
     def forward(self, x: th.Tensor, slope: float) -> th.Tensor:
-        out = self.__start_block[self.curr_layer](x, slope)
+        out = self.__start_blocks[self.curr_layer](x, slope)
         out = self.__conv_blocks[self.curr_layer](out, slope)
 
         for i in range(self.curr_layer + 1, len(self.__conv_blocks)):
@@ -168,15 +166,13 @@ class Discriminator(nn.Module):
         if self.growing:
             self.__curr_layer -= 1
 
-            self.__grew_up = True
-
-            b = self.__start_block[self.curr_layer + 1].conv.bias.data
+            b = self.__start_blocks[self.curr_layer + 1].conv.bias.data
             # transpose to fit matrix_multiple dims order
-            m = self.__start_block[self.curr_layer + 1].conv.weight.data[:, :, 0, 0].transpose(1, 0)
+            m = self.__start_blocks[self.curr_layer + 1].conv.weight.data[:, :, 0, 0].transpose(1, 0)
             factor_1, factor_2 = matrix_multiple(m, self.__channels[self.curr_layer][0])
 
             # transpose back to fit PyTorch dims order
-            self.__start_block[self.curr_layer].from_layer(factor_1.transpose(1, 0))
+            self.__start_blocks[self.curr_layer].from_layer(factor_1.transpose(1, 0))
             self.__conv_blocks[self.curr_layer].from_layer(factor_2.transpose(1, 0), b)
 
             return True
@@ -225,7 +221,8 @@ class Discriminator(nn.Module):
     def start_block_parameters(
             self, recurse: bool = True
     ) -> Iterator[nn.Parameter]:
-        return self.__start_block.parameters(recurse)
+        raise NotImplementedError()
+        #return self.__start_block.parameters(recurse)
 
     @property
     def conv_blocks(self) -> nn.ModuleList:
@@ -238,7 +235,7 @@ class Discriminator(nn.Module):
 
     @property
     def start_block(self) -> nn.Module:
-        return self.__start_block
+        return self.__start_blocks[self.curr_layer]
 
     @property
     def end_layer_channels(self) -> int:

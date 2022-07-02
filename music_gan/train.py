@@ -1,13 +1,11 @@
 from os import mkdir
 from os.path import exists, isdir
 from statistics import mean
-import copy
 
 import mlflow
 import torch as th
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-import higher
 
 from . import audio
 from . import networks
@@ -38,7 +36,7 @@ def train(
     betas = (0., 0.9)
 
     nb_epoch = 1000
-    batch_size = 4
+    batch_size = 8
     train_gen_every = 4
 
     if not exists(output_dir):
@@ -51,11 +49,11 @@ def train(
     grower = Grower(
         n_grow=7,
         fadein_lengths=[
-            1, 10000, 10000, 10000, 10000, 10000, 10000, 10000,
+            1, 20000, 20000, 20000, 20000, 20000, 20000, 20000,
             # 1,1,1,1,1,1,1,1
         ],
         train_lengths=[
-            30000, 40000, 40000, 40000, 40000, 40000, 40000,
+            40000, 60000, 60000, 60000, 60000, 60000, 60000,
             # 1,1,1,1,1,1,1
         ]
     )
