@@ -212,6 +212,5 @@ class FromMagnPhase(nn.Sequential):
                 kernel_size=(1, 1),
                 stride=(1, 1)
             ),
-            LayerNorm2d(),
             nn.LeakyReLU(LEAKY_RELU_SLOPE)
         )

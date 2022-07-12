@@ -24,8 +24,7 @@ class DiscBlock(nn.Sequential):
                 stride=(1, 1),
                 padding=(1, 1)
             ),
-            LayerNorm2d(),
-            nn.LeakyReLU(2e-1),
+            nn.LeakyReLU(LEAKY_RELU_SLOPE),
 
             nn.Conv2d(
                 out_channels,
@@ -34,8 +33,7 @@ class DiscBlock(nn.Sequential):
                 stride=(2, 2),
                 padding=(1, 1)
             ),
-            LayerNorm2d(),
-            nn.LeakyReLU(2e-1),
+            nn.LeakyReLU(LEAKY_RELU_SLOPE),
 
             nn.Conv2d(
                 out_channels,
@@ -44,8 +42,7 @@ class DiscBlock(nn.Sequential):
                 stride=(1, 1),
                 padding=(1, 1),
             ),
-            LayerNorm2d(),
-            nn.LeakyReLU(2e-1),
+            nn.LeakyReLU(LEAKY_RELU_SLOPE),
         )
 
 

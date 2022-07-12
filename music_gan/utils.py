@@ -99,8 +99,7 @@ class Saver:
                 )
 
                 magn_ax.set_title(
-                    "gen magn " + str(self.__curr_save) +
-                    " grow=" + str(gen.curr_layer)
+                    "gen magn " + str(self.__curr_save)
                 )
 
                 # Plot phase
@@ -110,8 +109,7 @@ class Saver:
                 )
 
                 phase_ax.set_title(
-                    "gen phase " + str(self.__curr_save) +
-                    " grow=" + str(gen.curr_layer)
+                    "gen phase " + str(self.__curr_save)
                 )
 
                 fig.savefig(join(
