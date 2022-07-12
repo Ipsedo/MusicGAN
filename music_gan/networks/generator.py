@@ -57,9 +57,13 @@ class LinearityFadeinBlock(nn.Module):
             stride=(1, 1),
         )
 
-        self.__up = nn.Upsample(
-            scale_factor=2.,
-            mode="nearest"
+        self.__up = nn.ConvTranspose2d(
+            in_channels,
+            in_channels,
+            kernel_size=(3, 3),
+            stride=(2, 2),
+            padding=(1, 1),
+            output_padding=(1, 1)
         )
 
         self.__conv_2 = nn.Conv2d(
@@ -78,6 +82,7 @@ class LinearityFadeinBlock(nn.Module):
         out = F.leaky_relu(out, slope)
 
         out = self.__up(out)
+        out = F.leaky_relu(out, slope)
 
         out = self.__conv_2(out)
         out = F.leaky_relu(out, slope)
@@ -91,6 +96,14 @@ class LinearityFadeinBlock(nn.Module):
 
         self.__conv_1.weight.data[:, :, 1, 1] = (
             th.eye(self.__in_channels)
+        )
+
+        # Init strided transposed conv
+        nn.init.zeros_(self.__up.bias)
+        nn.init.zeros_(self.__up.weight)
+        self.__up.weight.data[:, :, 1:, 1:] = (
+            th.eye(self.__in_channels)[:, :, None, None]
+            .repeat(1, 1, 2, 2)
         )
 
         # Init second conv - from last layer
