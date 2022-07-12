@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 from . import audio
 from . import networks
-from .utils import Grower, Saver
+from .utils import Saver
 
 
 def train(
@@ -36,7 +36,7 @@ def train(
     betas = (0., 0.9)
 
     nb_epoch = 1000
-    batch_size = 8
+    batch_size = 6
     train_gen_every = 4
 
     if not exists(output_dir):
@@ -45,18 +45,6 @@ def train(
         raise NotADirectoryError(
             f"\"{output_dir}\" is not a directory !"
         )
-
-    grower = Grower(
-        n_grow=7,
-        fadein_lengths=[
-            1, 20000, 20000, 20000, 20000, 20000, 20000, 20000,
-            # 1,1,1,1,1,1,1,1
-        ],
-        train_lengths=[
-            40000, 60000, 60000, 60000, 60000, 60000, 60000,
-            # 1,1,1,1,1,1,1
-        ]
-    )
 
     saver = Saver(
         output_dir,
@@ -135,8 +123,7 @@ def train(
                 # [1] train discriminator
 
                 # pass data to cuda
-                x_real = x_real.to(th.float)
-                x_real = grower.scale_transform(x_real).cuda()
+                x_real = x_real.to(th.float).cuda()
 
                 # sample random latent data
                 z = th.randn(
@@ -148,11 +135,11 @@ def train(
                 )
 
                 # gen fake data
-                x_fake = gen(z, grower.leaky_relu_slope)
+                x_fake = gen(z)
 
                 # pass real data and gen data to discriminator
-                out_real = disc(x_real, grower.leaky_relu_slope)
-                out_fake = disc(x_fake, grower.leaky_relu_slope)
+                out_real = disc(x_real)
+                out_fake = disc(x_fake)
 
                 # compute discriminator loss
                 disc_loss = networks.wasserstein_discriminator_loss(
@@ -161,7 +148,7 @@ def train(
 
                 # compute gradient penalty
                 disc_gp = disc.gradient_penalty(
-                    x_real, x_fake, grower.leaky_relu_slope
+                    x_real, x_fake
                 )
 
                 disc_loss_gp = disc_loss + disc_gp
@@ -200,10 +187,10 @@ def train(
                     optim_gen.zero_grad(set_to_none=True)
 
                     # generate fake data
-                    x_fake = gen(z, grower.leaky_relu_slope)
+                    x_fake = gen(z)
 
                     # use unrolled discriminators
-                    out_fake = disc(x_fake, grower.leaky_relu_slope)
+                    out_fake = disc(x_fake)
 
                     # compute generator loss
                     gen_loss = networks.wasserstein_generator_loss(out_fake)
@@ -232,13 +219,12 @@ def train(
                     f"disc_gp = {mean(disc_gp_list):.3f}, "
                     f"e_tp = {mean(error_tp):.2f}, "
                     f"e_tn = {mean(error_tn):.2f}, "
-                    f"e_gen = {mean(error_gen):.2f}, "
-                    f"slope = {grower.leaky_relu_slope:.3f} "
+                    f"e_gen = {mean(error_gen):.2f}"
                 )
 
                 # log metrics
                 if iter_idx % 100 == 0:
-                    mlflow.log_metrics(step=gen.curr_layer, metrics={
+                    mlflow.log_metrics(metrics={
                         "disc_loss": disc_loss.item(),
                         "gen_loss": gen_loss.item(),
                         "disc_gp": disc_gp.item(),
@@ -250,20 +236,7 @@ def train(
                 # each N forward/backward pass
                 saver.request_save(
                     gen, disc,
-                    optim_gen, optim_disc,
-                    grower.leaky_relu_slope
+                    optim_gen, optim_disc
                 )
 
                 iter_idx += 1
-
-                # ProGAN : add next layer
-                # IF time_to_grow AND growing
-                if grower.grow() and gen.growing:
-                    gen.next_layer()
-                    disc.next_layer()
-
-                    tqdm_bar.write(
-                        "\n"
-                        f"Next layer, {gen.curr_layer} / {gen.down_sample}, "
-                        f"curr_save = {saver.curr_save}"
-                    )

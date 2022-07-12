@@ -17,31 +17,23 @@ class TestNetworks(unittest.TestCase):
             gen = Generator(rand_channels)
             disc = Discriminator(7)
 
-            for i in range(gen.down_sample + 3):
-                z = th.randn(
+            z = th.randn(
                     batch_size,
                     rand_channels,
                     input_size,
                     input_size
-                )
+            )
 
-                out = gen(z, alpha)
+            out = gen(z)
 
-                expected_size = input_size * 2 ** (
-                    i + 1 if disc.growing and gen.growing
-                    else gen.down_sample + 1
-                )
+            expected_size = 512
 
-                self.assertEqual(out.size()[2], expected_size)
-                self.assertEqual(out.size()[3], expected_size)
+            self.assertEqual(out.size()[2], expected_size)
+            self.assertEqual(out.size()[3], expected_size)
 
-                out_disc = disc(out, alpha)
+            out_disc = disc(out)
 
-                self.assertEqual(gen.growing, disc.growing)
-                self.assertEqual(out_disc.size()[0], batch_size)
-
-                gen.next_layer()
-                disc.next_layer()
+            self.assertEqual(out_disc.size()[0], batch_size)
 
         except Exception as e:
             self.fail(str(e))

@@ -10,120 +10,6 @@ from . import audio
 from .networks import Discriminator, Generator, LEAKY_RELU_SLOPE
 
 
-class Grower:
-    def __init__(
-            self,
-            n_grow: int,
-            fadein_lengths: List[int],
-            train_lengths: List[int]
-    ):
-        self.__curr_grow = 0
-        self.__n_grow = n_grow
-
-        # view sample counter
-        self.__sample_idx = 0
-        # current grow step counter
-        self.__step_sample_idx = 0
-
-        # image downscale factor
-        self.__downscale = 7
-        # image/tensor transformation
-        self.__transform = Grower.__get_transform(self.__downscale)
-
-        # +1 because of last layer
-        assert len(fadein_lengths) == self.__n_grow + 1
-        assert len(train_lengths) == self.__n_grow
-
-        self.__fadein_lengths = fadein_lengths
-
-        self.__train_lengths = train_lengths
-        self.__train_lengths_cumsum = (
-            th.tensor(train_lengths)
-            .cumsum(dim=0)
-            .tolist()
-        )
-
-        self.__init_tqdm_bars()
-
-    def __init_tqdm_bars(self) -> None:
-        self.__tqdm_bar_fadein = tqdm(
-            range(self.__fadein_lengths[self.__curr_grow]),
-            position=1,
-            leave=False
-        )
-
-        if self.__curr_grow < self.__n_grow:
-            self.__tqdm_bar_grow = tqdm(
-                range(self.__train_lengths[self.__curr_grow]),
-                position=2,
-                leave=False
-            )
-
-    def __update_bars(self) -> None:
-
-        self.__tqdm_bar_fadein.set_description(
-            f"⌙> fade in "
-        )
-
-        self.__tqdm_bar_grow.set_description(
-            f"⌙> grow [{self.__curr_grow} / {self.__n_grow}] "
-        )
-
-        if self.__step_sample_idx <= self.__fadein_lengths[self.__curr_grow]:
-            self.__tqdm_bar_fadein.update(1)
-
-        if self.__curr_grow < self.__n_grow:
-            self.__tqdm_bar_grow.update(1)
-
-    def grow(self) -> bool:
-        self.__sample_idx += 1
-        self.__step_sample_idx += 1
-
-        self.__update_bars()
-
-        if self.__curr_grow >= self.__n_grow:
-            return False
-
-        if self.__train_lengths_cumsum[self.__curr_grow] < self.__sample_idx:
-            self.__step_sample_idx = 0
-            self.__curr_grow += 1
-
-            self.__downscale -= 1
-            self.__transform = Grower.__get_transform(self.__downscale)
-
-            self.__init_tqdm_bars()
-
-            return True
-
-        return False
-
-    @property
-    def leaky_relu_slope(self) -> float:
-        return max(
-            LEAKY_RELU_SLOPE,
-            1. - (1. - LEAKY_RELU_SLOPE) * (1. + self.__step_sample_idx) /
-            self.__fadein_lengths[self.__curr_grow]
-        )
-
-    @staticmethod
-    def __get_transform(downscale_factor: int) -> Compose:
-        size = 512
-
-        target_size = size // 2 ** downscale_factor
-
-        compose = Compose([
-            audio.ChannelMinMaxNorm(),
-            audio.ChangeRange(-1., 1.),
-            Resize(target_size)
-        ])
-
-        return compose
-
-    @property
-    def scale_transform(self) -> Compose:
-        return self.__transform
-
-
 class Saver:
     def __init__(
             self,
@@ -184,8 +70,7 @@ class Saver:
 
     def __save_outputs(
             self,
-            gen: Generator,
-            alpha: float
+            gen: Generator
     ):
         # Generate sound
         with th.no_grad():
@@ -199,7 +84,7 @@ class Saver:
                     device="cuda"
                 )
 
-                x_fake = gen(z, alpha)
+                x_fake = gen(z)
 
                 magn = x_fake[0, 0, :, :].detach().cpu().numpy()
                 phase = x_fake[0, 1, :, :].detach().cpu().numpy()
@@ -241,8 +126,7 @@ class Saver:
             gen: Generator,
             disc: Discriminator,
             optim_gen: th.optim.Adam,
-            optim_disc: th.optim.Adam,
-            alpha: float,
+            optim_disc: th.optim.Adam
     ) -> bool:
         self.__counter += 1
 
@@ -253,7 +137,7 @@ class Saver:
             )
 
             self.__save_outputs(
-                gen, alpha
+                gen
             )
 
             self.__curr_save += 1

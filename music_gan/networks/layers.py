@@ -179,7 +179,7 @@ class MiniBatchStdDev(nn.Module):
 
         std_mean = (
             th.mean(std, dim=(1, 2, 3), keepdim=True)
-            .expand(b, -1, h, w)
+                .expand(b, -1, h, w)
         )
 
         return th.cat([x, std_mean], dim=1)
@@ -191,52 +191,27 @@ class MiniBatchStdDev(nn.Module):
         return self.__repr__()
 
 
-class ToMagnPhase(nn.Module):
+class ToMagnPhase(nn.Sequential):
     def __init__(self, in_channels: int):
-        super(ToMagnPhase, self).__init__()
-
-        self.__conv = nn.Conv2d(
-            in_channels, 2,
-            kernel_size=(1, 1),
-            stride=(1, 1),
+        super(ToMagnPhase, self).__init__(
+            nn.Conv2d(
+                in_channels, 2,
+                kernel_size=(1, 1),
+                stride=(1, 1),
+            ),
+            nn.Tanh()
         )
 
-    @property
-    def conv(self) -> nn.Conv2d:
-        return self.__conv
 
-    def from_layer(self, factor_2: th.Tensor, bias: th.Tensor) -> None:
-        self.__conv.bias.data[:] = bias.clone()
-        nn.init.zeros_(self.__conv.weight)
-
-        self.__conv.weight.data[:, :, 0, 0] = factor_2.clone()
-
-    def forward(self, x: th.Tensor) -> th.Tensor:
-        out = self.__conv(x)
-        return th.tanh(out)
-
-
-class FromMagnPhase(nn.Module):
+class FromMagnPhase(nn.Sequential):
     def __init__(self, out_channels: int):
-        super(FromMagnPhase, self).__init__()
-
-        self.__conv = nn.Conv2d(
-            2,
-            out_channels,
-            kernel_size=(1, 1),
-            stride=(1, 1)
+        super(FromMagnPhase, self).__init__(
+            nn.Conv2d(
+                2,
+                out_channels,
+                kernel_size=(1, 1),
+                stride=(1, 1)
+            ),
+            LayerNorm2d(),
+            nn.LeakyReLU(LEAKY_RELU_SLOPE)
         )
-
-    @property
-    def conv(self) -> nn.Conv2d:
-        return self.__conv
-
-    def from_layer(self, factor_1: th.Tensor) -> None:
-        nn.init.zeros_(self.__conv.bias)
-        nn.init.zeros_(self.__conv.weight)
-
-        self.__conv.weight.data[:, :, 0, 0] = factor_1.clone()
-
-    def forward(self, x: th.Tensor, slope: float = LEAKY_RELU_SLOPE) -> th.Tensor:
-        out = self.__conv(x)
-        return F.leaky_relu(out, slope)
