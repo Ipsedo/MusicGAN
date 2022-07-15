@@ -55,13 +55,7 @@ class LinearityFadeinBlock(nn.Module):
             padding=(1, 1),
         )
 
-        self.__down = nn.Conv2d(
-            out_channels,
-            out_channels,
-            kernel_size=(3, 3),
-            stride=(2, 2),
-            padding=(1, 1)
-        )
+        self.__down = nn.AvgPool2d(2, 2)
 
         self.__conv_2 = nn.Conv2d(
             out_channels,
@@ -79,7 +73,6 @@ class LinearityFadeinBlock(nn.Module):
         out = F.leaky_relu(out, slope)
 
         out = self.__down(out)
-        out = F.leaky_relu(out, slope)
 
         out = self.__conv_2(out)
         out = F.leaky_relu(out, slope)
@@ -94,12 +87,12 @@ class LinearityFadeinBlock(nn.Module):
         self.__conv_1.weight.data[:, :, 1, 1] = factor_2.clone()
 
         # Init strided conv
-        nn.init.zeros_(self.__down.bias)
-        nn.init.zeros_(self.__down.weight)
-        self.__down.weight.data[:, :, 1:, 1:] = (
-            th.eye(self.__out_channels)[:, :, None, None]
-            .repeat(1, 1, 2, 2) / 4
-        )
+        # nn.init.zeros_(self.__down.bias)
+        # nn.init.zeros_(self.__down.weight)
+        # self.__down.weight.data[:, :, 1:, 1:] = (
+        #     th.eye(self.__out_channels)[:, :, None, None]
+        #     .repeat(1, 1, 2, 2) / 4
+        # )
 
         # Init second conv - identity
         nn.init.zeros_(self.__conv_2.bias)
@@ -225,7 +218,7 @@ class Discriminator(nn.Module):
         )
 
         grad_objective = 1.
-        grad_pen_factor = 8.
+        grad_pen_factor = 10.
 
         gradients = gradients[0].view(batch_size, -1)
         gradients_norm = gradients.norm(2, dim=1)
