@@ -148,11 +148,11 @@ def train(
                 )
 
                 # gen fake data
-                x_fake = gen(z, grower.leaky_relu_slope)
+                x_fake = gen(z, grower.alpha)
 
                 # pass real data and gen data to discriminator
-                out_real = disc(x_real, grower.leaky_relu_slope)
-                out_fake = disc(x_fake, grower.leaky_relu_slope)
+                out_real = disc(x_real, grower.alpha)
+                out_fake = disc(x_fake, grower.alpha)
 
                 # compute discriminator loss
                 disc_loss = networks.wasserstein_discriminator_loss(
@@ -161,7 +161,7 @@ def train(
 
                 # compute gradient penalty
                 disc_gp = disc.gradient_penalty(
-                    x_real, x_fake, grower.leaky_relu_slope
+                    x_real, x_fake, grower.alpha
                 )
 
                 disc_loss_gp = disc_loss + disc_gp
@@ -200,10 +200,10 @@ def train(
                     optim_gen.zero_grad(set_to_none=True)
 
                     # generate fake data
-                    x_fake = gen(z, grower.leaky_relu_slope)
+                    x_fake = gen(z, grower.alpha)
 
                     # use unrolled discriminators
-                    out_fake = disc(x_fake, grower.leaky_relu_slope)
+                    out_fake = disc(x_fake, grower.alpha)
 
                     # compute generator loss
                     gen_loss = networks.wasserstein_generator_loss(out_fake)
@@ -233,7 +233,7 @@ def train(
                     f"e_tp = {mean(error_tp):.2f}, "
                     f"e_tn = {mean(error_tn):.2f}, "
                     f"e_gen = {mean(error_gen):.2f}, "
-                    f"slope = {grower.leaky_relu_slope:.3f} "
+                    f"alpha = {grower.alpha:.3f} "
                 )
 
                 # log metrics
@@ -251,7 +251,7 @@ def train(
                 saver.request_save(
                     gen, disc,
                     optim_gen, optim_disc,
-                    grower.leaky_relu_slope
+                    grower.alpha
                 )
 
                 iter_idx += 1

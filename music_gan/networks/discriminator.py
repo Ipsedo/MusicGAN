@@ -24,7 +24,7 @@ class DiscBlock(nn.Sequential):
                 stride=(1, 1),
                 padding=(1, 1)
             ),
-            nn.SELU(),
+            nn.LeakyReLU(LEAKY_RELU_SLOPE),
 
             nn.AvgPool2d(2, 2),
 
@@ -35,7 +35,7 @@ class DiscBlock(nn.Sequential):
                 stride=(1, 1),
                 padding=(1, 1),
             ),
-            nn.SELU(),
+            nn.LeakyReLU(LEAKY_RELU_SLOPE),
         )
 
 
@@ -110,6 +110,8 @@ class Discriminator(nn.Module):
     ):
         super(Discriminator, self).__init__()
 
+        self.__grew_up = False
+
         conv_channels = [
             (8, 16),
             (16, 24),
@@ -132,7 +134,7 @@ class Discriminator(nn.Module):
         assert 0 <= start_layer <= len(conv_channels)
 
         self.__conv_blocks = nn.ModuleList([
-            LinearityFadeinBlock(c[0], c[1])
+            DiscBlock(c[0], c[1])
             for c in conv_channels
         ])
 
@@ -157,9 +159,15 @@ class Discriminator(nn.Module):
             nn.Linear(out_size, 1)
         )
 
-    def forward(self, x: th.Tensor, slope: float) -> th.Tensor:
-        out = self.__start_blocks[self.curr_layer](x, slope)
-        out = self.__conv_blocks[self.curr_layer](out, slope)
+    def forward(self, x: th.Tensor, alpha: float) -> th.Tensor:
+        out = self.__start_blocks[self.curr_layer](x)
+        out = self.__conv_blocks[self.curr_layer](out)
+
+        if self.__grew_up:
+            out_old = self.__start_blocks[self.curr_layer + 1](
+                F.avg_pool2d(x, (2, 2))
+            )
+            out = out_old * (1. - alpha) + out * alpha
 
         for i in range(self.curr_layer + 1, len(self.__conv_blocks)):
             out = self.__conv_blocks[i](out)
@@ -174,14 +182,16 @@ class Discriminator(nn.Module):
         if self.growing:
             self.__curr_layer -= 1
 
-            b = self.__start_blocks[self.curr_layer + 1].conv.bias.data
+            """b = self.__start_blocks[self.curr_layer + 1].conv.bias.data
             # transpose to fit matrix_multiple dims order
             m = self.__start_blocks[self.curr_layer + 1].conv.weight.data[:, :, 0, 0].transpose(1, 0)
             factor_1, factor_2 = matrix_multiple(m, self.__channels[self.curr_layer][0])
 
             # transpose back to fit PyTorch dims order
             self.__start_blocks[self.curr_layer].from_layer(factor_1.transpose(1, 0))
-            self.__conv_blocks[self.curr_layer].from_layer(factor_2.transpose(1, 0), b)
+            self.__conv_blocks[self.curr_layer].from_layer(factor_2.transpose(1, 0), b)"""
+
+            self.__grew_up = True
 
             return True
 

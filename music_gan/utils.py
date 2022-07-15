@@ -98,10 +98,10 @@ class Grower:
         return False
 
     @property
-    def leaky_relu_slope(self) -> float:
-        return max(
-            LEAKY_RELU_SLOPE,
-            1. - (1. - LEAKY_RELU_SLOPE) * (1. + self.__step_sample_idx) /
+    def alpha(self) -> float:
+        return min(
+            1.,
+            (1. + self.__step_sample_idx) /
             self.__fadein_lengths[self.__curr_grow]
         )
 

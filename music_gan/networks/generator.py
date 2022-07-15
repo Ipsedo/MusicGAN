@@ -23,7 +23,7 @@ class GenBlock(nn.Sequential):
                 padding=(1, 1),
                 stride=(1, 1)
             ),
-            nn.SELU(),
+            nn.LeakyReLU(LEAKY_RELU_SLOPE),
 
             nn.Upsample(
                 scale_factor=2.,
@@ -37,7 +37,7 @@ class GenBlock(nn.Sequential):
                 padding=(1, 1),
                 stride=(1, 1)
             ),
-            nn.SELU(),
+            nn.LeakyReLU(LEAKY_RELU_SLOPE),
         )
 
 
@@ -116,6 +116,8 @@ class Generator(nn.Module):
     ):
         super(Generator, self).__init__()
 
+        self.__grew_up = False
+
         self.__curr_layer = end_layer
 
         self.__nb_downsample = 7
@@ -138,7 +140,7 @@ class Generator(nn.Module):
 
         # Generator layers
         self.__gen_blocks = nn.ModuleList([
-            LinearityFadeinBlock(c[0], c[1])
+            GenBlock(c[0], c[1])
             for c in channels
         ])
 
@@ -151,15 +153,23 @@ class Generator(nn.Module):
     def forward(
             self,
             z: th.Tensor,
-            slope: float
+            alpha: float
     ) -> th.Tensor:
         out = z
 
         for i in range(self.curr_layer):
             out = self.__gen_blocks[i](out)
 
-        out_block = self.__gen_blocks[self.curr_layer](out, slope)
+        out_block = self.__gen_blocks[self.curr_layer](out)
         out_mp = self.__end_blocks[self.curr_layer](out_block)
+
+        if self.__grew_up:
+            out_old = F.interpolate(
+                self.__end_blocks[self.curr_layer - 1](out),
+                scale_factor=2,
+                mode="nearest"
+            )
+            out_mp = out_old * (1. - alpha) + out_mp * alpha
 
         return out_mp
 
@@ -167,12 +177,13 @@ class Generator(nn.Module):
         if self.growing:
             self.__curr_layer += 1
 
-            b = self.__end_blocks[self.curr_layer - 1].conv.bias.data
+            """b = self.__end_blocks[self.curr_layer - 1].conv.bias.data
             m = self.__end_blocks[self.curr_layer - 1].conv.weight.data[:, :, 0, 0].transpose(1, 0)
             factor_1, factor_2 = matrix_multiple(m, self.__channels[self.curr_layer][1])
 
             self.__gen_blocks[self.curr_layer].from_layer(factor_1.transpose(1, 0))
-            self.__end_blocks[self.curr_layer].from_layer(factor_2.transpose(1, 0), b)
+            self.__end_blocks[self.curr_layer].from_layer(factor_2.transpose(1, 0), b)"""
+            self.__grew_up = True
 
             return True
 
