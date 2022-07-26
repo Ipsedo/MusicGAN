@@ -26,7 +26,14 @@ class DiscBlock(nn.Sequential):
             ),
             nn.LeakyReLU(LEAKY_RELU_SLOPE),
 
-            nn.AvgPool2d(2, 2),
+            nn.Conv2d(
+                out_channels,
+                out_channels,
+                kernel_size=(3, 3),
+                stride=(2, 2),
+                padding=(1, 1)
+            ),
+            nn.LeakyReLU(LEAKY_RELU_SLOPE),
 
             nn.Conv2d(
                 out_channels,
@@ -133,10 +140,10 @@ class Discriminator(nn.Module):
         self.__nb_layer = len(conv_channels)
         assert 0 <= start_layer <= len(conv_channels)
 
-        self.__conv_blocks = nn.ModuleList([
+        self.__conv_blocks = nn.ModuleList(
             DiscBlock(c[0], c[1])
             for c in conv_channels
-        ])
+        )
 
         self.__start_blocks = nn.ModuleList(
             FromMagnPhase(c[0])

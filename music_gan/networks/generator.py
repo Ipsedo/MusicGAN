@@ -23,12 +23,17 @@ class GenBlock(nn.Sequential):
                 padding=(1, 1),
                 stride=(1, 1)
             ),
-            nn.LeakyReLU(LEAKY_RELU_SLOPE),
+            nn.ReLU(),
 
-            nn.Upsample(
-                scale_factor=2.,
-                mode="nearest"
+            nn.ConvTranspose2d(
+                in_channels,
+                in_channels,
+                kernel_size=(3, 3),
+                stride=(2, 2),
+                padding=(1, 1),
+                output_padding=(1, 1)
             ),
+            nn.ReLU(),
 
             nn.Conv2d(
                 in_channels,
@@ -37,7 +42,7 @@ class GenBlock(nn.Sequential):
                 padding=(1, 1),
                 stride=(1, 1)
             ),
-            nn.LeakyReLU(LEAKY_RELU_SLOPE),
+            nn.ReLU(),
         )
 
 
