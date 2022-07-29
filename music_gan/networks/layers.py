@@ -237,13 +237,12 @@ class EqualLR:
         module.register_parameter(name + '_orig', nn.Parameter(weight.data))
         module.register_forward_pre_hook(self)
 
-    def __compute_weight(self, module: nn.Module) -> th.Tensor:
-        weight = getattr(module, self.__name + '_orig')
-        fan_in = weight.data.size()[self.__idx] * weight.data.size()[2:].numel()
-        return weight * sqrt(self.__alpha / fan_in)
-
     def __call__(self, module: nn.Module, x: th.Tensor) -> None:
-        weight = self.__compute_weight(module)
+        weight = getattr(module, self.__name + '_orig')
+
+        fan_in = weight.data.size()[self.__idx] * weight.data.size()[2:].numel()
+        weight = weight * sqrt(self.__alpha / fan_in)
+
         setattr(module, self.__name, weight)
 
 
