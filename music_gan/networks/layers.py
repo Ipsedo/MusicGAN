@@ -200,6 +200,7 @@ class ToMagnPhase(nn.Sequential):
                 in_channels, 2,
                 kernel_size=(1, 1),
                 stride=(1, 1),
+                padding=(0, 0)
             ),
             nn.Tanh()
         )
@@ -222,7 +223,8 @@ class FromMagnPhase(nn.Sequential):
                 2,
                 out_channels,
                 kernel_size=(1, 1),
-                stride=(1, 1)
+                stride=(1, 1),
+                padding=(0, 0)
             ),
             nn.LeakyReLU(LEAKY_RELU_SLOPE)
         )
@@ -238,65 +240,109 @@ class FromMagnPhase(nn.Sequential):
         self.__conv.weight.data[:, :, 0, 0] = factor_1.clone()
 
 
-class EqualLrConv2d(nn.Conv2d):
-    def __init__(self, in_channels: int, out_channels: int, kernel_size: _size_2_t,
-                 stride: _size_2_t = 1, padding: Union[str, _size_2_t] = 0, dilation: _size_2_t = 1,
-                 groups: int = 1, bias: bool = True, padding_mode: str = 'zeros', alpha: float = 1.5, device=None,
-                 dtype=None) -> None:
-        super().__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, groups,
-                         bias, padding_mode, device, dtype)
+class EqualLR:
+    def __init__(self, name: str, alpha: float, idx: int):
+        self.__name = name
+        self.__alpha = alpha
+        self.__idx = idx
 
-        self.__lr_mul = sqrt(
-            alpha / (self.weight.data.size()[1] * self.weight.data.size()[:2].numel())
+    def compute_weight(self, module):
+        weight = getattr(module, self.__name + '_orig')
+        numel = weight.data.size()[2:].numel()
+        fan_in = weight.data.size()[self.__idx] * numel
+
+        return weight * sqrt(self.__alpha / fan_in)
+
+    @staticmethod
+    def apply(module: nn.Module, name: str, alpha: float, idx: int):
+        weight = getattr(module, name)
+        del module._parameters[name]
+        module.register_parameter(name + '_orig', nn.Parameter(weight.data))
+        module.register_forward_pre_hook(EqualLR(name, alpha, idx))
+
+    def __call__(self, module, x):
+        weight = self.compute_weight(module)
+        setattr(module, self.__name, weight)
+
+
+class EqualLrConvTr2d(nn.Module):
+    def __init__(
+            self,
+            in_channels: int,
+            out_channels: int,
+            kernel_size: Tuple[int, int],
+            stride: Tuple[int, int],
+            padding: Tuple[int, int],
+            output_padding: Tuple[int, int],
+            alpha: float = 2.
+    ) -> None:
+        super().__init__()
+
+        self.__conv = nn.ConvTranspose2d(
+            in_channels,
+            out_channels,
+            kernel_size=kernel_size,
+            stride=stride,
+            padding=padding,
+            output_padding=output_padding
         )
 
-        nn.init.zeros_(self.bias.data)
+        nn.init.zeros_(self.__conv.bias.data)
+        nn.init.normal_(self.__conv.weight.data)
+
+        EqualLR.apply(self.__conv, "weight", alpha, 0)
+        EqualLR.apply(self.__conv, "bias", alpha, 0)
 
     def forward(self, x: Tensor) -> Tensor:
-        return self._conv_forward(x, self.weight * self.__lr_mul, self.bias * self.__lr_mul)
+        return self.__conv(x)
 
 
-class EqualLrConvTr2d(nn.ConvTranspose2d):
-    def __init__(self, in_channels: int, out_channels: int, kernel_size: _size_2_t,
-                 stride: _size_2_t = 1, padding: _size_2_t = 0, output_padding: _size_2_t = 0,
-                 groups: int = 1, bias: bool = True, dilation: int = 1, padding_mode: str = 'zeros',
-                 alpha: float = 1.5, device=None, dtype=None) -> None:
-        super().__init__(in_channels, out_channels, kernel_size, stride, padding, output_padding,
-                         groups, bias, dilation, padding_mode, device, dtype)
+class EqualLrConv2d(nn.Module):
+    def __init__(
+            self,
+            in_channels: int,
+            out_channels: int,
+            kernel_size: Tuple[int, int],
+            stride: Tuple[int, int],
+            padding: Tuple[int, int],
+            alpha: float = 2.
+    ) -> None:
+        super().__init__()
 
-        self.__lr_mul = sqrt(
-            alpha / (self.weight.data.size()[0] * self.weight.data.size()[:2].numel())
+        self.__conv = nn.Conv2d(
+            in_channels,
+            out_channels,
+            kernel_size=kernel_size,
+            stride=stride,
+            padding=padding
         )
 
-        nn.init.zeros_(self.bias.data)
+        nn.init.zeros_(self.__conv.bias.data)
+        nn.init.normal_(self.__conv.weight.data)
 
-    def forward(self, x: Tensor, output_size: Optional[List[int]] = None) -> Tensor:
-        if self.padding_mode != 'zeros':
-            raise ValueError('Only `zeros` padding mode is supported for ConvTranspose2d')
-
-        assert isinstance(self.padding, tuple)
-        # One cannot replace List by Tuple or Sequence in "_output_padding" because
-        # TorchScript does not support `Sequence[T]` or `Tuple[T, ...]`.
-        output_padding = self._output_padding(
-            x, output_size, self.stride, self.padding, self.kernel_size,
-            self.dilation)  # type: ignore[arg-type]
-
-        return F.conv_transpose2d(
-            x, self.weight * self.__lr_mul, self.bias * self.__lr_mul, self.stride, self.padding,
-            output_padding, self.groups, self.dilation)
-
-
-class EqualLrLinear(nn.Linear):
-    def __init__(self, in_features: int, out_features: int, bias: bool = True,
-                 alpha: float = 1.5, device=None,
-                 dtype=None) -> None:
-        super().__init__(in_features, out_features, bias, device, dtype)
-
-        self.__lr_mul = sqrt(
-            alpha / self.weight.data.size()[1]
-        )
-
-        nn.init.zeros_(self.bias.data)
+        EqualLR.apply(self.__conv, "weight", alpha, 1)
+        EqualLR.apply(self.__conv, "bias", alpha, 0)
 
     def forward(self, x: Tensor) -> Tensor:
-        return F.linear(x, self.weight * self.__lr_mul, self.bias * self.__lr_mul)
+        return self.__conv(x)
+
+
+class EqualLrLinear(nn.Module):
+    def __init__(
+            self,
+            in_features: int,
+            out_features: int,
+            alpha: float = 2.
+    ) -> None:
+        super().__init__()
+
+        self.__lin = nn.Linear(in_features, out_features)
+
+        nn.init.zeros_(self.__lin.bias.data)
+        nn.init.normal_(self.__lin.weight.data)
+
+        EqualLR.apply(self.__lin, "weight", alpha, 1)
+        EqualLR.apply(self.__lin, "bias", alpha, 0)
+
+    def forward(self, x: Tensor) -> Tensor:
+        return self.__lin(x)
