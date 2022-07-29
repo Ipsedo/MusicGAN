@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='MusicGAN',
-    version='1.0',
+    version='1.1',
     packages=[
         'music_gan',
         'music_gan.audio',

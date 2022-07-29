@@ -1,9 +1,11 @@
-from typing import Tuple
+from typing import Tuple, Union, Optional, List
+from math import sqrt
 
 import torch as th
 import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
+from torch.nn.common_types import _size_2_t
 
 from .constants import LEAKY_RELU_SLOPE
 
@@ -194,7 +196,7 @@ class MiniBatchStdDev(nn.Module):
 class ToMagnPhase(nn.Sequential):
     def __init__(self, in_channels: int):
         super(ToMagnPhase, self).__init__(
-            nn.Conv2d(
+            EqualLrConv2d(
                 in_channels, 2,
                 kernel_size=(1, 1),
                 stride=(1, 1),
@@ -216,7 +218,7 @@ class ToMagnPhase(nn.Sequential):
 class FromMagnPhase(nn.Sequential):
     def __init__(self, out_channels: int):
         super(FromMagnPhase, self).__init__(
-            nn.Conv2d(
+            EqualLrConv2d(
                 2,
                 out_channels,
                 kernel_size=(1, 1),
@@ -234,3 +236,67 @@ class FromMagnPhase(nn.Sequential):
         nn.init.zeros_(self.__conv.weight)
 
         self.__conv.weight.data[:, :, 0, 0] = factor_1.clone()
+
+
+class EqualLrConv2d(nn.Conv2d):
+    def __init__(self, in_channels: int, out_channels: int, kernel_size: _size_2_t,
+                 stride: _size_2_t = 1, padding: Union[str, _size_2_t] = 0, dilation: _size_2_t = 1,
+                 groups: int = 1, bias: bool = True, padding_mode: str = 'zeros', alpha: float = 1.5, device=None,
+                 dtype=None) -> None:
+        super().__init__(in_channels, out_channels, kernel_size, stride, padding, dilation, groups,
+                         bias, padding_mode, device, dtype)
+
+        self.__lr_mul = sqrt(
+            alpha / (self.weight.data.size()[1] * self.weight.data.size()[:2].numel())
+        )
+
+        nn.init.zeros_(self.bias.data)
+
+    def forward(self, x: Tensor) -> Tensor:
+        return self._conv_forward(x, self.weight * self.__lr_mul, self.bias * self.__lr_mul)
+
+
+class EqualLrConvTr2d(nn.ConvTranspose2d):
+    def __init__(self, in_channels: int, out_channels: int, kernel_size: _size_2_t,
+                 stride: _size_2_t = 1, padding: _size_2_t = 0, output_padding: _size_2_t = 0,
+                 groups: int = 1, bias: bool = True, dilation: int = 1, padding_mode: str = 'zeros',
+                 alpha: float = 1.5, device=None, dtype=None) -> None:
+        super().__init__(in_channels, out_channels, kernel_size, stride, padding, output_padding,
+                         groups, bias, dilation, padding_mode, device, dtype)
+
+        self.__lr_mul = sqrt(
+            alpha / (self.weight.data.size()[0] * self.weight.data.size()[:2].numel())
+        )
+
+        nn.init.zeros_(self.bias.data)
+
+    def forward(self, x: Tensor, output_size: Optional[List[int]] = None) -> Tensor:
+        if self.padding_mode != 'zeros':
+            raise ValueError('Only `zeros` padding mode is supported for ConvTranspose2d')
+
+        assert isinstance(self.padding, tuple)
+        # One cannot replace List by Tuple or Sequence in "_output_padding" because
+        # TorchScript does not support `Sequence[T]` or `Tuple[T, ...]`.
+        output_padding = self._output_padding(
+            x, output_size, self.stride, self.padding, self.kernel_size,
+            self.dilation)  # type: ignore[arg-type]
+
+        return F.conv_transpose2d(
+            x, self.weight * self.__lr_mul, self.bias * self.__lr_mul, self.stride, self.padding,
+            output_padding, self.groups, self.dilation)
+
+
+class EqualLrLinear(nn.Linear):
+    def __init__(self, in_features: int, out_features: int, bias: bool = True,
+                 alpha: float = 1.5, device=None,
+                 dtype=None) -> None:
+        super().__init__(in_features, out_features, bias, device, dtype)
+
+        self.__lr_mul = sqrt(
+            alpha / self.weight.data.size()[1]
+        )
+
+        nn.init.zeros_(self.bias.data)
+
+    def forward(self, x: Tensor) -> Tensor:
+        return F.linear(x, self.weight * self.__lr_mul, self.bias * self.__lr_mul)

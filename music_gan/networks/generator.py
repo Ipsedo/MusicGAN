@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 from .constants import LEAKY_RELU_SLOPE
 from .functions import matrix_multiple
-from .layers import PixelNorm, ToMagnPhase, LayerNorm2d, Conv2dPadding
+from .layers import PixelNorm, ToMagnPhase, LayerNorm2d, Conv2dPadding, EqualLrConv2d, EqualLrConvTr2d
 
 
 class GenBlock(nn.Sequential):
@@ -16,16 +16,16 @@ class GenBlock(nn.Sequential):
             out_channels: int
     ):
         super(GenBlock, self).__init__(
-            nn.Conv2d(
+            EqualLrConv2d(
                 in_channels,
                 in_channels,
                 kernel_size=(3, 3),
                 padding=(1, 1),
                 stride=(1, 1)
             ),
-            nn.ReLU(),
+            nn.LeakyReLU(LEAKY_RELU_SLOPE),
 
-            nn.ConvTranspose2d(
+            EqualLrConvTr2d(
                 in_channels,
                 in_channels,
                 kernel_size=(3, 3),
@@ -33,16 +33,16 @@ class GenBlock(nn.Sequential):
                 padding=(1, 1),
                 output_padding=(1, 1)
             ),
-            nn.ReLU(),
+            nn.LeakyReLU(LEAKY_RELU_SLOPE),
 
-            nn.Conv2d(
+            EqualLrConv2d(
                 in_channels,
                 out_channels,
                 kernel_size=(3, 3),
                 padding=(1, 1),
                 stride=(1, 1)
             ),
-            nn.ReLU(),
+            nn.LeakyReLU(LEAKY_RELU_SLOPE),
         )
 
 

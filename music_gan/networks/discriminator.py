@@ -7,7 +7,7 @@ import torch.nn.functional as F
 
 from .constants import LEAKY_RELU_SLOPE
 from .functions import matrix_multiple
-from .layers import FromMagnPhase, PixelNorm, LayerNorm2d, Conv2dPadding
+from .layers import FromMagnPhase, PixelNorm, LayerNorm2d, Conv2dPadding, EqualLrConv2d, EqualLrLinear
 
 
 class DiscBlock(nn.Sequential):
@@ -17,7 +17,7 @@ class DiscBlock(nn.Sequential):
             out_channels: int
     ):
         super(DiscBlock, self).__init__(
-            nn.Conv2d(
+            EqualLrConv2d(
                 in_channels,
                 out_channels,
                 kernel_size=(3, 3),
@@ -26,7 +26,7 @@ class DiscBlock(nn.Sequential):
             ),
             nn.LeakyReLU(LEAKY_RELU_SLOPE),
 
-            nn.Conv2d(
+            EqualLrConv2d(
                 out_channels,
                 out_channels,
                 kernel_size=(3, 3),
@@ -35,7 +35,7 @@ class DiscBlock(nn.Sequential):
             ),
             nn.LeakyReLU(LEAKY_RELU_SLOPE),
 
-            nn.Conv2d(
+            EqualLrConv2d(
                 out_channels,
                 out_channels,
                 kernel_size=(3, 3),
@@ -163,7 +163,7 @@ class Discriminator(nn.Module):
         )
 
         self.__clf = nn.Sequential(
-            nn.Linear(out_size, 1)
+            EqualLrLinear(out_size, 1)
         )
 
     def forward(self, x: th.Tensor, alpha: float) -> th.Tensor:

@@ -83,13 +83,18 @@ def main() -> None:
     view_audio_parser = sub_parser.add_parser("view_audio")
 
     view_audio_parser.add_argument(
-        "--input-audio",
+        "-i", "--input-audio",
         type=str, required=True
     )
 
     view_audio_parser.add_argument(
-        "--image-idx",
-        type=int, required=True
+        "--frame-idx",
+        type=int, required=True, nargs="+"
+    )
+
+    view_audio_parser.add_argument(
+        "-o", "--output-path",
+        type=str, required=True
     )
 
     args = parser.parse_args()
@@ -116,7 +121,8 @@ def main() -> None:
     elif args.mode == "view_audio":
         view_audio(
             args.input_audio,
-            args.image_idx
+            args.frame_idx,
+            args.output_path
         )
 
 
