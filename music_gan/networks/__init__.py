@@ -8,7 +8,7 @@ from .criterion import (
     wasserstein_generator_loss,
     wasserstein_discriminator_loss
 )
-from .discriminator import Discriminator, LinearityFadeinBlock
+from .discriminator import Discriminator
 from .functions import matrix_multiple
-from .generator import Generator, LinearityFadeinBlock
+from .generator import Generator
 from .layers import ToMagnPhase, FromMagnPhase

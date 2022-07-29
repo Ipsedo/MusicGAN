@@ -205,16 +205,6 @@ class ToMagnPhase(nn.Sequential):
             nn.Tanh()
         )
 
-    @property
-    def conv(self) -> nn.Conv2d:
-        return self.__conv
-
-    def from_layer(self, factor_2: th.Tensor, bias: th.Tensor) -> None:
-        self.__conv.bias.data[:] = bias.clone()
-        nn.init.zeros_(self.__conv.weight)
-
-        self.__conv.weight.data[:, :, 0, 0] = factor_2.clone()
-
 
 class FromMagnPhase(nn.Sequential):
     def __init__(self, out_channels: int):
@@ -229,39 +219,31 @@ class FromMagnPhase(nn.Sequential):
             nn.LeakyReLU(LEAKY_RELU_SLOPE)
         )
 
-    @property
-    def conv(self) -> nn.Conv2d:
-        return self.__conv
-
-    def from_layer(self, factor_1: th.Tensor) -> None:
-        nn.init.zeros_(self.__conv.bias)
-        nn.init.zeros_(self.__conv.weight)
-
-        self.__conv.weight.data[:, :, 0, 0] = factor_1.clone()
-
 
 class EqualLR:
-    def __init__(self, name: str, alpha: float, idx: int):
+    def __init__(
+            self,
+            module: nn.Module,
+            name: str,
+            alpha: float,
+            idx: int
+    ) -> None:
         self.__name = name
         self.__alpha = alpha
         self.__idx = idx
 
-    def compute_weight(self, module):
-        weight = getattr(module, self.__name + '_orig')
-        numel = weight.data.size()[2:].numel()
-        fan_in = weight.data.size()[self.__idx] * numel
-
-        return weight * sqrt(self.__alpha / fan_in)
-
-    @staticmethod
-    def apply(module: nn.Module, name: str, alpha: float, idx: int):
         weight = getattr(module, name)
         del module._parameters[name]
         module.register_parameter(name + '_orig', nn.Parameter(weight.data))
-        module.register_forward_pre_hook(EqualLR(name, alpha, idx))
+        module.register_forward_pre_hook(self)
 
-    def __call__(self, module, x):
-        weight = self.compute_weight(module)
+    def __compute_weight(self, module: nn.Module) -> th.Tensor:
+        weight = getattr(module, self.__name + '_orig')
+        fan_in = weight.data.size()[self.__idx] * weight.data.size()[2:].numel()
+        return weight * sqrt(self.__alpha / fan_in)
+
+    def __call__(self, module: nn.Module, x: th.Tensor) -> None:
+        weight = self.__compute_weight(module)
         setattr(module, self.__name, weight)
 
 
@@ -290,8 +272,8 @@ class EqualLrConvTr2d(nn.Module):
         nn.init.zeros_(self.__conv.bias.data)
         nn.init.normal_(self.__conv.weight.data)
 
-        EqualLR.apply(self.__conv, "weight", alpha, 0)
-        EqualLR.apply(self.__conv, "bias", alpha, 0)
+        self.__equal_lr_w = EqualLR(self.__conv, "weight", alpha, 0)
+        self.__equal_lr_b = EqualLR(self.__conv, "bias", alpha, 0)
 
     def forward(self, x: Tensor) -> Tensor:
         return self.__conv(x)
@@ -320,8 +302,8 @@ class EqualLrConv2d(nn.Module):
         nn.init.zeros_(self.__conv.bias.data)
         nn.init.normal_(self.__conv.weight.data)
 
-        EqualLR.apply(self.__conv, "weight", alpha, 1)
-        EqualLR.apply(self.__conv, "bias", alpha, 0)
+        self.__equal_lr_w = EqualLR(self.__conv, "weight", alpha, 1)
+        self.__equal_lr_b = EqualLR(self.__conv, "bias", alpha, 0)
 
     def forward(self, x: Tensor) -> Tensor:
         return self.__conv(x)
@@ -341,8 +323,8 @@ class EqualLrLinear(nn.Module):
         nn.init.zeros_(self.__lin.bias.data)
         nn.init.normal_(self.__lin.weight.data)
 
-        EqualLR.apply(self.__lin, "weight", alpha, 1)
-        EqualLR.apply(self.__lin, "bias", alpha, 0)
+        self.__equal_lr_w = EqualLR(self.__lin, "weight", alpha, 1)
+        self.__equal_lr_b = EqualLR(self.__lin, "bias", alpha, 0)
 
     def forward(self, x: Tensor) -> Tensor:
         return self.__lin(x)

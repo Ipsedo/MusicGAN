@@ -6,8 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from .constants import LEAKY_RELU_SLOPE
-from .functions import matrix_multiple
-from .layers import FromMagnPhase, PixelNorm, LayerNorm2d, Conv2dPadding, EqualLrConv2d, EqualLrLinear
+from .layers import FromMagnPhase, PixelNorm, EqualLrConv2d, EqualLrLinear
 
 
 class DiscBlock(nn.Sequential):
@@ -43,70 +42,6 @@ class DiscBlock(nn.Sequential):
                 padding=(1, 1),
             ),
             nn.LeakyReLU(LEAKY_RELU_SLOPE),
-        )
-
-
-class LinearityFadeinBlock(nn.Module):
-    def __init__(
-            self,
-            in_channels: int,
-            out_channels: int
-    ):
-        super(LinearityFadeinBlock, self).__init__()
-
-        self.__conv_1 = nn.Conv2d(
-            in_channels,
-            out_channels,
-            kernel_size=(3, 3),
-            stride=(1, 1),
-            padding=(1, 1),
-        )
-
-        self.__down = nn.AvgPool2d(2, 2)
-
-        self.__conv_2 = nn.Conv2d(
-            out_channels,
-            out_channels,
-            kernel_size=(3, 3),
-            stride=(1, 1),
-            padding=(1, 1)
-        )
-
-        self.__in_channels = in_channels
-        self.__out_channels = out_channels
-
-    def forward(self, x: th.Tensor, slope: float = LEAKY_RELU_SLOPE) -> th.Tensor:
-        out = self.__conv_1(x)
-        out = F.leaky_relu(out, slope)
-
-        out = self.__down(out)
-
-        out = self.__conv_2(out)
-        out = F.leaky_relu(out, slope)
-
-        return out
-
-    def from_layer(self, factor_2: th.Tensor, bias: th.Tensor) -> None:
-        # Init first conv - from last layer
-        self.__conv_1.bias.data[:] = bias.clone()
-        nn.init.zeros_(self.__conv_1.weight)
-
-        self.__conv_1.weight.data[:, :, 1, 1] = factor_2.clone()
-
-        # Init strided conv
-        # nn.init.zeros_(self.__down.bias)
-        # nn.init.zeros_(self.__down.weight)
-        # self.__down.weight.data[:, :, 1:, 1:] = (
-        #     th.eye(self.__out_channels)[:, :, None, None]
-        #     .repeat(1, 1, 2, 2) / 4
-        # )
-
-        # Init second conv - identity
-        nn.init.zeros_(self.__conv_2.bias)
-        nn.init.zeros_(self.__conv_2.weight)
-
-        self.__conv_2.weight.data[:, :, 1, 1] = (
-            th.eye(self.__out_channels)
         )
 
 
@@ -189,15 +124,6 @@ class Discriminator(nn.Module):
         if self.growing:
             self.__curr_layer -= 1
 
-            """b = self.__start_blocks[self.curr_layer + 1].conv.bias.data
-            # transpose to fit matrix_multiple dims order
-            m = self.__start_blocks[self.curr_layer + 1].conv.weight.data[:, :, 0, 0].transpose(1, 0)
-            factor_1, factor_2 = matrix_multiple(m, self.__channels[self.curr_layer][0])
-
-            # transpose back to fit PyTorch dims order
-            self.__start_blocks[self.curr_layer].from_layer(factor_1.transpose(1, 0))
-            self.__conv_blocks[self.curr_layer].from_layer(factor_2.transpose(1, 0), b)"""
-
             self.__grew_up = True
 
             return True
@@ -235,7 +161,7 @@ class Discriminator(nn.Module):
         )
 
         grad_objective = 1.
-        grad_pen_factor = 10.
+        grad_pen_factor = 8.
 
         gradients = gradients[0].view(batch_size, -1)
         gradients_norm = gradients.norm(2, dim=1)
