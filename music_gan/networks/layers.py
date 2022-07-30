@@ -270,7 +270,7 @@ class EqualLrConvTr2d(nn.Module):
         nn.init.normal_(self.__conv.weight.data)
 
         self.__equal_lr_w = EqualLR(self.__conv, "weight", alpha, 0)
-        self.__equal_lr_b = EqualLR(self.__conv, "bias", alpha, 0)
+        #self.__equal_lr_b = EqualLR(self.__conv, "bias", alpha, 0)
 
     def forward(self, x: Tensor) -> Tensor:
         return self.__conv(x)
@@ -300,7 +300,7 @@ class EqualLrConv2d(nn.Module):
         nn.init.normal_(self.__conv.weight.data)
 
         self.__equal_lr_w = EqualLR(self.__conv, "weight", alpha, 1)
-        self.__equal_lr_b = EqualLR(self.__conv, "bias", alpha, 0)
+        #self.__equal_lr_b = EqualLR(self.__conv, "bias", alpha, 0)
 
     def forward(self, x: Tensor) -> Tensor:
         return self.__conv(x)
@@ -321,7 +321,7 @@ class EqualLrLinear(nn.Module):
         nn.init.normal_(self.__lin.weight.data)
 
         self.__equal_lr_w = EqualLR(self.__lin, "weight", alpha, 1)
-        self.__equal_lr_b = EqualLR(self.__lin, "bias", alpha, 0)
+        #self.__equal_lr_b = EqualLR(self.__lin, "bias", alpha, 0)
 
     def forward(self, x: Tensor) -> Tensor:
         return self.__lin(x)
