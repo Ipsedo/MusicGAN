@@ -33,7 +33,7 @@ def train(
 
     disc_lr = 4e-4
     gen_lr = 4e-4
-    betas = (0., 0.99)
+    betas = (0., 0.9)
 
     nb_epoch = 1000
     batch_size = 12
