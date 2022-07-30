@@ -22,6 +22,7 @@ class GenBlock(nn.Sequential):
                 padding=(1, 1),
                 stride=(1, 1)
             ),
+            PixelNorm(),
             nn.LeakyReLU(LEAKY_RELU_SLOPE),
 
             EqualLrConvTr2d(
@@ -32,6 +33,7 @@ class GenBlock(nn.Sequential):
                 padding=(1, 1),
                 output_padding=(1, 1)
             ),
+            PixelNorm(),
             nn.LeakyReLU(LEAKY_RELU_SLOPE),
 
             EqualLrConv2d(
@@ -41,6 +43,7 @@ class GenBlock(nn.Sequential):
                 padding=(1, 1),
                 stride=(1, 1)
             ),
+            PixelNorm(),
             nn.LeakyReLU(LEAKY_RELU_SLOPE),
         )
 

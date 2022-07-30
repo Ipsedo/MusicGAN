@@ -3,9 +3,7 @@ from math import sqrt
 
 import torch as th
 import torch.nn as nn
-import torch.nn.functional as F
 from torch import Tensor
-from torch.nn.common_types import _size_2_t
 
 from .constants import LEAKY_RELU_SLOPE
 
