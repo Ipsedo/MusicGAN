@@ -224,11 +224,11 @@ class EqualLR:
             module: nn.Module,
             name: str,
             alpha: float,
-            idx: int
+            input_dim_idx: int
     ) -> None:
         self.__name = name
         self.__alpha = alpha
-        self.__idx = idx
+        self.__idx = input_dim_idx
 
         weight = getattr(module, name)
         del module._parameters[name]

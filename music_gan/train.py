@@ -31,13 +31,13 @@ def train(
     height = networks.INPUT_SIZES[0]
     width = networks.INPUT_SIZES[1]
 
-    disc_lr = 4e-4
-    gen_lr = 4e-4
+    disc_lr = 1e-4
+    gen_lr = 1e-4
     betas = (0., 0.9)
 
     nb_epoch = 1000
     batch_size = 12
-    train_gen_every = 4
+    train_gen_every = 5
 
     if not exists(output_dir):
         mkdir(output_dir)
