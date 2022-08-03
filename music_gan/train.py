@@ -51,11 +51,11 @@ def train(
     grower = Grower(
         n_grow=7,
         fadein_lengths=[
-            1, 20000, 20000, 20000, 20000, 20000, 20000, 20000,
+            1, 10000, 10000, 10000, 10000, 10000, 10000, 10000,
             # 1,1,1,1,1,1,1,1
         ],
         train_lengths=[
-            40000, 60000, 60000, 60000, 60000, 60000, 60000,
+            10000, 40000, 40000, 40000, 40000, 40000, 40000,
             # 1,1,1,1,1,1,1
         ]
     )
@@ -166,7 +166,8 @@ def train(
                     x_real, x_fake, grower.alpha
                 )
 
-                disc_drift = eps_drift * th.pow(out_real, 2.)
+                # prevent discriminator output to shift far from zero
+                disc_drift = eps_drift * th.pow(out_real, 2.).mean()
 
                 disc_loss_gp = disc_loss + disc_gp + disc_drift
 
