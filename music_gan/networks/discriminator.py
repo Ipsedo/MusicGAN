@@ -25,14 +25,7 @@ class DiscBlock(nn.Sequential):
             ),
             nn.LeakyReLU(LEAKY_RELU_SLOPE),
 
-            EqualLrConv2d(
-                out_channels,
-                out_channels,
-                kernel_size=(3, 3),
-                stride=(2, 2),
-                padding=(1, 1)
-            ),
-            nn.LeakyReLU(LEAKY_RELU_SLOPE),
+            nn.AvgPool2d(2, 2),
 
             EqualLrConv2d(
                 out_channels,
