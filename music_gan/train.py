@@ -35,6 +35,8 @@ def train(
     gen_lr = 1e-3
     betas = (0., 0.99)
 
+    eps_drift = 1e-3
+
     nb_epoch = 1000
     batch_size = 8
     train_gen_every = 1
@@ -49,11 +51,11 @@ def train(
     grower = Grower(
         n_grow=7,
         fadein_lengths=[
-            1, 10000, 20000, 30000, 40000, 50000, 60000, 70000
+            1, 20000, 20000, 20000, 20000, 20000, 20000, 20000,
             # 1,1,1,1,1,1,1,1
         ],
         train_lengths=[
-            10000, 40000, 80000, 120000, 160000, 200000, 240000
+            40000, 60000, 60000, 60000, 60000, 60000, 60000,
             # 1,1,1,1,1,1,1
         ]
     )
@@ -164,7 +166,9 @@ def train(
                     x_real, x_fake, grower.alpha
                 )
 
-                disc_loss_gp = disc_loss + disc_gp
+                disc_drift = eps_drift * th.pow(out_real, 2.)
+
+                disc_loss_gp = disc_loss + disc_gp + disc_drift
 
                 # reset grad
                 optim_disc.zero_grad(set_to_none=True)
