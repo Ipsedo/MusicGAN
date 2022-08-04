@@ -154,7 +154,7 @@ class Discriminator(nn.Module):
         )
 
         grad_objective = 1.
-        grad_pen_factor = 10.
+        grad_pen_factor = 8.
 
         gradients = gradients[0].view(batch_size, -1)
         gradients_norm = gradients.norm(2, dim=1)

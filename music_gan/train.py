@@ -39,7 +39,7 @@ def train(
 
     nb_epoch = 1000
     batch_size = 8
-    train_gen_every = 1
+    train_gen_every = 4
 
     if not exists(output_dir):
         mkdir(output_dir)
@@ -51,11 +51,11 @@ def train(
     grower = Grower(
         n_grow=7,
         fadein_lengths=[
-            1, 10000, 10000, 10000, 10000, 10000, 10000, 10000,
+            1, 20000, 20000, 20000, 20000, 20000, 20000, 20000,
             # 1,1,1,1,1,1,1,1
         ],
         train_lengths=[
-            10000, 40000, 40000, 40000, 40000, 40000, 40000,
+            20000, 80000, 80000, 80000, 80000, 80000, 80000,
             # 1,1,1,1,1,1,1
         ]
     )
