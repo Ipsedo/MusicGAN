@@ -6,16 +6,23 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from .constants import LEAKY_RELU_SLOPE
-from .layers import FromMagnPhase, PixelNorm, EqualLrConv2d, EqualLrLinear
+from .layers import FromMagnPhase, PixelNorm, EqualLrConv2d, EqualLrLinear, MiniBatchStdDev
 
 
 class DiscBlock(nn.Sequential):
     def __init__(
             self,
             in_channels: int,
-            out_channels: int
+            out_channels: int,
+            mini_batch_std_dev: bool = False
     ):
+        if mini_batch_std_dev:
+            in_channels += 1
+
         super(DiscBlock, self).__init__(
+            MiniBatchStdDev() if mini_batch_std_dev
+            else nn.Identity(),
+
             EqualLrConv2d(
                 in_channels,
                 out_channels,
@@ -69,8 +76,8 @@ class Discriminator(nn.Module):
         assert 0 <= start_layer <= len(conv_channels)
 
         self.__conv_blocks = nn.ModuleList(
-            DiscBlock(c[0], c[1])
-            for c in conv_channels
+            DiscBlock(c[0], c[1], i == len(conv_channels) - 1)
+            for i, c in enumerate(conv_channels)
         )
 
         self.__start_blocks = nn.ModuleList(
