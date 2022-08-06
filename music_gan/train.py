@@ -27,7 +27,7 @@ def train(
 
     sample_rate = audio.SAMPLE_RATE
 
-    rand_channels = 16
+    rand_channels = 32
     height = networks.INPUT_SIZES[0]
     width = networks.INPUT_SIZES[1]
 
@@ -51,11 +51,11 @@ def train(
     grower = Grower(
         n_grow=7,
         fadein_lengths=[
-            1, 40000, 40000, 40000, 40000, 40000, 40000, 40000,
+            1, 20000, 20000, 20000, 20000, 20000, 20000, 20000,
             # 1,1,1,1,1,1,1,1
         ],
         train_lengths=[
-            40000, 160000, 160000, 160000, 160000, 160000, 160000,
+            20000, 80000, 80000, 80000, 80000, 80000, 80000,
             # 1,1,1,1,1,1,1
         ]
     )
