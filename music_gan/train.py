@@ -32,7 +32,7 @@ def train(
     width = networks.INPUT_SIZES[1]
 
     disc_lr = 1e-4
-    gen_lr = 5e-4
+    gen_lr = 1e-4
     betas = (0., 0.999)
 
     eps_drift = 1e-3
