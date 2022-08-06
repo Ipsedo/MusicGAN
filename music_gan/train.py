@@ -1,10 +1,12 @@
 from os import mkdir
 from os.path import exists, isdir
 from statistics import mean
+import copy
 
 import mlflow
 import torch as th
 from torch.utils.data import DataLoader
+import higher
 from tqdm import tqdm
 
 from . import audio
@@ -27,7 +29,7 @@ def train(
 
     sample_rate = audio.SAMPLE_RATE
 
-    rand_channels = 16
+    rand_channels = 8
     height = networks.INPUT_SIZES[0]
     width = networks.INPUT_SIZES[1]
 
@@ -39,7 +41,7 @@ def train(
 
     nb_epoch = 1000
     batch_size = 8
-    train_gen_every = 4
+    unroll_steps = 4
 
     if not exists(output_dir):
         mkdir(output_dir)
@@ -51,12 +53,12 @@ def train(
     grower = Grower(
         n_grow=7,
         fadein_lengths=[
-            1, 40000, 40000, 40000, 40000, 40000, 40000, 40000,
-            # 1,1,1,1,1,1,1,1
+            #1, 40000, 40000, 40000, 40000, 40000, 40000, 40000,
+             1,1,1,1,1,1,1,1
         ],
         train_lengths=[
-            40000, 160000, 160000, 160000, 160000, 160000, 160000,
-            # 1,1,1,1,1,1,1
+            #40000, 160000, 160000, 160000, 160000, 160000, 160000,
+             1,1,1,1,1,1,1
         ]
     )
 
@@ -107,7 +109,7 @@ def train(
         "rand_channels": rand_channels,
         "nb_epoch": nb_epoch,
         "batch_size": batch_size,
-        "train_gen_every": train_gen_every,
+        "unroll_steps": unroll_steps,
         "disc_lr": disc_lr,
         "gen_lr": gen_lr,
         "betas": betas,
@@ -132,8 +134,9 @@ def train(
         for e in range(nb_epoch):
 
             tqdm_bar = tqdm(data_loader)
+            tqdm_iterator = iter(tqdm_bar)
 
-            for x_real in tqdm_bar:
+            for x_real in tqdm_iterator:
                 # [1] train discriminator
 
                 # pass data to cuda
@@ -190,42 +193,82 @@ def train(
                 disc_gp_list.append(disc_gp.item())
 
                 # [2] train generator
-                if iter_idx % train_gen_every == 0:
-                    # sample random latent data
-                    z = th.randn(
-                        batch_size,
-                        rand_channels,
-                        height,
-                        width,
-                        device="cuda"
-                    )
+                disc_backup = copy.deepcopy(disc)
+                optim_disc_backup = copy.deepcopy(optim_disc)
 
-                    # reset gradient
-                    optim_disc.zero_grad(set_to_none=True)
-                    optim_gen.zero_grad(set_to_none=True)
+                # sample random latent data
+                z = th.randn(
+                    batch_size,
+                    rand_channels,
+                    height,
+                    width,
+                    device="cuda"
+                )
+
+                # reset gradient
+                optim_disc.zero_grad()
+                optim_gen.zero_grad()
+
+                # use higher to unroll discriminator
+                with higher.innerloop_ctx(disc, optim_disc) as (
+                        fun_disc, diff_optim_disc
+                ):
+                    # unroll steps
+                    for _ in range(unroll_steps):
+                        try:
+                            x_real = next(tqdm_iterator).to(th.float)
+                            x_real = grower.scale_transform(x_real).cuda()
+                        except StopIteration:
+                            # in case of iterator ending,
+                            # re-use old real data
+                            pass
+
+                        # generate fake data
+                        x_fake = gen(z, grower.alpha)
+
+                        # use current discriminator
+                        out_fake = fun_disc(x_fake, grower.alpha)
+                        out_real = fun_disc(x_real, grower.alpha)
+
+                        # compute current loss
+                        unrolled_disc_loss = \
+                            networks.wasserstein_discriminator_loss(
+                                out_real, out_fake
+                            )
+
+                        unrolled_grad_pen = fun_disc.gradient_penalty(
+                            x_real, x_fake, grower.alpha
+                        )
+
+                        unrolled_disc_drift = eps_drift * th.pow(out_real, 2.).mean()
+
+                        unrolled_disc_loss_gp = \
+                            unrolled_disc_loss + unrolled_grad_pen + unrolled_disc_drift
+
+                        # produce next discriminator and optimizer
+                        diff_optim_disc.step(unrolled_disc_loss_gp)
 
                     # generate fake data
                     x_fake = gen(z, grower.alpha)
 
                     # use unrolled discriminators
-                    out_fake = disc(x_fake, grower.alpha)
+                    out_fake = fun_disc(x_fake, grower.alpha)
 
                     # compute generator loss
                     gen_loss = networks.wasserstein_generator_loss(out_fake)
 
                     # reset gradient
-                    optim_gen.zero_grad(set_to_none=True)
+                    optim_gen.zero_grad()
 
                     # backward pass and weight update
                     gen_loss.backward()
                     optim_gen.step()
 
-                    # generator metrics
-                    del error_gen[0]
-                    error_gen.append(out_fake.mean().item())
-
-                    del gen_loss_list[0]
-                    gen_loss_list.append(gen_loss.item())
+                # load discriminator & optim before unroll updates
+                disc.load_state_dict(disc_backup.state_dict())
+                optim_disc.load_state_dict(optim_disc_backup.state_dict())
+                del disc_backup
+                del optim_disc_backup
 
                 # update tqdm bar
                 tqdm_bar.set_description(

@@ -3,6 +3,7 @@ from math import sqrt
 
 import torch as th
 import torch.nn as nn
+import torch.nn.functional as F
 from torch import Tensor
 
 from .constants import LEAKY_RELU_SLOPE
@@ -244,38 +245,6 @@ class EqualLR:
         setattr(module, self.__name, weight)
 
 
-class EqualLrConvTr2d(nn.Module):
-    def __init__(
-            self,
-            in_channels: int,
-            out_channels: int,
-            kernel_size: Tuple[int, int],
-            stride: Tuple[int, int],
-            padding: Tuple[int, int],
-            output_padding: Tuple[int, int],
-            alpha: float = 2.
-    ) -> None:
-        super().__init__()
-
-        self.__conv = nn.ConvTranspose2d(
-            in_channels,
-            out_channels,
-            kernel_size=kernel_size,
-            stride=stride,
-            padding=padding,
-            output_padding=output_padding
-        )
-
-        nn.init.zeros_(self.__conv.bias.data)
-        nn.init.normal_(self.__conv.weight.data)
-
-        self.__equal_lr_w = EqualLR(self.__conv, "weight", alpha, 0)
-        #self.__equal_lr_b = EqualLR(self.__conv, "bias", alpha, 0)
-
-    def forward(self, x: Tensor) -> Tensor:
-        return self.__conv(x)
-
-
 class EqualLrConv2d(nn.Module):
     def __init__(
             self,
@@ -299,11 +268,21 @@ class EqualLrConv2d(nn.Module):
         nn.init.zeros_(self.__conv.bias.data)
         nn.init.normal_(self.__conv.weight.data)
 
-        self.__equal_lr_w = EqualLR(self.__conv, "weight", alpha, 1)
+        #self.__equal_lr_w = EqualLR(self.__conv, "weight", alpha, 1)
         #self.__equal_lr_b = EqualLR(self.__conv, "bias", alpha, 0)
 
+        fan_in_weight = self.__conv.weight.data.size()[1] * self.__conv.weight.data.size()[2:].numel()
+        self.__equal_lr_weight_value = sqrt(alpha / fan_in_weight)
+
+        fan_in_bias = self.__conv.bias.data.size()[0] * self.__conv.bias.data.size()[2:].numel()
+        self.__equal_lr_bias_value = sqrt(alpha / fan_in_bias)
+
     def forward(self, x: Tensor) -> Tensor:
-        return self.__conv(x)
+        return self.__conv._conv_forward(
+            x,
+            self.__conv.weight * self.__equal_lr_weight_value,
+            self.__conv.bias * self.__equal_lr_bias_value
+        )
 
 
 class EqualLrLinear(nn.Module):
@@ -320,8 +299,18 @@ class EqualLrLinear(nn.Module):
         nn.init.zeros_(self.__lin.bias.data)
         nn.init.normal_(self.__lin.weight.data)
 
-        self.__equal_lr_w = EqualLR(self.__lin, "weight", alpha, 1)
+        #self.__equal_lr_w = EqualLR(self.__lin, "weight", alpha, 1)
         #self.__equal_lr_b = EqualLR(self.__lin, "bias", alpha, 0)
 
+        fan_in_weight = self.__lin.weight.data.size()[1] * self.__lin.weight.data.size()[2:].numel()
+        self.__equal_lr_weight_value = sqrt(alpha / fan_in_weight)
+
+        fan_in_bias = self.__lin.bias.data.size()[0] * self.__lin.bias.data.size()[2:].numel()
+        self.__equal_lr_bias_value = sqrt(alpha / fan_in_bias)
+
     def forward(self, x: Tensor) -> Tensor:
-        return self.__lin(x)
+        return F.linear(
+            x,
+            self.__lin.weight * self.__equal_lr_weight_value,
+            self.__lin.bias * self.__equal_lr_bias_value
+        )
