@@ -246,6 +246,13 @@ def train(
                 del disc_backup
                 del optim_disc_backup
 
+                # generator metrics
+                del error_gen[0]
+                error_gen.append(out_fake.mean().item())
+
+                del gen_loss_list[0]
+                gen_loss_list.append(gen_loss.item())
+
                 # update tqdm bar
                 tqdm_bar.set_description(
                     f"Epoch {e:02} "
