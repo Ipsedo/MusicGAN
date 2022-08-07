@@ -29,17 +29,17 @@ def train(
 
     sample_rate = audio.SAMPLE_RATE
 
-    rand_channels = 8
+    rand_channels = 16
     height = networks.INPUT_SIZES[0]
     width = networks.INPUT_SIZES[1]
 
     disc_lr = 1e-3
     gen_lr = 1e-3
-    betas = (0., 0.99)
+    betas = (0., 0.9)
 
     nb_epoch = 1000
-    batch_size = 2
-    unroll_steps = 4
+    batch_size = 8
+    unroll_steps = 5
 
     if not exists(output_dir):
         mkdir(output_dir)
@@ -51,11 +51,11 @@ def train(
     grower = Grower(
         n_grow=7,
         fadein_lengths=[
-            1, 10000, 10000, 10000, 10000, 10000, 10000, 10000,
+            1, 20000, 20000, 20000, 20000, 20000, 20000, 20000,
             # 1,1,1,1,1,1,1,1
         ],
         train_lengths=[
-            10000, 40000, 40000, 40000, 40000, 40000, 40000,
+            20000, 60000, 60000, 60000, 60000, 60000, 60000,
             # 1,1,1,1,1,1,1
         ]
     )
@@ -181,15 +181,6 @@ def train(
                 disc_backup = copy.deepcopy(disc)
                 optim_disc_backup = copy.deepcopy(optim_disc)
 
-                # sample random latent data
-                z = th.randn(
-                    batch_size,
-                    rand_channels,
-                    height,
-                    width,
-                    device="cuda"
-                )
-
                 # reset gradient
                 optim_disc.zero_grad()
                 optim_gen.zero_grad()
@@ -208,6 +199,15 @@ def train(
                             # re-use old real data
                             pass
 
+                        # sample random latent data
+                        z = th.randn(
+                            batch_size,
+                            rand_channels,
+                            height,
+                            width,
+                            device="cuda"
+                        )
+
                         # generate fake data
                         x_fake = gen(z, grower.alpha)
 
@@ -216,13 +216,21 @@ def train(
                         out_real = fun_disc(x_real, grower.alpha)
 
                         # compute current loss
-                        unrolled_disc_loss = \
-                            networks.discriminator_loss(
-                                out_real, out_fake
-                            )
+                        unrolled_disc_loss = networks.discriminator_loss(
+                            out_real, out_fake
+                        )
 
                         # produce next discriminator and optimizer
                         diff_optim_disc.step(unrolled_disc_loss)
+
+                    # sample random latent data
+                    z = th.randn(
+                        batch_size,
+                        rand_channels,
+                        height,
+                        width,
+                        device="cuda"
+                    )
 
                     # generate fake data
                     x_fake = gen(z, grower.alpha)
@@ -234,7 +242,7 @@ def train(
                     gen_loss = networks.generator_loss(out_fake)
 
                     # reset gradient
-                    optim_gen.zero_grad()
+                    optim_gen.zero_grad(set_to_none=True)
 
                     # backward pass and weight update
                     gen_loss.backward()
