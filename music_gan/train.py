@@ -123,7 +123,7 @@ def train(
         error_tn = [0. for _ in range(metric_window)]
         error_gen = [0. for _ in range(metric_window)]
 
-        disc_loss_list = [0. for _ in range(metric_window)]
+        disc_error_list = [0. for _ in range(metric_window)]
         disc_gp_list = [0. for _ in range(metric_window)]
         gen_loss_list = [0. for _ in range(metric_window)]
 
@@ -157,7 +157,7 @@ def train(
                 out_fake = disc(x_fake, grower.alpha)
 
                 # compute discriminator loss
-                disc_loss = networks.wasserstein_discriminator_loss(
+                disc_error = networks.wasserstein_discriminator_loss(
                     out_real, out_fake
                 )
 
@@ -169,13 +169,13 @@ def train(
                 # prevent discriminator output to shift far from zero
                 disc_drift = eps_drift * th.pow(out_real, 2.).mean()
 
-                disc_loss_gp = disc_loss + disc_gp + disc_drift
+                disc_loss = disc_error + disc_gp + disc_drift
 
                 # reset grad
                 optim_disc.zero_grad(set_to_none=True)
 
                 # backward and optim step
-                disc_loss_gp.backward()
+                disc_loss.backward()
                 optim_disc.step()
 
                 # discriminator metrics
@@ -184,9 +184,9 @@ def train(
                 error_tp.append(out_real.mean().item())
                 error_tn.append(out_fake.mean().item())
 
-                del disc_loss_list[0]
+                del disc_error_list[0]
                 del disc_gp_list[0]
-                disc_loss_list.append(disc_loss.item())
+                disc_error_list.append(disc_error.item())
                 disc_gp_list.append(disc_gp.item())
 
                 # [2] train generator
@@ -232,7 +232,7 @@ def train(
                     f"Epoch {e:02} "
                     f"[{saver.curr_save:03}: "
                     f"{saver.save_counter:03}], "
-                    f"disc_l = {mean(disc_loss_list):.4f}, "
+                    f"disc_l = {mean(disc_error_list):.4f}, "
                     f"gen_l = {mean(gen_loss_list):.3f}, "
                     f"disc_gp = {mean(disc_gp_list):.3f}, "
                     f"e_tp = {mean(error_tp):.2f}, "
