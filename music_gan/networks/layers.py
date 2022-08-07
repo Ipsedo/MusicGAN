@@ -240,17 +240,14 @@ class EqualLrConv2d(nn.Conv2d):
         nn.init.zeros_(self.bias.data)
         nn.init.normal_(self.weight.data)
 
-        fan_in = self.weight.data.size()[1] * self.weight.data.size()[2:].numel()
-        self.__equal_lr_weight = sqrt(alpha / fan_in)
-
-        fan_in = self.bias.data.size()[0] * self.bias.data.size()[2:].numel()
-        self.__equal_lr_bias = sqrt(alpha / fan_in)
+        fan_in = in_channels * kernel_size[0] * kernel_size[1]
+        self.__equal_lr = sqrt(alpha / fan_in)
 
     def forward(self, x: Tensor) -> Tensor:
         return self._conv_forward(
             x,
-            self.weight * self.__equal_lr_weight,
-            self.bias * self.__equal_lr_bias
+            self.weight * self.__equal_lr,
+            self.bias
         )
 
 
@@ -266,15 +263,12 @@ class EqualLrLinear(nn.Linear):
         nn.init.zeros_(self.bias.data)
         nn.init.normal_(self.weight.data)
 
-        fan_in = self.weight.data.size()[1] * self.weight.data.size()[2:].numel()
-        self.__equal_lr_weight = sqrt(alpha / fan_in)
-
-        fan_in = self.bias.data.size()[0] * self.bias.data.size()[2:].numel()
-        self.__equal_lr_bias = sqrt(alpha / fan_in)
+        fan_in = in_features
+        self.__equal_lr = sqrt(alpha / fan_in)
 
     def forward(self, x: Tensor) -> Tensor:
         return F.linear(
             x,
-            self.weight * self.__equal_lr_weight,
-            self.bias * self.__equal_lr_bias
+            self.weight * self.__equal_lr,
+            self.bias
         )
