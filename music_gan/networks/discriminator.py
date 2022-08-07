@@ -98,7 +98,8 @@ class Discriminator(nn.Module):
         )
 
         self.__clf = nn.Sequential(
-            EqualLrLinear(out_size, 1)
+            EqualLrLinear(out_size, 1),
+            nn.Sigmoid()
         )
 
     def forward(self, x: th.Tensor, alpha: float) -> th.Tensor:

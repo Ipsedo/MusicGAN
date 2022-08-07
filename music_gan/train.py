@@ -126,7 +126,6 @@ def train(
         error_gen = [0. for _ in range(metric_window)]
 
         disc_loss_list = [0. for _ in range(metric_window)]
-        disc_gp_list = [0. for _ in range(metric_window)]
         gen_loss_list = [0. for _ in range(metric_window)]
 
         iter_idx = 0
@@ -160,25 +159,15 @@ def train(
                 out_fake = disc(x_fake, grower.alpha)
 
                 # compute discriminator loss
-                disc_loss = networks.wasserstein_discriminator_loss(
+                disc_loss = networks.discriminator_loss(
                     out_real, out_fake
                 )
-
-                # compute gradient penalty
-                disc_gp = disc.gradient_penalty(
-                    x_real, x_fake, grower.alpha
-                )
-
-                # prevent discriminator output to shift far from zero
-                disc_drift = eps_drift * th.pow(out_real, 2.).mean()
-
-                disc_loss_gp = disc_loss + disc_gp + disc_drift
 
                 # reset grad
                 optim_disc.zero_grad(set_to_none=True)
 
                 # backward and optim step
-                disc_loss_gp.backward()
+                disc_loss.backward()
                 optim_disc.step()
 
                 # discriminator metrics
@@ -188,9 +177,7 @@ def train(
                 error_tn.append(out_fake.mean().item())
 
                 del disc_loss_list[0]
-                del disc_gp_list[0]
                 disc_loss_list.append(disc_loss.item())
-                disc_gp_list.append(disc_gp.item())
 
                 # [2] train generator
                 disc_backup = copy.deepcopy(disc)
@@ -232,21 +219,12 @@ def train(
 
                         # compute current loss
                         unrolled_disc_loss = \
-                            networks.wasserstein_discriminator_loss(
+                            networks.discriminator_loss(
                                 out_real, out_fake
                             )
 
-                        unrolled_grad_pen = fun_disc.gradient_penalty(
-                            x_real, x_fake, grower.alpha
-                        )
-
-                        unrolled_disc_drift = eps_drift * th.pow(out_real, 2.).mean()
-
-                        unrolled_disc_loss_gp = \
-                            unrolled_disc_loss + unrolled_grad_pen + unrolled_disc_drift
-
                         # produce next discriminator and optimizer
-                        diff_optim_disc.step(unrolled_disc_loss_gp)
+                        diff_optim_disc.step(unrolled_disc_loss)
 
                     # generate fake data
                     x_fake = gen(z, grower.alpha)
@@ -255,7 +233,7 @@ def train(
                     out_fake = fun_disc(x_fake, grower.alpha)
 
                     # compute generator loss
-                    gen_loss = networks.wasserstein_generator_loss(out_fake)
+                    gen_loss = networks.generator_loss(out_fake)
 
                     # reset gradient
                     optim_gen.zero_grad()
@@ -277,7 +255,6 @@ def train(
                     f"{saver.save_counter:03}], "
                     f"disc_l = {mean(disc_loss_list):.4f}, "
                     f"gen_l = {mean(gen_loss_list):.3f}, "
-                    f"disc_gp = {mean(disc_gp_list):.3f}, "
                     f"e_tp = {mean(error_tp):.2f}, "
                     f"e_tn = {mean(error_tn):.2f}, "
                     f"e_gen = {mean(error_gen):.2f}, "
@@ -289,7 +266,6 @@ def train(
                     mlflow.log_metrics(step=gen.curr_layer, metrics={
                         "disc_loss": disc_loss.item(),
                         "gen_loss": gen_loss.item(),
-                        "disc_gp": disc_gp.item(),
                         "batch_tp_error": error_tp[-1],
                         "batch_tn_error": error_tn[-1]
                     })
