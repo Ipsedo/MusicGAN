@@ -35,7 +35,7 @@ def train(
     gen_lr = 1e-3
     betas = (0., 0.99)
 
-    eps_drift = 1e-1
+    eps_drift = 1e-3
 
     nb_epoch = 1000
     batch_size = 4
