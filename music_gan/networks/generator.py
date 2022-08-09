@@ -17,28 +17,28 @@ class GenBlock(nn.Sequential):
         super(GenBlock, self).__init__(
             EqualLrConv2d(
                 in_channels,
-                in_channels,
-                kernel_size=(3, 3),
-                padding=(1, 1),
-                stride=(1, 1)
-            ),
-            PixelNorm(),
-            nn.LeakyReLU(LEAKY_RELU_SLOPE),
-
-            nn.Upsample(
-                scale_factor=2.,
-                mode="nearest"
-            ),
-
-            EqualLrConv2d(
-                in_channels,
                 out_channels,
                 kernel_size=(3, 3),
                 padding=(1, 1),
                 stride=(1, 1)
             ),
-            PixelNorm(),
             nn.LeakyReLU(LEAKY_RELU_SLOPE),
+            PixelNorm(),
+
+            nn.Upsample(
+                scale_factor=2.,
+                mode="nearest",
+            ),
+
+            EqualLrConv2d(
+                out_channels,
+                out_channels,
+                kernel_size=(3, 3),
+                padding=(1, 1),
+                stride=(1, 1)
+            ),
+            nn.LeakyReLU(LEAKY_RELU_SLOPE),
+            PixelNorm()
         )
 
 
@@ -57,14 +57,14 @@ class Generator(nn.Module):
         self.__nb_downsample = 7
 
         channels = [
-            (rand_channels, 128),
-            (128, 112),
-            (112, 96),
-            (96, 80),
-            (80, 64),
-            (64, 48),
-            (48, 32),
-            (32, 16)
+            (rand_channels, 64),
+            (64, 56),
+            (56, 48),
+            (48, 40),
+            (40, 32),
+            (32, 24),
+            (24, 16),
+            (16, 8)
         ]
 
         self.__channels = channels
@@ -101,7 +101,7 @@ class Generator(nn.Module):
             out_old = F.interpolate(
                 self.__end_blocks[self.curr_layer - 1](out),
                 scale_factor=2,
-                mode="nearest"
+                mode="nearest",
             )
             out_mp = out_old * (1. - alpha) + out_mp * alpha
 

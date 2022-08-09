@@ -33,12 +33,12 @@ def train(
 
     disc_lr = 1e-3
     gen_lr = 1e-3
-    betas = (0., 0.99)
+    betas = (0., 0.9)
 
-    eps_drift = 1e-3
+    eps_drift = 1e-1
 
     nb_epoch = 1000
-    batch_size = 4
+    batch_size = 8
     train_gen_every = 5
 
     if not exists(output_dir):
@@ -51,11 +51,11 @@ def train(
     grower = Grower(
         n_grow=7,
         fadein_lengths=[
-            1, 40000, 40000, 40000, 40000, 40000, 40000, 40000,
+            1, 10000, 10000, 10000, 10000, 10000, 10000, 10000,
             # 1,1,1,1,1,1,1,1
         ],
         train_lengths=[
-            40000, 80000, 80000, 80000, 80000, 80000, 80000,
+            10000, 20000, 20000, 20000, 20000, 20000, 20000,
             # 1,1,1,1,1,1,1
         ]
     )
