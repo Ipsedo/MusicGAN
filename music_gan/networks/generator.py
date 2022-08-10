@@ -26,7 +26,7 @@ class GenBlock(nn.Sequential):
             PixelNorm(),
 
             nn.Upsample(
-                scale_factor=2.,
+                scale_factor=2,
                 mode="nearest"
             ),
 
