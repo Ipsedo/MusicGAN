@@ -25,7 +25,7 @@ class DiscBlock(nn.Sequential):
 
             EqualLrConv2d(
                 in_channels,
-                out_channels,
+                in_channels,
                 kernel_size=(3, 3),
                 stride=(1, 1),
                 padding=(1, 1)
@@ -35,7 +35,7 @@ class DiscBlock(nn.Sequential):
             nn.AvgPool2d(2, 2),
 
             EqualLrConv2d(
-                out_channels,
+                in_channels,
                 out_channels,
                 kernel_size=(3, 3),
                 stride=(1, 1),
@@ -55,15 +55,15 @@ class Discriminator(nn.Module):
         self.__grew_up = False
 
         conv_channels = [
-            (8, 16),
-            (16, 24),
-            (24, 32),
-            (32, 40),
-            (40, 48),
-            (48, 56),
-            (56, 64),
-            (64, 72), # we start here
-            (72, 80)
+            (4, 8),
+            (8, 12),
+            (12, 16),
+            (16, 20),
+            (20, 24),
+            (24, 28),
+            (28, 32),
+            (32, 36),  # we start here
+            (36, 40)
         ]
 
         self.__channels = conv_channels

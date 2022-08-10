@@ -219,32 +219,6 @@ class FromMagnPhase(nn.Sequential):
         )
 
 
-class EqualLR:
-    def __init__(
-            self,
-            module: nn.Module,
-            name: str,
-            alpha: float,
-            input_dim_idx: int
-    ) -> None:
-        self.__name = name
-        self.__alpha = alpha
-        self.__idx = input_dim_idx
-
-        weight = getattr(module, name)
-        del module._parameters[name]
-        module.register_parameter(name + '_orig', nn.Parameter(weight.data))
-        module.register_forward_pre_hook(self)
-
-    def __call__(self, module: nn.Module, x: th.Tensor) -> None:
-        weight = getattr(module, self.__name + '_orig')
-
-        fan_in = weight.data.size()[self.__idx] * weight.data.size()[2:].numel()
-        weight = weight * sqrt(self.__alpha / fan_in)
-
-        setattr(module, self.__name, weight)
-
-
 class EqualLrConv2d(nn.Conv2d):
     def __init__(
             self,
@@ -266,20 +240,14 @@ class EqualLrConv2d(nn.Conv2d):
         nn.init.zeros_(self.bias.data)
         nn.init.normal_(self.weight.data)
 
-        #self.__equal_lr_w = EqualLR(self.__conv, "weight", alpha, 1)
-        #self.__equal_lr_b = EqualLR(self.__conv, "bias", alpha, 0)
-
-        fan_in_weight = self.weight.data.size()[1] * self.weight.data.size()[2:].numel()
-        self.__equal_lr_weight_value = sqrt(alpha / fan_in_weight)
-
-        fan_in_bias = self.bias.data.size()[0] * self.bias.data.size()[2:].numel()
-        self.__equal_lr_bias_value = sqrt(alpha / fan_in_bias)
+        fan_in_weight = in_channels * kernel_size[0] * kernel_size[1]
+        self.__equal_lr = sqrt(alpha / fan_in_weight)
 
     def forward(self, x: Tensor) -> Tensor:
         return self._conv_forward(
             x,
-            self.weight * self.__equal_lr_weight_value,
-            self.bias * self.__equal_lr_bias_value
+            self.weight * self.__equal_lr,
+            self.bias
         )
 
 
@@ -295,18 +263,12 @@ class EqualLrLinear(nn.Linear):
         nn.init.zeros_(self.bias.data)
         nn.init.normal_(self.weight.data)
 
-        #self.__equal_lr_w = EqualLR(self.__lin, "weight", alpha, 1)
-        #self.__equal_lr_b = EqualLR(self.__lin, "bias", alpha, 0)
-
-        fan_in_weight = self.weight.data.size()[1] * self.weight.data.size()[2:].numel()
-        self.__equal_lr_weight_value = sqrt(alpha / fan_in_weight)
-
-        fan_in_bias = self.bias.data.size()[0] * self.bias.data.size()[2:].numel()
-        self.__equal_lr_bias_value = sqrt(alpha / fan_in_bias)
+        fan_in_weight = in_features
+        self.__equal_lr = sqrt(alpha / fan_in_weight)
 
     def forward(self, x: Tensor) -> Tensor:
         return F.linear(
             x,
-            self.weight * self.__equal_lr_weight_value,
-            self.bias * self.__equal_lr_bias_value
+            self.weight * self.__equal_lr,
+            self.bias
         )

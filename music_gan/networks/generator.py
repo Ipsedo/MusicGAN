@@ -17,7 +17,7 @@ class GenBlock(nn.Sequential):
         super(GenBlock, self).__init__(
             EqualLrConv2d(
                 in_channels,
-                in_channels,
+                out_channels,
                 kernel_size=(3, 3),
                 padding=(1, 1),
                 stride=(1, 1)
@@ -31,7 +31,7 @@ class GenBlock(nn.Sequential):
             ),
 
             EqualLrConv2d(
-                in_channels,
+                out_channels,
                 out_channels,
                 kernel_size=(3, 3),
                 padding=(1, 1),
@@ -57,14 +57,14 @@ class Generator(nn.Module):
         self.__nb_downsample = 7
 
         channels = [
-            (rand_channels, 64),
-            (64, 56),
-            (56, 48),
-            (48, 40),
-            (40, 32),
-            (32, 24),
-            (24, 16),
-            (16, 8)
+            (rand_channels, 32),
+            (32, 28),
+            (28, 24),
+            (24, 20),
+            (20, 16),
+            (16, 12),
+            (12, 8),
+            (8, 4)
         ]
 
         self.__channels = channels
