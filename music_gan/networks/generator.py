@@ -22,8 +22,8 @@ class GenBlock(nn.Sequential):
                 padding=(1, 1),
                 stride=(1, 1)
             ),
-            PixelNorm(),
             nn.LeakyReLU(LEAKY_RELU_SLOPE),
+            PixelNorm(),
 
             nn.Upsample(
                 scale_factor=2.,
@@ -37,8 +37,8 @@ class GenBlock(nn.Sequential):
                 padding=(1, 1),
                 stride=(1, 1)
             ),
-            PixelNorm(),
             nn.LeakyReLU(LEAKY_RELU_SLOPE),
+            PixelNorm(),
         )
 
 
