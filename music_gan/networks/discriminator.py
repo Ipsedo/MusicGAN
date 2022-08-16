@@ -32,7 +32,14 @@ class DiscBlock(nn.Sequential):
             ),
             nn.LeakyReLU(LEAKY_RELU_SLOPE),
 
-            nn.AvgPool2d(2, 2),
+            EqualLrConv2d(
+                in_channels,
+                in_channels,
+                kernel_size=(3, 3),
+                stride=(2, 2),
+                padding=(1, 1)
+            ),
+            nn.LeakyReLU(LEAKY_RELU_SLOPE),
 
             EqualLrConv2d(
                 in_channels,
@@ -55,15 +62,15 @@ class Discriminator(nn.Module):
         self.__grew_up = False
 
         conv_channels = [
-            (8, 16),
-            (16, 24),
-            (24, 32),
-            (32, 40),
-            (40, 48),
-            (48, 56),
-            (56, 64),
-            (64, 72),  # we start here
-            (72, 80)
+            (16, 32),
+            (32, 48),
+            (48, 64),
+            (64, 80),
+            (80, 96),
+            (96, 112),
+            (112, 128),
+            (128, 144),  # we start here
+            (144, 160)
         ]
 
         self.__channels = conv_channels

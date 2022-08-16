@@ -33,9 +33,9 @@ def train(
 
     disc_lr = 1e-4
     gen_lr = 1e-4
-    betas = (0., 0.999)
+    betas = (0., 0.9)
 
-    eps_drift = 1e-3
+    eps_drift = 0.
 
     nb_epoch = 1000
     batch_size = 8
@@ -51,11 +51,11 @@ def train(
     grower = Grower(
         n_grow=7,
         fadein_lengths=[
-            1, 40000, 40000, 40000, 40000, 40000, 40000, 40000,
+            1, 20000, 20000, 20000, 20000, 20000, 20000, 20000,
             # 1,1,1,1,1,1,1,1
         ],
         train_lengths=[
-            40000, 160000, 160000, 160000, 160000, 160000, 160000,
+            20000, 40000, 40000, 40000, 40000, 40000, 40000,
             # 1,1,1,1,1,1,1
         ]
     )
@@ -73,7 +73,9 @@ def train(
         end_layer=0
     )
 
-    disc = networks.Discriminator()
+    disc = networks.Discriminator(
+        start_layer=7
+    )
 
     gen.cuda()
     disc.cuda()
