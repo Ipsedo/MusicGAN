@@ -31,11 +31,11 @@ def train(
     height = networks.INPUT_SIZES[0]
     width = networks.INPUT_SIZES[1]
 
-    disc_lr = 1e-4
-    gen_lr = 1e-4
+    disc_lr = 1e-3
+    gen_lr = 1e-3
     betas = (0., 0.9)
 
-    eps_drift = 0.
+    eps_drift = 1e-3
 
     nb_epoch = 1000
     batch_size = 8
@@ -51,11 +51,11 @@ def train(
     grower = Grower(
         n_grow=7,
         fadein_lengths=[
-            1, 20000, 20000, 20000, 20000, 20000, 20000, 20000,
+            1, 10000, 20000, 30000, 40000, 50000, 60000, 70000
             # 1,1,1,1,1,1,1,1
         ],
         train_lengths=[
-            20000, 40000, 40000, 40000, 40000, 40000, 40000,
+            10000, 30000, 60000, 90000, 120000, 150000, 180000
             # 1,1,1,1,1,1,1
         ]
     )

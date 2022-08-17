@@ -278,7 +278,7 @@ class EqualLrConvTr2d(nn.ConvTranspose2d):
         fan_in = in_channels  # only one pixel as input for conv transpose
         self.__equal_lr = sqrt(alpha / fan_in)
 
-    def forward(self, input: Tensor, output_size: Optional[List[int]] = None) -> Tensor:
+    def forward(self, x: Tensor, output_size: Optional[List[int]] = None) -> Tensor:
         if self.padding_mode != 'zeros':
             raise ValueError('Only `zeros` padding mode is supported for ConvTranspose2d')
 
@@ -286,7 +286,7 @@ class EqualLrConvTr2d(nn.ConvTranspose2d):
         # One cannot replace List by Tuple or Sequence in "_output_padding" because
         # TorchScript does not support `Sequence[T]` or `Tuple[T, ...]`.
         output_padding = self._output_padding(
-            input,
+            x,
             output_size,
             list(self.stride),
             list(self.padding),
@@ -295,7 +295,7 @@ class EqualLrConvTr2d(nn.ConvTranspose2d):
         )
 
         return F.conv_transpose2d(
-            input,
+            x,
             self.weight * self.__equal_lr,
             self.bias,
             self.stride,
