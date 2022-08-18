@@ -1,4 +1,5 @@
 from typing import Iterator, OrderedDict
+from math import sqrt
 
 import torch as th
 import torch.autograd as th_autograd
@@ -25,28 +26,10 @@ class DiscBlock(nn.Sequential):
 
             EqualLrConv2d(
                 in_channels,
-                in_channels,
-                kernel_size=(3, 3),
-                stride=(1, 1),
-                padding=(1, 1)
-            ),
-            nn.LeakyReLU(LEAKY_RELU_SLOPE),
-
-            EqualLrConv2d(
-                in_channels,
-                in_channels,
-                kernel_size=(3, 3),
+                out_channels,
+                kernel_size=(4, 4),
                 stride=(2, 2),
                 padding=(1, 1)
-            ),
-            nn.LeakyReLU(LEAKY_RELU_SLOPE),
-
-            EqualLrConv2d(
-                in_channels,
-                out_channels,
-                kernel_size=(3, 3),
-                stride=(1, 1),
-                padding=(1, 1),
             ),
             nn.LeakyReLU(LEAKY_RELU_SLOPE),
         )
@@ -69,8 +52,7 @@ class Discriminator(nn.Module):
             (40, 48),
             (48, 56),
             (56, 64),
-            (64, 72),
-            (72, 80)
+            (64, 72)
         ]
 
         self.__channels = conv_channels
@@ -89,7 +71,7 @@ class Discriminator(nn.Module):
 
         self.__start_blocks = nn.ModuleList(
             FromMagnPhase(c[0])
-            for c in conv_channels[:-1]
+            for c in conv_channels
         )
 
         nb_time = 512
@@ -105,7 +87,9 @@ class Discriminator(nn.Module):
         )
 
         self.__clf = nn.Sequential(
-            EqualLrLinear(out_size, 1)
+            EqualLrLinear(out_size, int(out_size * sqrt(2))),
+            nn.LeakyReLU(LEAKY_RELU_SLOPE),
+            EqualLrLinear(int(out_size * sqrt(2)), 1)
         )
 
     def forward(self, x: th.Tensor, alpha: float) -> th.Tensor:

@@ -15,36 +15,16 @@ class GenBlock(nn.Sequential):
             out_channels: int
     ):
         super(GenBlock, self).__init__(
-            EqualLrConv2d(
+            EqualLrConvTr2d(
                 in_channels,
                 out_channels,
-                kernel_size=(3, 3),
-                padding=(1, 1),
-                stride=(1, 1)
-            ),
-            nn.LeakyReLU(LEAKY_RELU_SLOPE),
-            PixelNorm(),
-
-            EqualLrConvTr2d(
-                out_channels,
-                out_channels,
-                kernel_size=(3, 3),
+                kernel_size=(4, 4),
                 stride=(2, 2),
                 padding=(1, 1),
-                output_padding=(1, 1)
+                output_padding=(0, 0)
             ),
-            nn.LeakyReLU(LEAKY_RELU_SLOPE),
-            PixelNorm(),
-
-            EqualLrConv2d(
-                out_channels,
-                out_channels,
-                kernel_size=(3, 3),
-                padding=(1, 1),
-                stride=(1, 1)
-            ),
-            nn.LeakyReLU(LEAKY_RELU_SLOPE),
-            PixelNorm(),
+            nn.ReLU(),
+            PixelNorm()
         )
 
 
