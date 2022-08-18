@@ -38,7 +38,7 @@ def train(
     eps_drift = 0.
 
     nb_epoch = 1000
-    batch_size = 8
+    batch_size = 16
     train_gen_every = 4
 
     if not exists(output_dir):
@@ -110,6 +110,7 @@ def train(
         "nb_epoch": nb_epoch,
         "batch_size": batch_size,
         "train_gen_every": train_gen_every,
+        "eps_drift": eps_drift,
         "disc_lr": disc_lr,
         "gen_lr": gen_lr,
         "betas": betas,
