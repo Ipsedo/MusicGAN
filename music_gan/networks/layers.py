@@ -327,33 +327,3 @@ class EqualLrLinear(nn.Linear):
             self.weight * self.__equal_lr,
             self.bias
         )
-
-
-class ResConv2dBlock(nn.Module):
-    def __init__(
-            self,
-            channels: int,
-            leaky_relu_slope: float,
-            alpha: float = 2.,
-            use_norm: bool = False
-    ) -> None:
-        super(ResConv2dBlock, self).__init__()
-
-        self.__block = nn.Sequential(
-            EqualLrConv2d(
-                channels,
-                channels,
-                kernel_size=(3, 3),
-                stride=(1, 1),
-                padding=(1, 1),
-                alpha=alpha
-            ),
-            nn.LeakyReLU(leaky_relu_slope),
-
-            PixelNorm() if use_norm
-            else nn.Identity()
-        )
-
-    def forward(self, x: Tensor) -> Tensor:
-        return x + self.__block(x)
-
