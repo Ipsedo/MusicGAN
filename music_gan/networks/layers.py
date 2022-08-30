@@ -215,7 +215,7 @@ class FromMagnPhase(nn.Sequential):
                 stride=(1, 1),
                 padding=(0, 0)
             ),
-            nn.LeakyReLU(LEAKY_RELU_SLOPE)
+            nn.LeakyReLU(LEAKY_RELU_SLOPE),
         )
 
 
@@ -275,7 +275,7 @@ class EqualLrConvTr2d(nn.ConvTranspose2d):
         nn.init.zeros_(self.bias.data)
         nn.init.normal_(self.weight.data)
 
-        fan_in = in_channels  # only one pixel as input for conv transpose
+        fan_in = in_channels * kernel_size[0] * kernel_size[1]
         self.__equal_lr = sqrt(alpha / fan_in)
 
     def forward(self, x: Tensor, output_size: Optional[List[int]] = None) -> Tensor:

@@ -7,32 +7,16 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from .constants import LEAKY_RELU_SLOPE
-from .layers import FromMagnPhase, EqualLrConv2d, EqualLrLinear, MiniBatchStdDev
+from .layers import FromMagnPhase, EqualLrConv2d, EqualLrLinear, MiniBatchStdDev, PixelNorm
 
 
 class DiscBlock(nn.Sequential):
     def __init__(
             self,
             in_channels: int,
-            out_channels: int,
-            mini_batch_std_dev: bool = False
+            out_channels: int
     ):
-        if mini_batch_std_dev:
-            in_channels += 1
-
         super(DiscBlock, self).__init__(
-            MiniBatchStdDev() if mini_batch_std_dev
-            else nn.Identity(),
-
-            EqualLrConv2d(
-                in_channels,
-                in_channels,
-                kernel_size=(3, 3),
-                stride=(1, 1),
-                padding=(1, 1)
-            ),
-            nn.LeakyReLU(LEAKY_RELU_SLOPE),
-
             EqualLrConv2d(
                 in_channels,
                 out_channels,
@@ -61,8 +45,7 @@ class Discriminator(nn.Module):
             (40, 48),
             (48, 56),
             (56, 64),
-            (64, 72),
-            (72, 80)
+            (64, 64)
         ]
 
         self.__channels = conv_channels
@@ -75,8 +58,8 @@ class Discriminator(nn.Module):
         assert 0 <= start_layer <= len(conv_channels)
 
         self.__conv_blocks = nn.ModuleList(
-            DiscBlock(c[0], c[1], i == len(conv_channels) - 1)
-            for i, c in enumerate(conv_channels)
+            DiscBlock(c[0], c[1])
+            for c in conv_channels
         )
 
         self.__start_blocks = nn.ModuleList(
@@ -105,9 +88,11 @@ class Discriminator(nn.Module):
         out = self.__conv_blocks[self.curr_layer](out)
 
         if self.__grew_up:
-            out_old = self.__start_blocks[self.curr_layer + 1](
-                F.avg_pool2d(x, (2, 2))
+            out_old = F.avg_pool2d(
+                self.__start_blocks[self.curr_layer + 1](x),
+                (2, 2)
             )
+
             out = out_old * (1. - alpha) + out * alpha
 
         for i in range(self.curr_layer + 1, len(self.__conv_blocks)):

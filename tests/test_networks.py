@@ -1,7 +1,7 @@
 import unittest
 
 import torch as th
-from music_gan.networks import Generator, Discriminator
+from music_gan.networks import Generator, Discriminator, INPUT_SIZES
 
 
 class TestNetworks(unittest.TestCase):
@@ -10,7 +10,7 @@ class TestNetworks(unittest.TestCase):
             batch_size = 5
             rand_channels = 8
 
-            input_size = 2
+            width, height = INPUT_SIZES
 
             alpha = 0.5
 
@@ -21,19 +21,19 @@ class TestNetworks(unittest.TestCase):
                 z = th.randn(
                     batch_size,
                     rand_channels,
-                    input_size,
-                    input_size
+                    width,
+                    height
                 )
 
                 out = gen(z, alpha)
 
-                expected_size = input_size * 2 ** (
+                expected_size = 2 ** (
                     i + 1 if disc.growing and gen.growing
                     else gen.down_sample + 1
                 )
 
-                self.assertEqual(out.size()[2], expected_size)
-                self.assertEqual(out.size()[3], expected_size)
+                self.assertEqual(out.size()[2], width * expected_size)
+                self.assertEqual(out.size()[3], height * expected_size)
 
                 out_disc = disc(out, alpha)
 
