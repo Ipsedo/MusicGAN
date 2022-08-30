@@ -15,15 +15,29 @@ class GenBlock(nn.Sequential):
             out_channels: int
     ):
         super(GenBlock, self).__init__(
-            EqualLrConvTr2d(
+            EqualLrConv2d(
                 in_channels,
                 out_channels,
-                kernel_size=(4, 4),
-                stride=(2, 2),
+                kernel_size=(3, 3),
+                stride=(1, 1),
                 padding=(1, 1),
-                output_padding=(0, 0)
             ),
             nn.LeakyReLU(LEAKY_RELU_SLOPE),
+
+            nn.Upsample(
+                scale_factor=2.,
+                mode="bilinear",
+                align_corners=True
+            ),
+
+            EqualLrConv2d(
+                out_channels,
+                out_channels,
+                kernel_size=(3, 3),
+                stride=(1, 1),
+                padding=(1, 1)
+            ),
+            nn.LeakyReLU(LEAKY_RELU_SLOPE)
         )
 
 
@@ -83,10 +97,13 @@ class Generator(nn.Module):
         out_mp = self.__end_blocks[self.curr_layer](out_block)
 
         if self.__grew_up:
-            out_old = F.interpolate(
-                self.__end_blocks[self.curr_layer - 1](out),
-                scale_factor=2,
-                mode="nearest",
+            out_old = self.__end_blocks[self.curr_layer - 1](
+                F.interpolate(
+                    out,
+                    scale_factor=2.,
+                    mode="bilinear",
+                    align_corners=True
+                )
             )
 
             out_mp = out_old * (1. - alpha) + out_mp * alpha

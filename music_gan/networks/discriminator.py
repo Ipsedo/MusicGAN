@@ -19,12 +19,23 @@ class DiscBlock(nn.Sequential):
         super(DiscBlock, self).__init__(
             EqualLrConv2d(
                 in_channels,
-                out_channels,
-                kernel_size=(4, 4),
-                stride=(2, 2),
+                in_channels,
+                kernel_size=(3, 3),
+                stride=(1, 1),
                 padding=(1, 1)
             ),
             nn.LeakyReLU(LEAKY_RELU_SLOPE),
+
+            nn.AvgPool2d(2, 2),
+
+            EqualLrConv2d(
+                in_channels,
+                out_channels,
+                kernel_size=(3, 3),
+                stride=(1, 1),
+                padding=(1, 1)
+            ),
+            nn.LeakyReLU(LEAKY_RELU_SLOPE)
         )
 
 
@@ -45,7 +56,8 @@ class Discriminator(nn.Module):
             (40, 48),
             (48, 56),
             (56, 64),
-            (64, 64)
+            (64, 72),
+            (72, 80)
         ]
 
         self.__channels = conv_channels
@@ -80,7 +92,8 @@ class Discriminator(nn.Module):
         )
 
         self.__clf = nn.Sequential(
-            EqualLrLinear(out_size, 1)
+            MiniBatchStdDev(),
+            EqualLrLinear(out_size + 1, 1)
         )
 
     def forward(self, x: th.Tensor, alpha: float) -> th.Tensor:

@@ -168,7 +168,7 @@ class MiniBatchStdDev(nn.Module):
         self.__epsilon = epsilon
 
     def forward(self, x: th.Tensor) -> th.Tensor:
-        b, _, h, w = x.size()
+        b, _ = x.size()
 
         std = th.sqrt(
             th.mean(
@@ -179,8 +179,8 @@ class MiniBatchStdDev(nn.Module):
         )
 
         std_mean = (
-            th.mean(std, dim=(1, 2, 3), keepdim=True)
-            .expand(b, -1, h, w)
+            th.mean(std, dim=(1,), keepdim=True)
+            .expand(b, -1)
         )
 
         return th.cat([x, std_mean], dim=1)
