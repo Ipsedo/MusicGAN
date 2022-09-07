@@ -27,7 +27,7 @@ def train(
 
     sample_rate = audio.SAMPLE_RATE
 
-    rand_channels = 16
+    rand_channels = 128
     height = networks.INPUT_SIZES[0]
     width = networks.INPUT_SIZES[1]
 
@@ -35,10 +35,10 @@ def train(
     gen_lr = 1e-4
     betas = (0., 0.9)
 
-    eps_drift = 1e-3
+    eps_drift = 0.
 
     nb_epoch = 1000
-    batch_size = 8
+    batch_size = 5
     train_gen_every = 5
 
     if not exists(output_dir):
@@ -51,11 +51,11 @@ def train(
     grower = Grower(
         n_grow=7,
         fadein_lengths=[
-            1, 50000, 50000, 50000, 50000, 50000, 50000, 50000
+            1, 100000, 100000, 100000, 100000, 100000, 100000, 100000,
             # 1,1,1,1,1,1,1,1
         ],
         train_lengths=[
-            100000, 150000, 150000, 150000, 150000, 150000, 150000,
+            100000, 200000, 200000, 200000, 200000, 200000, 200000,
             # 1,1,1,1,1,1,1
         ]
     )
@@ -245,7 +245,7 @@ def train(
                 )
 
                 # log metrics
-                if iter_idx % 100 == 0:
+                if iter_idx % 500 == 0:
                     mlflow.log_metrics(step=gen.curr_layer, metrics={
                         "disc_loss": disc_loss.item(),
                         "gen_loss": gen_loss.item(),

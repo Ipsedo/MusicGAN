@@ -14,26 +14,32 @@ class DiscBlock(nn.Sequential):
     def __init__(
             self,
             in_channels: int,
-            out_channels: int
+            out_channels: int,
+            mini_batch_std_dev: bool
     ):
         super(DiscBlock, self).__init__(
+            MiniBatchStdDev() if mini_batch_std_dev
+            else nn.Identity(),
+
             EqualLrConv2d(
-                in_channels,
-                in_channels,
+                in_channels + (1 if mini_batch_std_dev else 0),
+                out_channels,
                 kernel_size=(3, 3),
                 stride=(1, 1),
-                padding=(1, 1)
+                padding=(1, 1),
+                alpha=1.
             ),
             nn.LeakyReLU(LEAKY_RELU_SLOPE),
 
             nn.AvgPool2d(2, 2),
 
             EqualLrConv2d(
-                in_channels,
+                out_channels,
                 out_channels,
                 kernel_size=(3, 3),
                 stride=(1, 1),
-                padding=(1, 1)
+                padding=(1, 1),
+                alpha=1.
             ),
             nn.LeakyReLU(LEAKY_RELU_SLOPE)
         )
@@ -49,15 +55,14 @@ class Discriminator(nn.Module):
         self.__grew_up = False
 
         conv_channels = [
-            (8, 16),
-            (16, 24),
-            (24, 32),
-            (32, 40),
-            (40, 48),
-            (48, 56),
-            (56, 64),
-            (64, 72),
-            (72, 80)
+            (16, 32),
+            (32, 64),
+            (64, 128),
+            (128, 256),
+            (256, 512),
+            (512, 512),
+            (512, 512),
+            (512, 512)
         ]
 
         self.__channels = conv_channels
@@ -70,8 +75,8 @@ class Discriminator(nn.Module):
         assert 0 <= start_layer <= len(conv_channels)
 
         self.__conv_blocks = nn.ModuleList(
-            DiscBlock(c[0], c[1])
-            for c in conv_channels
+            DiscBlock(c[0], c[1], i == len(conv_channels) - 1)
+            for i, c in enumerate(conv_channels)
         )
 
         self.__start_blocks = nn.ModuleList(
@@ -92,8 +97,7 @@ class Discriminator(nn.Module):
         )
 
         self.__clf = nn.Sequential(
-            MiniBatchStdDev(),
-            EqualLrLinear(out_size + 1, 1)
+            EqualLrLinear(out_size, 1),
         )
 
     def forward(self, x: th.Tensor, alpha: float) -> th.Tensor:
@@ -101,9 +105,8 @@ class Discriminator(nn.Module):
         out = self.__conv_blocks[self.curr_layer](out)
 
         if self.__grew_up:
-            out_old = F.avg_pool2d(
-                self.__start_blocks[self.curr_layer + 1](x),
-                (2, 2)
+            out_old = self.__start_blocks[self.curr_layer + 1](
+                F.avg_pool2d(x, (2, 2))
             )
 
             out = out_old * (1. - alpha) + out * alpha
@@ -147,13 +150,13 @@ class Discriminator(nn.Module):
         eps = th.rand(batch_size, 1, 1, 1, device=device)
 
         x_interpolated = eps * x_real + (1 - eps) * x_gen
-        x_interpolated.requires_grad_(True)
+        x_interpolated = x_interpolated.requires_grad_(True)
 
         out_interpolated = self(x_interpolated, alpha)
 
         gradients = th_autograd.grad(
             out_interpolated, x_interpolated,
-            grad_outputs=th.ones(out_interpolated.size(), device=device),
+            grad_outputs=th.ones_like(out_interpolated, device=device),
             create_graph=True, retain_graph=True
         )
 

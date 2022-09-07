@@ -17,27 +17,30 @@ class GenBlock(nn.Sequential):
         super(GenBlock, self).__init__(
             EqualLrConv2d(
                 in_channels,
+                in_channels,
+                kernel_size=(3, 3),
+                stride=(1, 1),
+                padding=(1, 1),
+                alpha=1.
+            ),
+            nn.LeakyReLU(LEAKY_RELU_SLOPE),
+            PixelNorm(),
+
+            nn.Upsample(
+                scale_factor=2.,
+                mode="nearest"
+            ),
+
+            EqualLrConv2d(
+                in_channels,
                 out_channels,
                 kernel_size=(3, 3),
                 stride=(1, 1),
                 padding=(1, 1),
+                alpha=1.
             ),
             nn.LeakyReLU(LEAKY_RELU_SLOPE),
-
-            nn.Upsample(
-                scale_factor=2.,
-                mode="bilinear",
-                align_corners=True
-            ),
-
-            EqualLrConv2d(
-                out_channels,
-                out_channels,
-                kernel_size=(3, 3),
-                stride=(1, 1),
-                padding=(1, 1)
-            ),
-            nn.LeakyReLU(LEAKY_RELU_SLOPE)
+            PixelNorm(),
         )
 
 
@@ -56,14 +59,14 @@ class Generator(nn.Module):
         self.__nb_downsample = 7
 
         channels = [
-            (rand_channels, 64),
-            (64, 56),
-            (56, 48),
-            (48, 40),
-            (40, 32),
-            (32, 24),
-            (24, 16),
-            (16, 8)
+            (rand_channels, 512),
+            (512, 512),
+            (512, 512),
+            (512, 256),
+            (256, 128),
+            (128, 64),
+            (64, 32),
+            (32, 16)
         ]
 
         self.__channels = channels
@@ -97,13 +100,10 @@ class Generator(nn.Module):
         out_mp = self.__end_blocks[self.curr_layer](out_block)
 
         if self.__grew_up:
-            out_old = self.__end_blocks[self.curr_layer - 1](
-                F.interpolate(
-                    out,
-                    scale_factor=2.,
-                    mode="bilinear",
-                    align_corners=True
-                )
+            out_old = F.interpolate(
+                self.__end_blocks[self.curr_layer - 1](out),
+                scale_factor=2.,
+                mode="nearest"
             )
 
             out_mp = out_old * (1. - alpha) + out_mp * alpha

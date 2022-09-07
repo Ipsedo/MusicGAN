@@ -17,6 +17,8 @@ class TestNetworks(unittest.TestCase):
             gen = Generator(rand_channels)
             disc = Discriminator(7)
 
+            print(disc)
+
             for i in range(gen.down_sample + 3):
                 z = th.randn(
                     batch_size,

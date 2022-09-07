@@ -81,12 +81,10 @@ class PixelNorm(nn.Module):
         self.__epsilon = epsilon
 
     def forward(self, x: th.Tensor) -> th.Tensor:
-        norm = th.sqrt(
+        return x / th.sqrt(
             x.pow(2.).mean(dim=1, keepdim=True) +
             self.__epsilon
         )
-
-        return x / norm
 
     def __repr__(self):
         return f"{self.__class__.__name__}(eps={self.__epsilon})"
@@ -168,7 +166,7 @@ class MiniBatchStdDev(nn.Module):
         self.__epsilon = epsilon
 
     def forward(self, x: th.Tensor) -> th.Tensor:
-        b, _ = x.size()
+        b, _, w, h = x.size()
 
         std = th.sqrt(
             th.mean(
@@ -179,8 +177,8 @@ class MiniBatchStdDev(nn.Module):
         )
 
         std_mean = (
-            th.mean(std, dim=(1,), keepdim=True)
-            .expand(b, -1)
+            th.mean(std, dim=(1, 2, 3), keepdim=True)
+            .expand(b, 1, w, h)
         )
 
         return th.cat([x, std_mean], dim=1)
