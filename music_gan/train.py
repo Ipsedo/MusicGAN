@@ -17,6 +17,8 @@ def train(
         input_dataset_path: str,
         output_dir: str,
 ) -> None:
+    th.backends.cudnn.benchmark = True
+
     exp_name = "music_gan"
     mlflow.set_experiment(exp_name)
 
@@ -27,18 +29,17 @@ def train(
 
     sample_rate = audio.SAMPLE_RATE
 
-    rand_channels = 128
+    rand_channels = 32
     height = networks.INPUT_SIZES[0]
     width = networks.INPUT_SIZES[1]
 
     disc_lr = 1e-4
     gen_lr = 1e-4
-    betas = (0., 0.9)
-
-    eps_drift = 0.
+    betas_disc = (0.0, 0.9)
+    betas_gen = (0.0, 0.9)
 
     nb_epoch = 1000
-    batch_size = 5
+    batch_size = 8
     train_gen_every = 5
 
     if not exists(output_dir):
@@ -62,7 +63,7 @@ def train(
 
     saver = Saver(
         output_dir,
-        save_every=1000,
+        save_every=5000,
         rand_channels=rand_channels,
         rand_height=height,
         rand_width=width
@@ -81,11 +82,11 @@ def train(
     disc.cuda()
 
     optim_gen = th.optim.Adam(
-        gen.parameters(), lr=gen_lr, betas=betas
+        gen.parameters(), lr=gen_lr, betas=betas_gen
     )
 
     optim_disc = th.optim.Adam(
-        disc.parameters(), lr=disc_lr, betas=betas
+        disc.parameters(), lr=disc_lr, betas=betas_disc
     )
 
     # create DataSet
@@ -110,10 +111,10 @@ def train(
         "nb_epoch": nb_epoch,
         "batch_size": batch_size,
         "train_gen_every": train_gen_every,
-        "eps_drift": eps_drift,
         "disc_lr": disc_lr,
         "gen_lr": gen_lr,
-        "betas": betas,
+        "betas_disc": betas_disc,
+        "betas_gen": betas_gen,
         "sample_rate": sample_rate,
         "width": width,
         "height": height
@@ -128,7 +129,8 @@ def train(
 
         disc_error_list = [0. for _ in range(metric_window)]
         disc_gp_list = [0. for _ in range(metric_window)]
-        gen_loss_list = [0. for _ in range(metric_window)]
+
+        gen_error_list = [0. for _ in range(metric_window)]
 
         iter_idx = 0
 
@@ -169,10 +171,7 @@ def train(
                     x_real, x_fake, grower.alpha
                 )
 
-                # prevent discriminator output to shift far from zero
-                disc_drift = eps_drift * th.pow(out_real, 2.).mean()
-
-                disc_loss = disc_error + disc_gp + disc_drift
+                disc_loss = disc_error + disc_gp
 
                 # reset grad
                 optim_disc.zero_grad(set_to_none=True)
@@ -213,8 +212,11 @@ def train(
                     # use unrolled discriminators
                     out_fake = disc(x_fake, grower.alpha)
 
-                    # compute generator loss
-                    gen_loss = networks.wasserstein_generator_loss(out_fake)
+                    # compute generator error
+                    gen_error = networks.wasserstein_generator_loss(out_fake)
+
+                    # generator loss
+                    gen_loss = gen_error
 
                     # reset gradient
                     optim_gen.zero_grad(set_to_none=True)
@@ -227,16 +229,16 @@ def train(
                     del error_gen[0]
                     error_gen.append(out_fake.mean().item())
 
-                    del gen_loss_list[0]
-                    gen_loss_list.append(gen_loss.item())
+                    del gen_error_list[0]
+                    gen_error_list.append(gen_error.item())
 
                 # update tqdm bar
                 tqdm_bar.set_description(
                     f"Epoch {e:02} "
                     f"[{saver.curr_save:03}: "
-                    f"{saver.save_counter:03}], "
+                    f"{saver.save_counter:04}], "
                     f"disc_l = {mean(disc_error_list):.4f}, "
-                    f"gen_l = {mean(gen_loss_list):.3f}, "
+                    f"gen_l = {mean(gen_error_list):.3f}, "
                     f"disc_gp = {mean(disc_gp_list):.3f}, "
                     f"e_tp = {mean(error_tp):.2f}, "
                     f"e_tn = {mean(error_tn):.2f}, "

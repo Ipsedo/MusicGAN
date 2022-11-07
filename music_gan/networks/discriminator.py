@@ -1,5 +1,4 @@
 from typing import Iterator, OrderedDict
-from math import sqrt
 
 import torch as th
 import torch.autograd as th_autograd
@@ -7,7 +6,22 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from .constants import LEAKY_RELU_SLOPE
-from .layers import FromMagnPhase, EqualLrConv2d, EqualLrLinear, MiniBatchStdDev, PixelNorm
+from .layers import MiniBatchStdDev
+from .equal_lr import EqualLrConv2d, EqualLrLinear
+
+
+class FromMagnPhase(nn.Sequential):
+    def __init__(self, out_channels: int):
+        super(FromMagnPhase, self).__init__(
+            EqualLrConv2d(
+                2,
+                out_channels,
+                kernel_size=(1, 1),
+                stride=(1, 1),
+                padding=(0, 0)
+            ),
+            nn.LeakyReLU(LEAKY_RELU_SLOPE),
+        )
 
 
 class DiscBlock(nn.Sequential):
@@ -24,24 +38,12 @@ class DiscBlock(nn.Sequential):
             EqualLrConv2d(
                 in_channels + (1 if mini_batch_std_dev else 0),
                 out_channels,
-                kernel_size=(3, 3),
-                stride=(1, 1),
+                kernel_size=(4, 4),
+                stride=(2, 2),
                 padding=(1, 1),
-                alpha=1.
+                alpha=2.
             ),
             nn.LeakyReLU(LEAKY_RELU_SLOPE),
-
-            nn.AvgPool2d(2, 2),
-
-            EqualLrConv2d(
-                out_channels,
-                out_channels,
-                kernel_size=(3, 3),
-                stride=(1, 1),
-                padding=(1, 1),
-                alpha=1.
-            ),
-            nn.LeakyReLU(LEAKY_RELU_SLOPE)
         )
 
 
@@ -56,13 +58,13 @@ class Discriminator(nn.Module):
 
         conv_channels = [
             (16, 32),
-            (32, 64),
-            (64, 128),
-            (128, 256),
-            (256, 512),
-            (512, 512),
-            (512, 512),
-            (512, 512)
+            (32, 48),
+            (48, 64),
+            (64, 80),
+            (80, 96),
+            (96, 112),
+            (112, 128),
+            (128, 128)
         ]
 
         self.__channels = conv_channels
@@ -122,6 +124,8 @@ class Discriminator(nn.Module):
 
     def next_layer(self) -> bool:
         if self.growing:
+            # self.__start_blocks[self.curr_layer].requires_grad_(False)
+
             self.__curr_layer -= 1
 
             self.__grew_up = True
@@ -173,7 +177,7 @@ class Discriminator(nn.Module):
             self, recurse: bool = True
     ) -> Iterator[nn.Parameter]:
         raise NotImplementedError()
-        #return self.__start_block.parameters(recurse)
+        # return self.__start_block.parameters(recurse)
 
     @property
     def conv_blocks(self) -> nn.ModuleList:
@@ -229,8 +233,8 @@ class RecurrentDiscriminator(nn.Module):
         out = (
             # flatten channels and freq
             th.flatten(out, 1, 2)
-            # permute <0: batch, 2: time, 1: channels * freq>
-            .permute(0, 2, 1)
+                # permute <0: batch, 2: time, 1: channels * freq>
+                .permute(0, 2, 1)
         )
 
         out, _ = self.__rnn(out)

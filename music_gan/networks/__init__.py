@@ -11,4 +11,3 @@ from .criterion import (
 from .discriminator import Discriminator
 from .functions import matrix_multiple
 from .generator import Generator
-from .layers import ToMagnPhase, FromMagnPhase

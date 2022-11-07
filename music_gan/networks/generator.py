@@ -1,11 +1,41 @@
-from typing import Iterator, OrderedDict
+from typing import Iterator, OrderedDict, Tuple
 
 import torch as th
 import torch.nn as nn
 import torch.nn.functional as F
 
 from .constants import LEAKY_RELU_SLOPE
-from .layers import PixelNorm, ToMagnPhase, EqualLrConvTr2d, EqualLrConv2d
+from .layers import PixelNorm
+from .equal_lr import EqualLrConvTr2d, EqualLrConv2d
+
+
+class ToMagnPhase(nn.Sequential):
+    def __init__(self, in_channels: int):
+        super(ToMagnPhase, self).__init__(
+            EqualLrConv2d(
+                in_channels, 2,
+                kernel_size=(1, 1),
+                stride=(1, 1),
+                padding=(0, 0)
+            ),
+            nn.Tanh()
+        )
+
+
+class FromRandom(nn.Sequential):
+    def __init__(self, random_channels: int, out_channels: int):
+        super(FromRandom, self).__init__(
+            EqualLrConv2d(
+                random_channels,
+                out_channels,
+                kernel_size=(1, 1),
+                stride=(1, 1),
+                padding=(0, 0),
+                alpha=2.
+            ),
+            nn.LeakyReLU(LEAKY_RELU_SLOPE),
+            nn.BatchNorm2d(out_channels)
+        )
 
 
 class GenBlock(nn.Sequential):
@@ -15,17 +45,6 @@ class GenBlock(nn.Sequential):
             out_channels: int
     ):
         super(GenBlock, self).__init__(
-            EqualLrConv2d(
-                in_channels,
-                in_channels,
-                kernel_size=(3, 3),
-                stride=(1, 1),
-                padding=(1, 1),
-                alpha=1.
-            ),
-            nn.LeakyReLU(LEAKY_RELU_SLOPE),
-            PixelNorm(),
-
             nn.Upsample(
                 scale_factor=2.,
                 mode="nearest"
@@ -37,10 +56,10 @@ class GenBlock(nn.Sequential):
                 kernel_size=(3, 3),
                 stride=(1, 1),
                 padding=(1, 1),
-                alpha=1.
+                alpha=2.
             ),
             nn.LeakyReLU(LEAKY_RELU_SLOPE),
-            PixelNorm(),
+            nn.BatchNorm2d(out_channels)
         )
 
 
@@ -59,13 +78,13 @@ class Generator(nn.Module):
         self.__nb_downsample = 7
 
         channels = [
-            (rand_channels, 512),
-            (512, 512),
-            (512, 512),
-            (512, 256),
-            (256, 128),
-            (128, 64),
-            (64, 32),
+            (128, 128),
+            (128, 112),
+            (112, 96),
+            (96, 80),
+            (80, 64),
+            (64, 48),
+            (48, 32),
             (32, 16)
         ]
 
@@ -73,6 +92,10 @@ class Generator(nn.Module):
 
         assert 0 <= end_layer < len(channels), \
             f"0 <= {end_layer} < {len(channels)}"
+
+        self.__from_random = FromRandom(
+            rand_channels, channels[0][0]
+        )
 
         # Generator layers
         self.__gen_blocks = nn.ModuleList([
@@ -91,7 +114,7 @@ class Generator(nn.Module):
             z: th.Tensor,
             alpha: float
     ) -> th.Tensor:
-        out = z
+        out = self.__from_random(z)
 
         for i in range(self.curr_layer):
             out = self.__gen_blocks[i](out)
@@ -103,7 +126,7 @@ class Generator(nn.Module):
             out_old = F.interpolate(
                 self.__end_blocks[self.curr_layer - 1](out),
                 scale_factor=2.,
-                mode="nearest"
+                mode="nearest",
             )
 
             out_mp = out_old * (1. - alpha) + out_mp * alpha
@@ -112,6 +135,8 @@ class Generator(nn.Module):
 
     def next_layer(self) -> bool:
         if self.growing:
+            #self.__end_blocks[self.__curr_layer].requires_grad_(False)
+
             self.__curr_layer += 1
 
             self.__grew_up = True
@@ -153,7 +178,7 @@ class Generator(nn.Module):
 class RecurrentGenerator(nn.Module):
     def __init__(
             self,
-            input_size:int,
+            input_size: int,
             conv_rand_channels: int,
             cnn_state_dict: OrderedDict[str, th.Tensor]
     ):
@@ -177,14 +202,13 @@ class RecurrentGenerator(nn.Module):
         self.__end_block = gen.end_block
 
     def forward(self, z_rec: th.Tensor) -> th.Tensor:
-
         out_rec, _ = self.__rnn(z_rec)
 
         out = (
             # split on freq dim
             th.stack(out_rec.split(16, dim=-1), dim=1)
-            # batch, channels, freq, time
-            .permute(0, 3, 1, 2)
+                # batch, channels, freq, time
+                .permute(0, 3, 1, 2)
         )
 
         for layer in self.__conv_blocks:
