@@ -1,5 +1,5 @@
 from os.path import join
-from typing import List, Tuple
+from typing import List
 
 import matplotlib.pyplot as plt
 import torch as th
@@ -7,15 +7,12 @@ from torchvision.transforms import Compose, Resize
 from tqdm import tqdm
 
 from . import audio
-from .networks import Discriminator, Generator, LEAKY_RELU_SLOPE
+from .networks import Discriminator, Generator
 
 
 class Grower:
     def __init__(
-            self,
-            n_grow: int,
-            fadein_lengths: List[int],
-            train_lengths: List[int]
+        self, n_grow: int, fadein_lengths: List[int], train_lengths: List[int]
     ):
         self.__curr_grow = 0
         self.__n_grow = n_grow
@@ -38,9 +35,7 @@ class Grower:
 
         self.__train_lengths = train_lengths
         self.__train_lengths_cumsum = (
-            th.tensor(train_lengths)
-            .cumsum(dim=0)
-            .tolist()
+            th.tensor(train_lengths).cumsum(dim=0).tolist()
         )
 
         self.__init_tqdm_bars()
@@ -49,21 +44,19 @@ class Grower:
         self.__tqdm_bar_fadein = tqdm(
             range(self.__fadein_lengths[self.__curr_grow]),
             position=1,
-            leave=False
+            leave=False,
         )
 
         if self.__curr_grow < self.__n_grow:
             self.__tqdm_bar_grow = tqdm(
                 range(self.__train_lengths[self.__curr_grow]),
                 position=2,
-                leave=False
+                leave=False,
             )
 
     def __update_bars(self) -> None:
 
-        self.__tqdm_bar_fadein.set_description(
-            f"⌙> fade in "
-        )
+        self.__tqdm_bar_fadein.set_description(f"⌙> fade in ")
 
         self.__tqdm_bar_grow.set_description(
             f"⌙> grow [{self.__curr_grow} / {self.__n_grow}] "
@@ -100,22 +93,24 @@ class Grower:
     @property
     def alpha(self) -> float:
         return min(
-            1.,
-            (1. + self.__step_sample_idx) /
-            self.__fadein_lengths[self.__curr_grow]
+            1.0,
+            (1.0 + self.__step_sample_idx)
+            / self.__fadein_lengths[self.__curr_grow],
         )
 
     @staticmethod
     def __get_transform(downscale_factor: int) -> Compose:
         size = 512
 
-        target_size = size // 2 ** downscale_factor
+        target_size = size // 2**downscale_factor
 
-        compose = Compose([
-            audio.ChannelMinMaxNorm(),
-            audio.ChangeRange(-1., 1.),
-            Resize(target_size)
-        ])
+        compose = Compose(
+            [
+                audio.ChannelMinMaxNorm(),
+                audio.ChangeRange(-1.0, 1.0),
+                Resize(target_size),
+            ]
+        )
 
         return compose
 
@@ -126,12 +121,12 @@ class Grower:
 
 class Saver:
     def __init__(
-            self,
-            output_dir: str,
-            save_every: int,
-            rand_channels: int,
-            rand_height: int = 2,
-            rand_width: int = 2,
+        self,
+        output_dir: str,
+        save_every: int,
+        rand_channels: int,
+        rand_height: int = 2,
+        rand_width: int = 2,
     ):
         self.__output_dir = output_dir
 
@@ -154,39 +149,35 @@ class Saver:
         self.__nb_output_images = 6
 
     def __save_models(
-            self,
-            gen: Generator,
-            disc: Discriminator,
-            optim_gen: th.optim.Adam,
-            optim_disc: th.optim.Adam
-    ):
+        self,
+        gen: Generator,
+        disc: Discriminator,
+        optim_gen: th.optim.Adam,
+        optim_disc: th.optim.Adam,
+    ) -> None:
         # Save discriminator
         th.save(
             disc.state_dict(),
-            join(self.__output_dir, f"disc_{self.__curr_save}.pt")
+            join(self.__output_dir, f"disc_{self.__curr_save}.pt"),
         )
 
         th.save(
             optim_disc.state_dict(),
-            join(self.__output_dir, f"optim_disc_{self.__curr_save}.pt")
+            join(self.__output_dir, f"optim_disc_{self.__curr_save}.pt"),
         )
 
         # save generator
         th.save(
             gen.state_dict(),
-            join(self.__output_dir, f"gen_{self.__curr_save}.pt")
+            join(self.__output_dir, f"gen_{self.__curr_save}.pt"),
         )
 
         th.save(
             optim_gen.state_dict(),
-            join(self.__output_dir, f"optim_gen_{self.__curr_save}.pt")
+            join(self.__output_dir, f"optim_gen_{self.__curr_save}.pt"),
         )
 
-    def __save_outputs(
-            self,
-            gen: Generator,
-            alpha: float
-    ):
+    def __save_outputs(self, gen: Generator, alpha: float) -> None:
         # Generate sound
         with th.no_grad():
 
@@ -195,8 +186,9 @@ class Saver:
                 z = th.randn(
                     1,
                     self.__rand_channels,
-                    self.__height, self.__width,
-                    device="cuda"
+                    self.__height,
+                    self.__width,
+                    device="cuda",
                 )
 
                 x_fake = gen(z, alpha)
@@ -209,52 +201,52 @@ class Saver:
 
                 # Plot magnitude
                 magn_ax.matshow(
-                    magn / (magn.max() - magn.min()),
-                    cmap='plasma'
+                    magn / (magn.max() - magn.min()), cmap="plasma"
                 )
 
                 magn_ax.set_title(
-                    "gen magn " + str(self.__curr_save) +
-                    " grow=" + str(gen.curr_layer)
+                    "gen magn "
+                    + str(self.__curr_save)
+                    + " grow="
+                    + str(gen.curr_layer)
                 )
 
                 # Plot phase
                 phase_ax.matshow(
-                    phase / (phase.max() - phase.min()),
-                    cmap='plasma'
+                    phase / (phase.max() - phase.min()), cmap="plasma"
                 )
 
                 phase_ax.set_title(
-                    "gen phase " + str(self.__curr_save) +
-                    " grow=" + str(gen.curr_layer)
+                    "gen phase "
+                    + str(self.__curr_save)
+                    + " grow="
+                    + str(gen.curr_layer)
                 )
 
-                fig.savefig(join(
-                    self.__output_dir,
-                    f"magn_phase_{self.__curr_save}_ID{gen_idx}.png"
-                ))
+                fig.savefig(
+                    join(
+                        self.__output_dir,
+                        f"magn_phase_{self.__curr_save}_ID{gen_idx}.png",
+                    )
+                )
 
                 plt.close()
 
     def request_save(
-            self,
-            gen: Generator,
-            disc: Discriminator,
-            optim_gen: th.optim.Adam,
-            optim_disc: th.optim.Adam,
-            alpha: float,
+        self,
+        gen: Generator,
+        disc: Discriminator,
+        optim_gen: th.optim.Adam,
+        optim_disc: th.optim.Adam,
+        alpha: float,
     ) -> bool:
         self.__counter += 1
 
         if self.__counter % self.__save_every == 0:
 
-            self.__save_models(
-                gen, disc, optim_gen, optim_disc
-            )
+            self.__save_models(gen, disc, optim_gen, optim_disc)
 
-            self.__save_outputs(
-                gen, alpha
-            )
+            self.__save_outputs(gen, alpha)
 
             self.__curr_save += 1
 

@@ -9,30 +9,23 @@ from .networks import Generator
 
 
 def generate(
-        output_dir: str,
-        rand_channels: int,
-        gen_dict_state: str,
-        nb_vec: int,
-        nb_music: int
+    output_dir: str,
+    rand_channels: int,
+    gen_dict_state: str,
+    nb_vec: int,
+    nb_music: int,
 ) -> None:
 
     if not exists(output_dir):
         mkdir(output_dir)
     elif exists(output_dir) and not isdir(output_dir):
-        raise NotADirectoryError(
-            f"\"{output_dir}\" is not a directory"
-        )
+        raise NotADirectoryError(f'"{output_dir}" is not a directory')
 
     print("Load model...")
 
-    gen = Generator(
-        rand_channels,
-        end_layer=7
-    )
+    gen = Generator(rand_channels, end_layer=7)
 
-    gen.load_state_dict(
-        th.load(gen_dict_state)
-    )
+    gen.load_state_dict(th.load(gen_dict_state))
 
     gen.eval()
 
@@ -47,7 +40,7 @@ def generate(
             nb_music,
             rand_channels,
             height,
-            width * nb_vec
+            width * nb_vec,
         )
 
         gen_sound = gen(z, 1.0)
@@ -60,5 +53,5 @@ def generate(
             audio.magn_phase_to_wav(
                 gen_sound[i, None, :, :, :].detach(),
                 out_sound_path,
-                audio.SAMPLE_RATE
+                audio.SAMPLE_RATE,
             )

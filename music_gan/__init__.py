@@ -1,5 +1,4 @@
-from . import audio
-from . import networks
+from . import audio, networks
 from .create_dataset import create_dataset
 from .generate import generate
 from .train import train

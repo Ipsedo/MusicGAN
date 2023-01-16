@@ -7,23 +7,23 @@ import torch as th
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
-from . import audio
-from . import networks
+from . import audio, networks
 from .utils import Grower, Saver
 
 
 def train(
-        run_name: str,
-        input_dataset_path: str,
-        output_dir: str,
+    run_name: str,
+    input_dataset_path: str,
+    output_dir: str,
 ) -> None:
     th.backends.cudnn.benchmark = True
 
     exp_name = "music_gan"
     mlflow.set_experiment(exp_name)
 
-    assert isdir(input_dataset_path), \
-        f"\"{input_dataset_path}\" doesn't exist or is not a directory"
+    assert isdir(
+        input_dataset_path
+    ), f'"{input_dataset_path}" doesn\'t exist or is not a directory'
 
     mlflow.start_run(run_name=run_name)
 
@@ -45,20 +45,31 @@ def train(
     if not exists(output_dir):
         mkdir(output_dir)
     elif exists(output_dir) and not isdir(output_dir):
-        raise NotADirectoryError(
-            f"\"{output_dir}\" is not a directory !"
-        )
+        raise NotADirectoryError(f'"{output_dir}" is not a directory !')
 
     grower = Grower(
         n_grow=7,
         fadein_lengths=[
-            1, 100000, 100000, 100000, 100000, 100000, 100000, 100000,
+            1,
+            100000,
+            100000,
+            100000,
+            100000,
+            100000,
+            100000,
+            100000,
             # 1,1,1,1,1,1,1,1
         ],
         train_lengths=[
-            100000, 200000, 200000, 200000, 200000, 200000, 200000,
+            100000,
+            200000,
+            200000,
+            200000,
+            200000,
+            200000,
+            200000,
             # 1,1,1,1,1,1,1
-        ]
+        ],
     )
 
     saver = Saver(
@@ -66,33 +77,22 @@ def train(
         save_every=5000,
         rand_channels=rand_channels,
         rand_height=height,
-        rand_width=width
+        rand_width=width,
     )
 
-    gen = networks.Generator(
-        rand_channels,
-        end_layer=0
-    )
+    gen = networks.Generator(rand_channels, end_layer=0)
 
-    disc = networks.Discriminator(
-        start_layer=7
-    )
+    disc = networks.Discriminator(start_layer=7)
 
     gen.cuda()
     disc.cuda()
 
-    optim_gen = th.optim.Adam(
-        gen.parameters(), lr=gen_lr, betas=betas_gen
-    )
+    optim_gen = th.optim.Adam(gen.parameters(), lr=gen_lr, betas=betas_gen)
 
-    optim_disc = th.optim.Adam(
-        disc.parameters(), lr=disc_lr, betas=betas_disc
-    )
+    optim_disc = th.optim.Adam(disc.parameters(), lr=disc_lr, betas=betas_disc)
 
     # create DataSet
-    audio_dataset = audio.AudioDataset(
-        input_dataset_path
-    )
+    audio_dataset = audio.AudioDataset(input_dataset_path)
 
     data_loader = DataLoader(
         audio_dataset,
@@ -100,37 +100,39 @@ def train(
         shuffle=True,
         num_workers=6,
         drop_last=True,
-        pin_memory=True
+        pin_memory=True,
     )
 
-    mlflow.log_params({
-        "input_dataset": input_dataset_path,
-        "nb_sample": len(audio_dataset),
-        "output_dir": output_dir,
-        "rand_channels": rand_channels,
-        "nb_epoch": nb_epoch,
-        "batch_size": batch_size,
-        "train_gen_every": train_gen_every,
-        "disc_lr": disc_lr,
-        "gen_lr": gen_lr,
-        "betas_disc": betas_disc,
-        "betas_gen": betas_gen,
-        "sample_rate": sample_rate,
-        "width": width,
-        "height": height
-    })
+    mlflow.log_params(
+        {
+            "input_dataset": input_dataset_path,
+            "nb_sample": len(audio_dataset),
+            "output_dir": output_dir,
+            "rand_channels": rand_channels,
+            "nb_epoch": nb_epoch,
+            "batch_size": batch_size,
+            "train_gen_every": train_gen_every,
+            "disc_lr": disc_lr,
+            "gen_lr": gen_lr,
+            "betas_disc": betas_disc,
+            "betas_gen": betas_gen,
+            "sample_rate": sample_rate,
+            "width": width,
+            "height": height,
+        }
+    )
 
     with mlflow.start_run(run_name="train", nested=True):
 
         metric_window = 20
-        error_tp = [0. for _ in range(metric_window)]
-        error_tn = [0. for _ in range(metric_window)]
-        error_gen = [0. for _ in range(metric_window)]
+        error_tp = [0.0 for _ in range(metric_window)]
+        error_tn = [0.0 for _ in range(metric_window)]
+        error_gen = [0.0 for _ in range(metric_window)]
 
-        disc_error_list = [0. for _ in range(metric_window)]
-        disc_gp_list = [0. for _ in range(metric_window)]
+        disc_error_list = [0.0 for _ in range(metric_window)]
+        disc_gp_list = [0.0 for _ in range(metric_window)]
 
-        gen_error_list = [0. for _ in range(metric_window)]
+        gen_error_list = [0.0 for _ in range(metric_window)]
 
         iter_idx = 0
 
@@ -151,7 +153,7 @@ def train(
                     rand_channels,
                     height,
                     width,
-                    device="cuda"
+                    device="cuda",
                 )
 
                 # gen fake data
@@ -167,9 +169,7 @@ def train(
                 )
 
                 # compute gradient penalty
-                disc_gp = disc.gradient_penalty(
-                    x_real, x_fake, grower.alpha
-                )
+                disc_gp = disc.gradient_penalty(x_real, x_fake, grower.alpha)
 
                 disc_loss = disc_error + disc_gp
 
@@ -199,7 +199,7 @@ def train(
                         rand_channels,
                         height,
                         width,
-                        device="cuda"
+                        device="cuda",
                     )
 
                     # reset gradient
@@ -248,20 +248,25 @@ def train(
 
                 # log metrics
                 if iter_idx % 500 == 0:
-                    mlflow.log_metrics(step=gen.curr_layer, metrics={
-                        "disc_loss": disc_loss.item(),
-                        "gen_loss": gen_loss.item(),
-                        "disc_gp": disc_gp.item(),
-                        "batch_tp_error": error_tp[-1],
-                        "batch_tn_error": error_tn[-1]
-                    })
+                    mlflow.log_metrics(
+                        step=gen.curr_layer,
+                        metrics={
+                            "disc_loss": disc_loss.item(),
+                            "gen_loss": gen_loss.item(),
+                            "disc_gp": disc_gp.item(),
+                            "batch_tp_error": error_tp[-1],
+                            "batch_tn_error": error_tn[-1],
+                        },
+                    )
 
                 # request save model
                 # each N forward/backward pass
                 saver.request_save(
-                    gen, disc,
-                    optim_gen, optim_disc,
-                    grower.alpha
+                    gen,
+                    disc,
+                    optim_gen,
+                    optim_disc,
+                    grower.alpha,
                 )
 
                 iter_idx += 1

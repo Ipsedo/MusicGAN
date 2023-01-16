@@ -8,9 +8,9 @@ def __fill_diag(m: th.Tensor, v: th.Tensor) -> th.Tensor:
 
     def __fill(values: th.Tensor) -> th.Tensor:
         to_fill = th.zeros(*m.size(), device=device)
-        end_dim_1, end_dim_2 = \
-            min(m.size()[0], values.size()[0]), \
-            min(m.size()[1], values.size()[1])
+        end_dim_1, end_dim_2 = min(m.size()[0], values.size()[0]), min(
+            m.size()[1], values.size()[1]
+        )
         to_fill[:end_dim_1, :end_dim_2] = values[:end_dim_1, :end_dim_2]
 
         return to_fill
@@ -21,7 +21,8 @@ def __fill_diag(m: th.Tensor, v: th.Tensor) -> th.Tensor:
     diag = th.diag(v)
     full_diag = __fill(diag)
 
-    return full_mask * full_diag + (1. - full_mask) * m
+    res: th.Tensor = full_mask * full_diag + (1.0 - full_mask) * m
+    return res
 
 
 def matrix_multiple(m: th.Tensor, p: int) -> Tuple[th.Tensor, th.Tensor]:

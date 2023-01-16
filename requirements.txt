@@ -10,3 +10,11 @@ higher
 
 # for experiments
 jupyter
+
+# pre-commit
+pre-commit
+black
+pycln
+isort
+pytest
+mypy

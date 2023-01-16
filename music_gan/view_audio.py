@@ -1,15 +1,16 @@
-from typing import List
-import matplotlib.pyplot as plt
-from os.path import basename, join, exists, isdir
 from os import mkdir
+from os.path import basename, exists, isdir, join
+from typing import List
+
+import matplotlib.pyplot as plt
 
 from . import audio
 
 
 def view_audio(
-        audio_path: str,
-        image_idx: List[int],
-        output_path: str
+    audio_path: str,
+    image_idx: List[int],
+    output_path: str,
 ) -> None:
 
     if not exists(output_path):
@@ -30,10 +31,16 @@ def view_audio(
         phase_frame = phase[idx, :, :].numpy()
 
         magn_ax.set_title("magnitude")
-        magn_ax.matshow(magn_frame / (magn_frame.max() - magn_frame.min()), cmap='plasma')
+        magn_ax.matshow(
+            magn_frame / (magn_frame.max() - magn_frame.min()),
+            cmap="plasma",
+        )
 
         magn_ax.set_title("phase")
-        phase_ax.matshow(phase_frame / (phase_frame.max() - phase_frame.min()), cmap='plasma')
+        phase_ax.matshow(
+            phase_frame / (phase_frame.max() - phase_frame.min()),
+            cmap="plasma",
+        )
 
         fig.suptitle(music_name + " " + str(idx))
         fig.savefig(join(output_path, f"{music_name}_{idx}.jpg"))

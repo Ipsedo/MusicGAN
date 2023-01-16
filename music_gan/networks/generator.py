@@ -1,24 +1,24 @@
-from typing import Iterator, OrderedDict, Tuple
+from typing import Iterator, OrderedDict
 
 import torch as th
 import torch.nn as nn
 import torch.nn.functional as F
 
 from .constants import LEAKY_RELU_SLOPE
-from .layers import PixelNorm
-from .equal_lr import EqualLrConvTr2d, EqualLrConv2d
+from .equal_lr import EqualLrConv2d, EqualLrConvTr2d
 
 
 class ToMagnPhase(nn.Sequential):
     def __init__(self, in_channels: int):
         super(ToMagnPhase, self).__init__(
             EqualLrConv2d(
-                in_channels, 2,
+                in_channels,
+                2,
                 kernel_size=(1, 1),
                 stride=(1, 1),
-                padding=(0, 0)
+                padding=(0, 0),
             ),
-            nn.Tanh()
+            nn.Tanh(),
         )
 
 
@@ -31,44 +31,32 @@ class FromRandom(nn.Sequential):
                 kernel_size=(1, 1),
                 stride=(1, 1),
                 padding=(0, 0),
-                alpha=2.
+                alpha=2.0,
             ),
             nn.LeakyReLU(LEAKY_RELU_SLOPE),
-            nn.BatchNorm2d(out_channels)
+            nn.BatchNorm2d(out_channels),
         )
 
 
 class GenBlock(nn.Sequential):
-    def __init__(
-            self,
-            in_channels: int,
-            out_channels: int
-    ):
+    def __init__(self, in_channels: int, out_channels: int):
         super(GenBlock, self).__init__(
-            nn.Upsample(
-                scale_factor=2.,
-                mode="nearest"
-            ),
-
-            EqualLrConv2d(
+            EqualLrConvTr2d(
                 in_channels,
                 out_channels,
-                kernel_size=(3, 3),
-                stride=(1, 1),
+                kernel_size=(4, 4),
+                stride=(2, 2),
                 padding=(1, 1),
-                alpha=2.
+                output_padding=(0, 0),
+                alpha=2.0,
             ),
             nn.LeakyReLU(LEAKY_RELU_SLOPE),
-            nn.BatchNorm2d(out_channels)
+            nn.BatchNorm2d(out_channels),
         )
 
 
 class Generator(nn.Module):
-    def __init__(
-            self,
-            rand_channels: int,
-            end_layer: int = 0
-    ):
+    def __init__(self, rand_channels: int, end_layer: int = 0):
         super(Generator, self).__init__()
 
         self.__grew_up = False
@@ -85,57 +73,48 @@ class Generator(nn.Module):
             (80, 64),
             (64, 48),
             (48, 32),
-            (32, 16)
+            (32, 16),
         ]
 
         self.__channels = channels
 
-        assert 0 <= end_layer < len(channels), \
-            f"0 <= {end_layer} < {len(channels)}"
+        assert (
+            0 <= end_layer < len(channels)
+        ), f"0 <= {end_layer} < {len(channels)}"
 
-        self.__from_random = FromRandom(
-            rand_channels, channels[0][0]
-        )
+        self.__from_random = FromRandom(rand_channels, channels[0][0])
 
         # Generator layers
-        self.__gen_blocks = nn.ModuleList([
-            GenBlock(c[0], c[1])
-            for c in channels
-        ])
-
-        # for progressive gan
-        self.__end_blocks = nn.ModuleList(
-            ToMagnPhase(c[1])
-            for c in channels
+        self.__gen_blocks = nn.ModuleList(
+            [GenBlock(c[0], c[1]) for c in channels]
         )
 
-    def forward(
-            self,
-            z: th.Tensor,
-            alpha: float
-    ) -> th.Tensor:
+        # for progressive gan
+        self.__end_blocks = nn.ModuleList(ToMagnPhase(c[1]) for c in channels)
+
+    def forward(self, z: th.Tensor, alpha: float) -> th.Tensor:
         out = self.__from_random(z)
 
         for i in range(self.curr_layer):
             out = self.__gen_blocks[i](out)
 
         out_block = self.__gen_blocks[self.curr_layer](out)
-        out_mp = self.__end_blocks[self.curr_layer](out_block)
+        out_mp: th.Tensor = self.__end_blocks[self.curr_layer](out_block)
 
         if self.__grew_up:
             out_old = F.interpolate(
                 self.__end_blocks[self.curr_layer - 1](out),
-                scale_factor=2.,
+                scale_factor=2.0,
                 mode="nearest",
             )
 
-            out_mp = out_old * (1. - alpha) + out_mp * alpha
+            out_mp = out_old * (1.0 - alpha) + out_mp * alpha
 
         return out_mp
 
     def next_layer(self) -> bool:
         if self.growing:
-            #self.__end_blocks[self.__curr_layer].requires_grad_(False)
+            # self.__end_blocks[self.__curr_layer].requires_grad_(False)
 
             self.__curr_layer += 1
 
@@ -166,7 +145,7 @@ class Generator(nn.Module):
         return self.__end_blocks
 
     def end_block_parameters(
-            self, recurse: bool = True
+        self, recurse: bool = True
     ) -> Iterator[nn.Parameter]:
         return self.__end_blocks.parameters(recurse)
 
@@ -175,12 +154,13 @@ class Generator(nn.Module):
 # Recurrent
 ############
 
+
 class RecurrentGenerator(nn.Module):
     def __init__(
-            self,
-            input_size: int,
-            conv_rand_channels: int,
-            cnn_state_dict: OrderedDict[str, th.Tensor]
+        self,
+        input_size: int,
+        conv_rand_channels: int,
+        cnn_state_dict: OrderedDict[str, th.Tensor],
     ):
         super(RecurrentGenerator, self).__init__()
 
@@ -189,12 +169,10 @@ class RecurrentGenerator(nn.Module):
             conv_rand_channels * 2,
             batch_first=True,
             # We want [-1; 1] to approximately fit N(0; 1)
-            nonlinearity="tanh"
+            nonlinearity="tanh",
         )
 
-        gen = Generator(
-            conv_rand_channels, end_layer=7
-        )
+        gen = Generator(conv_rand_channels, end_layer=7)
 
         gen.load_state_dict(cnn_state_dict)
 
@@ -207,8 +185,8 @@ class RecurrentGenerator(nn.Module):
         out = (
             # split on freq dim
             th.stack(out_rec.split(16, dim=-1), dim=1)
-                # batch, channels, freq, time
-                .permute(0, 3, 1, 2)
+            # batch, channels, freq, time
+            .permute(0, 3, 1, 2)
         )
 
         for layer in self.__conv_blocks:

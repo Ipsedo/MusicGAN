@@ -1,12 +1,9 @@
-from .constants import (
-    LEAKY_RELU_SLOPE,
-    INPUT_SIZES
-)
+from .constants import INPUT_SIZES, LEAKY_RELU_SLOPE
 from .criterion import (
-    generator_loss,
     discriminator_loss,
+    generator_loss,
+    wasserstein_discriminator_loss,
     wasserstein_generator_loss,
-    wasserstein_discriminator_loss
 )
 from .discriminator import Discriminator
 from .functions import matrix_multiple

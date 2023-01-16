@@ -9,7 +9,6 @@ from tqdm import tqdm
 
 
 class AudioDataset(Dataset):
-
     def __init__(self, dataset_path: str) -> None:
         super().__init__()
 
@@ -18,9 +17,9 @@ class AudioDataset(Dataset):
         re_files = re.compile(r"^magn_phase_\d+\.pt$")
 
         all_files = [
-            f for f in tqdm(listdir(dataset_path))
-            if isfile(join(dataset_path, f)) and
-            re_files.match(f)
+            f
+            for f in tqdm(listdir(dataset_path))
+            if isfile(join(dataset_path, f)) and re_files.match(f)
         ]
 
         # Avoid pointer copy on each worker ?
@@ -29,13 +28,12 @@ class AudioDataset(Dataset):
 
         self.__dataset_path = dataset_path
 
-    def __getitem__(self, index: int):
-        magn_phase = th.load(join(
-            self.__dataset_path,
-            self.__all_files[index]
-        ))
+    def __getitem__(self, index: int) -> th.Tensor:
+        magn_phase: th.Tensor = th.load(
+            join(self.__dataset_path, self.__all_files[index])
+        )
 
         return magn_phase
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.__all_files)

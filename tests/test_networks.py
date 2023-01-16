@@ -1,44 +1,37 @@
-import unittest
-
+import pytest
 import torch as th
-from music_gan.networks import Generator, Discriminator, INPUT_SIZES
+
+from music_gan.networks import INPUT_SIZES, Discriminator, Generator
 
 
-class TestNetworks(unittest.TestCase):
-    def test_grow(self):
-        batch_size = 5
-        rand_channels = 8
+@pytest.mark.parametrize("batch_size", [1, 2, 3])
+@pytest.mark.parametrize("rand_channels", [1, 2, 3])
+def test_grow(batch_size: int, rand_channels: int) -> None:
 
-        width, height = INPUT_SIZES
+    width, height = INPUT_SIZES
 
-        alpha = 0.5
+    alpha = 0.5
 
-        gen = Generator(rand_channels)
-        disc = Discriminator(7)
+    gen = Generator(rand_channels)
+    disc = Discriminator(7)
 
-        for i in range(gen.down_sample + 3):
-            z = th.randn(
-                batch_size,
-                rand_channels,
-                width,
-                height
-            )
+    for i in range(gen.down_sample + 3):
+        z = th.randn(batch_size, rand_channels, width, height)
 
-            out = gen(z, alpha)
+        out = gen(z, alpha)
 
-            expected_size = 2 ** (
-                i + 1 if disc.growing and gen.growing
-                else gen.down_sample + 1
-            )
+        expected_size = 2 ** (
+            i + 1 if disc.growing and gen.growing else gen.down_sample + 1
+        )
 
-            self.assertEqual(width * expected_size, out.size()[2])
-            self.assertEqual(height * expected_size, out.size()[3])
+        assert width * expected_size == out.size()[2]
+        assert height * expected_size == out.size()[3]
 
-            out_disc = disc(out, alpha)
+        out_disc = disc(out, alpha)
 
-            self.assertEqual(gen.growing, disc.growing)
-            self.assertEqual(batch_size, out_disc.size()[0])
-            self.assertEqual(1, out_disc.size()[1])
+        assert gen.growing == disc.growing
+        assert batch_size == out_disc.size()[0]
+        assert 1 == out_disc.size()[1]
 
-            gen.next_layer()
-            disc.next_layer()
+        gen.next_layer()
+        disc.next_layer()
