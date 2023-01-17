@@ -33,8 +33,8 @@ def train(
     height = networks.INPUT_SIZES[0]
     width = networks.INPUT_SIZES[1]
 
-    disc_lr = 1e-3
-    gen_lr = 1e-3
+    disc_lr = 1e-4
+    gen_lr = 1e-4
     betas_disc = (0.0, 0.9)
     betas_gen = (0.0, 0.9)
 
@@ -51,30 +51,30 @@ def train(
         n_grow=7,
         fadein_lengths=[
             1,
-            10000,
-            10000,
-            10000,
-            10000,
-            10000,
-            10000,
-            10000,
+            64000,
+            64000,
+            64000,
+            64000,
+            64000,
+            64000,
+            64000,
             # 1,1,1,1,1,1,1,1
         ],
         train_lengths=[
-            10000,
-            20000,
-            20000,
-            20000,
-            20000,
-            20000,
-            20000,
+            64000,
+            128000,
+            128000,
+            128000,
+            128000,
+            128000,
+            128000,
             # 1,1,1,1,1,1,1
         ],
     )
 
     saver = Saver(
         output_dir,
-        save_every=1000,
+        save_every=2000,
         rand_channels=rand_channels,
         rand_height=height,
         rand_width=width,
@@ -279,6 +279,6 @@ def train(
 
                     tqdm_bar.write(
                         "\n"
-                        f"Next layer, {gen.curr_layer} / {gen.down_sample}, "
+                        f"Next layer, {gen.curr_layer} / {gen.layer_nb}, "
                         f"curr_save = {saver.curr_save}"
                     )

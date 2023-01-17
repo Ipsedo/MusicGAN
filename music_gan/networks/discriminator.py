@@ -6,14 +6,13 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from .constants import LEAKY_RELU_SLOPE
-from .equal_lr import EqualLrConv2d, EqualLrLinear
 from .layers import MiniBatchStdDev
 
 
 class FromMagnPhase(nn.Sequential):
     def __init__(self, out_channels: int):
         super(FromMagnPhase, self).__init__(
-            EqualLrConv2d(
+            nn.Conv2d(
                 2,
                 out_channels,
                 kernel_size=(1, 1),
@@ -30,13 +29,12 @@ class DiscBlock(nn.Sequential):
     ):
         super(DiscBlock, self).__init__(
             MiniBatchStdDev() if mini_batch_std_dev else nn.Identity(),
-            EqualLrConv2d(
+            nn.Conv2d(
                 in_channels + (1 if mini_batch_std_dev else 0),
                 out_channels,
                 kernel_size=(4, 4),
                 stride=(2, 2),
                 padding=(1, 1),
-                alpha=2.0,
             ),
             nn.LeakyReLU(LEAKY_RELU_SLOPE),
         )
@@ -92,7 +90,7 @@ class Discriminator(nn.Module):
         )
 
         self.__clf = nn.Sequential(
-            EqualLrLinear(out_size, 1),
+            nn.Linear(out_size, 1),
         )
 
     def forward(self, x: th.Tensor, alpha: float) -> th.Tensor:

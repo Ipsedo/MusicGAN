@@ -1,4 +1,4 @@
-from .constants import INPUT_SIZES, LEAKY_RELU_SLOPE
+from .constants import INPUT_SIZES, LEAKY_RELU_SLOPE, MAX_GROW, OUTPUT_SIZES
 from .criterion import (
     discriminator_loss,
     generator_loss,

@@ -4,14 +4,13 @@ import torch as th
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .constants import LEAKY_RELU_SLOPE
-from .equal_lr import EqualLrConv2d, EqualLrConvTr2d
+from .constants import LEAKY_RELU_SLOPE, MAX_GROW
 
 
 class ToMagnPhase(nn.Sequential):
     def __init__(self, in_channels: int):
         super(ToMagnPhase, self).__init__(
-            EqualLrConv2d(
+            nn.Conv2d(
                 in_channels,
                 2,
                 kernel_size=(1, 1),
@@ -25,13 +24,12 @@ class ToMagnPhase(nn.Sequential):
 class FromRandom(nn.Sequential):
     def __init__(self, random_channels: int, out_channels: int):
         super(FromRandom, self).__init__(
-            EqualLrConv2d(
+            nn.Conv2d(
                 random_channels,
                 out_channels,
                 kernel_size=(1, 1),
                 stride=(1, 1),
                 padding=(0, 0),
-                alpha=2.0,
             ),
             nn.LeakyReLU(LEAKY_RELU_SLOPE),
             nn.BatchNorm2d(out_channels),
@@ -41,14 +39,13 @@ class FromRandom(nn.Sequential):
 class GenBlock(nn.Sequential):
     def __init__(self, in_channels: int, out_channels: int):
         super(GenBlock, self).__init__(
-            EqualLrConvTr2d(
+            nn.ConvTranspose2d(
                 in_channels,
                 out_channels,
                 kernel_size=(4, 4),
                 stride=(2, 2),
                 padding=(1, 1),
                 output_padding=(0, 0),
-                alpha=2.0,
             ),
             nn.LeakyReLU(LEAKY_RELU_SLOPE),
             nn.BatchNorm2d(out_channels),
@@ -63,7 +60,7 @@ class Generator(nn.Module):
 
         self.__curr_layer = end_layer
 
-        self.__nb_downsample = 7
+        self.__layer_nb: int = MAX_GROW
 
         channels = [
             (128, 128),
@@ -125,8 +122,8 @@ class Generator(nn.Module):
         return False
 
     @property
-    def down_sample(self) -> int:
-        return self.__nb_downsample
+    def layer_nb(self) -> int:
+        return self.__layer_nb
 
     @property
     def curr_layer(self) -> int:
