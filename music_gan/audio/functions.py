@@ -111,6 +111,8 @@ def magn_phase_to_wav(
     magn_phase: th.Tensor,
     wav_path: str,
     sample_rate: int,
+    n_fft: int = constants.N_FFT,
+    stft_stride: int = constants.STFT_STRIDE,
     epsilon: float = 1e-8,
 ) -> None:
     assert (
@@ -121,8 +123,8 @@ def magn_phase_to_wav(
         magn_phase.size()[1] == 2
     ), f"Channels must be equal to 2, actual = {magn_phase.size()[1]}"
 
-    assert magn_phase.size()[2] == constants.N_FFT // 2, (
-        f"Frequency size must be equal to {constants.N_FFT // 2}, "
+    assert magn_phase.size()[2] == n_fft // 2, (
+        f"Frequency size must be equal to {n_fft // 2}, "
         f"actual = {magn_phase.size()[2]}"
     )
 
@@ -148,16 +150,16 @@ def magn_phase_to_wav(
 
     z = real_res + imag_res * 1j
 
-    hann_window = th.hann_window(constants.N_FFT)
+    hann_window = th.hann_window(n_fft)
 
     raw_audio = th_audio_f.inverse_spectrogram(
         z,
         length=None,
         pad=0,
         window=hann_window,
-        n_fft=constants.N_FFT,
-        hop_length=constants.STFT_STRIDE,
-        win_length=constants.N_FFT,
+        n_fft=n_fft,
+        hop_length=stft_stride,
+        win_length=n_fft,
         normalized=True,
     )
 

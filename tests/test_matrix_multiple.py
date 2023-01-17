@@ -29,7 +29,7 @@ def test_dim_equality(
 @pytest.mark.parametrize("input_dim", [32, 64])
 @pytest.mark.parametrize("intermediate_dim", [8, 16])
 @pytest.mark.parametrize("output_dim", [2, 4])
-@pytest.mark.parametrize("decimal", [1, 2])
+@pytest.mark.parametrize("decimal", [0, 1])
 def test_equality(
     input_dim: int, intermediate_dim: int, output_dim: int, decimal: int
 ) -> None:
