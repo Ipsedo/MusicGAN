@@ -1,11 +1,11 @@
-from typing import Iterator, OrderedDict, cast
+from typing import Iterator, OrderedDict
 
 import torch as th
 import torch.autograd as th_autograd
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .constants import LEAKY_RELU_SLOPE
+from .constants import LEAKY_RELU_SLOPE, MAX_GROW
 from .layers import MiniBatchStdDev
 
 
@@ -41,7 +41,7 @@ class DiscBlock(nn.Sequential):
 
 
 class Discriminator(nn.Module):
-    def __init__(self, start_layer: int = 7):
+    def __init__(self, start_layer: int = MAX_GROW):
         super(Discriminator, self).__init__()
 
         self.__grew_up = False
@@ -183,7 +183,8 @@ class Discriminator(nn.Module):
 
     @property
     def start_block(self) -> nn.Module:
-        return cast(nn.Module, self.__start_blocks[self.curr_layer])
+        start_block: nn.Module = self.__start_blocks[self.curr_layer]
+        return start_block
 
     @property
     def end_layer_channels(self) -> int:

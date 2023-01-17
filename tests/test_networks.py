@@ -75,6 +75,10 @@ def test_discriminator(
     assert o.size()[0] == batch_size
     assert o.size()[1] == 1
 
+    grad_pen = disc.gradient_penalty(x, x.clone(), 0.5)
+
+    assert len(grad_pen.size()) == 0
+
 
 @pytest.mark.parametrize("batch_size", [1, 2, 3])
 @pytest.mark.parametrize("rand_channels", [1, 2, 3])
@@ -107,10 +111,14 @@ def test_grow(
 
         expected_size = 2 ** (gen.curr_layer + 1)
 
+        assert len(out.size()) == 4
+        assert out.size()[0] == batch_size
+        assert out.size()[1] == 2
         assert width * expected_size == out.size()[2]
         assert height * expected_size == out.size()[3]
 
         out_disc = disc(out, alpha)
+        grad_pen = disc.gradient_penalty(out, out.clone(), alpha)
 
         is_growing = gen.curr_layer != gen.layer_nb
         assert gen.growing == is_growing
@@ -118,6 +126,8 @@ def test_grow(
 
         assert batch_size == out_disc.size()[0]
         assert 1 == out_disc.size()[1]
+
+        assert len(grad_pen.size()) == 0
 
         gen.next_layer()
         disc.next_layer()
