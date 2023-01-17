@@ -74,8 +74,6 @@ def test_magn_phase_to_wav(
 
         assert exists(wav_path)
         assert isfile(wav_path)
-    except Exception as e:
-        raise e
     finally:
         if exists(wav_path):
             remove(wav_path)
