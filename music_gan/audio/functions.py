@@ -67,7 +67,6 @@ def wav_to_stft(
         win_length=nperseg,
         power=None,
         normalized=True,
-        return_complex=True,
     )
 
     # remove Nyquist frequency
@@ -83,11 +82,11 @@ def stft_to_phase_magn(
     phase = th.angle(complex_values)
 
     magn = bark_magn_scale(magn, unscale=False)
+    magn = th.cat([th.zeros(magn.size()[0], 1), magn], dim=1)
 
     phase = unwrap(phase)
-
-    phase = phase[:, 1:] - phase[:, :-1]
-    magn = magn[:, 1:]
+    phase = th.cat([th.zeros(phase.size()[0], 1), phase], dim=1)
+    phase = th.gradient(phase, dim=1, spacing=1.0, edge_order=1)[0]
 
     max_magn = magn.max()
     min_magn = magn.min()
@@ -128,18 +127,16 @@ def magn_phase_to_wav(
         f"actual = {magn_phase.size()[2]}"
     )
 
-    magn = magn_phase.permute(1, 2, 0, 3).flatten(2, 3)[0, :]
-    phase = magn_phase.permute(1, 2, 0, 3).flatten(2, 3)[1, :]
+    magn_phase_flattened = magn_phase.permute(1, 2, 0, 3).flatten(2, 3)
+    magn = magn_phase_flattened[0, :, :]
+    phase = magn_phase_flattened[1, :, :]
 
     magn = (magn + 1.0) / 2.0
     magn = bark_magn_scale(magn, unscale=True)
     magn = magn / (magn.max() - magn.min() + epsilon)
 
     phase = (phase + 1.0) / 2.0 * 2.0 * np.pi - np.pi
-
-    for i in range(phase.size()[1] - 1):
-        phase[:, i + 1] = phase[:, i] + phase[:, i + 1]
-
+    phase = 0 + 1.0 * (phase.cumsum(dim=1) - phase / 2 - phase[:, 0, None] / 2)
     phase = phase % (2 * np.pi)
 
     real = magn * th.cos(phase)

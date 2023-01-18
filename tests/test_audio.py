@@ -46,7 +46,6 @@ def test_stft_to_magn_phase(nfft: int, stft_nb: int, nb_vec: int) -> None:
     stft = th.randn(*size) + th.randn(*size) * 1j
     magn, phase = stft_to_phase_magn(stft, nb_vec, epsilon=1e-8)
 
-    print(magn.size())
     assert len(magn.size()) == 3
     assert magn.size()[1] == nfft
     assert magn.size()[2] == nb_vec

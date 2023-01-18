@@ -54,4 +54,6 @@ def generate(
                 gen_sound[i, None, :, :, :].detach(),
                 out_sound_path,
                 audio.SAMPLE_RATE,
+                audio.N_FFT,
+                audio.STFT_STRIDE,
             )
