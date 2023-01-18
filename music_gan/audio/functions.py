@@ -1,4 +1,4 @@
-from typing import Tuple, cast
+from typing import Tuple
 
 import numpy as np
 import torch as th
@@ -28,14 +28,8 @@ def bark_magn_scale(magn: th.Tensor, unscale: bool = False) -> th.Tensor:
     min_hz = 20.0
     max_hz = 44100 // 2
 
-    scale = (
-        6.0
-        * th.arcsinh(
-            cast(
-                th.Tensor, th.linspace(min_hz, max_hz, magn.size()[0]) / 600.0
-            )
-        )[:, None]
-    )
+    linspace: th.Tensor = th.linspace(min_hz, max_hz, magn.size()[0]) / 600.0
+    scale = 6.0 * th.arcsinh(linspace)[:, None]
     scale_norm = scale / scale.norm()
 
     res: th.Tensor = magn / scale_norm if unscale else magn * scale_norm
