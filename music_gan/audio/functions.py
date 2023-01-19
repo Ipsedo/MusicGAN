@@ -22,7 +22,9 @@ def unwrap(phi: th.Tensor) -> th.Tensor:
     return phi + phi_adj.cumsum(1)
 
 
-def simpson(first_primitive: float, derivative: th.Tensor, dim: int, dx: float) -> th.Tensor:
+"""def simpson(
+    first_primitive: float, derivative: th.Tensor, dim: int, dx: float,
+) -> th.Tensor:
 
     sizes = derivative.size()
     n = derivative.size()[dim]
@@ -30,26 +32,37 @@ def simpson(first_primitive: float, derivative: th.Tensor, dim: int, dx: float) 
     evens = th.arange(0, n, 2)
     odds = th.arange(1, n, 2)
 
-    even_derivative = derivative[evens]
-    odd_derivative = derivative[odds]
+    even_derivative = th.index_select(derivative, dim, evens)
+    odd_derivative = th.index_select(derivative, dim, odds)
 
-    shift_odd_derivative = th.cat((th.zeros(*[s if i != dim else 1 for i, s in enumerate(sizes)]), odd_derivative), dim=dim)
+    even_primitive = first_primitive + dx / 3 * (
+        (
+            2 * even_derivative
+            + 4 * th.index_select(odd_derivative, dim=dim, index=th.arange(0, even_derivative.size()[dim]))
+        ).cumsum(dim)
+        - th.select(even_derivative, dim, 0).unsqueeze(dim)
+        - th.select(even_derivative, dim, 0).unsqueeze(dim)
+    )
 
-    even_primitive = (first_primitive + dx / 3 * (
-                (2 * even_derivative + 4 * shift_odd_derivative[:even_derivative.size()[dim]]).cumsum(dim) -
-                even_derivative[0] - even_derivative))
+    odd_primitive = (dx / 3) * (
+        (
+            2 * odd_derivative
+            + 4 * th.index_select(even_derivative, dim=dim, index=th.arange(0, odd_derivative.size()[dim]))
+        ).cumsum(dim)
+        - 4 * th.select(even_derivative, dim, 0).unsqueeze(dim)
+        - th.select(odd_derivative, dim, 0).unsqueeze(dim)
+        - odd_derivative
+    )
 
-    odd_primitive = (dx / 3 * (
-                (2 * odd_derivative + 4 * even_derivative[:odd_derivative.size()[dim]]).cumsum(dim) - 4 *
-                even_derivative[0] - odd_derivative[0] - odd_derivative))
-
-    odd_primitive += first_primitive + dx / 12 * (5 * derivative[0] + 8 * derivative[1] - derivative[2])
+    odd_primitive += first_primitive + dx / 12 * (
+        5 * th.select(derivative, dim, 0) + 8 * th.select(derivative, dim, 1) - th.select(derivative, dim, 2)
+    )
 
     primitive = th.zeros_like(derivative)
     primitive[evens] = even_primitive
     primitive[odds] = odd_primitive
 
-    return primitive
+    return primitive"""
 
 
 def bark_magn_scale(magn: th.Tensor, unscale: bool = False) -> th.Tensor:
@@ -64,6 +77,77 @@ def bark_magn_scale(magn: th.Tensor, unscale: bool = False) -> th.Tensor:
 
     res: th.Tensor = magn / scale_norm if unscale else magn * scale_norm
     return res
+
+
+def simpson(
+    first_primitive: th.Tensor,
+    derivative: th.Tensor,
+    dim: int,
+    dx: float,
+) -> th.Tensor:
+    sizes = derivative.size()
+    n = derivative.size()[dim]
+
+    evens = th.arange(0, n, 2)
+    odds = th.arange(1, n, 2)
+
+    even_derivative = th.index_select(derivative, dim, evens)
+    odd_derivative = th.index_select(derivative, dim, odds)
+
+    shift_odd_derivative = th.cat(
+        (
+            th.zeros(*[1 if i == dim else s for i, s in enumerate(sizes)]),
+            odd_derivative,
+        ),
+        dim=dim,
+    )
+
+    even_primitive = first_primitive + dx / 3 * (
+        (
+            2 * even_derivative
+            + 4
+            * th.index_select(
+                shift_odd_derivative,
+                dim=dim,
+                index=th.arange(0, even_derivative.size()[dim]),
+            )
+        ).cumsum(dim)
+        - th.select(even_derivative, dim, 0).unsqueeze(dim)
+        - th.select(even_derivative, dim, 0).unsqueeze(dim)
+    )
+
+    odd_primitive = (dx / 3) * (
+        (
+            2 * odd_derivative
+            + 4
+            * th.index_select(
+                even_derivative,
+                dim=dim,
+                index=th.arange(0, odd_derivative.size()[dim]),
+            )
+        ).cumsum(dim)
+        - 4 * th.select(even_derivative, dim, 0).unsqueeze(dim)
+        - th.select(odd_derivative, dim, 0).unsqueeze(dim)
+        - odd_derivative
+    )
+
+    odd_primitive += first_primitive + dx / 12 * (
+        5 * th.select(derivative, dim, 0)
+        + 8 * th.select(derivative, dim, 1)
+        - th.select(derivative, dim, 2)
+    ).unsqueeze(dim)
+
+    primitive = th.zeros_like(derivative)
+
+    view = [-1 if i == dim else 1 for i in range(len(sizes))]
+    repeat = [1 if i == dim else s for i, s in enumerate(sizes)]
+    evens = evens.view(*view).repeat(*repeat)
+    odds = odds.view(*view).repeat(*repeat)
+
+    primitive.scatter_(dim, evens, even_primitive)
+    primitive.scatter_(dim, odds, odd_primitive)
+
+    return primitive
 
 
 def wav_to_stft(

@@ -7,9 +7,34 @@ import torch as th
 from music_gan.audio import (
     bark_magn_scale,
     magn_phase_to_wav,
+    simpson,
     stft_to_phase_magn,
     wav_to_stft,
 )
+
+
+@pytest.mark.parametrize("start", [0.0, 2.0, 4.0])
+@pytest.mark.parametrize("end", [6.0, 8.0, 10.0])
+@pytest.mark.parametrize("dx", [0.01, 0.1, 0.2])
+def test_simpson(start: float, end: float, dx: float) -> None:
+
+    steps = int((end - start) / dx)
+
+    delta = 1e-1
+    dim = 1
+
+    derivative = th.cos(th.linspace(start, end, steps))[None, :, None].repeat(
+        10, 1, 10
+    )
+    primitive = th.sin(th.linspace(start, end, steps))[None, :, None].repeat(
+        10, 1, 10
+    )
+
+    res_simpson = simpson(
+        th.select(primitive, dim, 0).unsqueeze(dim), derivative, dim, dx
+    )
+
+    assert th.all((primitive - res_simpson).mean(dim=dim) < delta)
 
 
 @pytest.mark.parametrize("nperseg", [256, 512, 1024])
