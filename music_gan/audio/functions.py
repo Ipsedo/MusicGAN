@@ -150,6 +150,19 @@ def simpson(
     return primitive
 
 
+def trapezoid(
+    first_primitive: th.Tensor,
+    derivative: th.Tensor,
+    dim: int,
+    dx: float,
+) -> th.Tensor:
+    return first_primitive + dx * (
+        derivative.cumsum(dim=dim)
+        - derivative / 2.0
+        - th.select(derivative, dim, 0).unsqueeze(dim) / 2.0
+    )
+
+
 def wav_to_stft(
     wav_p: str,
     nperseg: int = constants.N_FFT,
@@ -244,7 +257,7 @@ def magn_phase_to_wav(
     magn = magn / (magn.max() - magn.min() + epsilon)
 
     phase = (phase + 1.0) / 2.0 * 2.0 * np.pi - np.pi
-    phase = 0 + 1.0 * (phase.cumsum(dim=1) - phase / 2 - phase[:, 0, None] / 2)
+    phase = simpson(th.zeros(phase.size()[0], 1), phase, 1, 1.0)
     phase = phase % (2 * np.pi)
 
     real = magn * th.cos(phase)
