@@ -22,6 +22,36 @@ def unwrap(phi: th.Tensor) -> th.Tensor:
     return phi + phi_adj.cumsum(1)
 
 
+def simpson(first_primitive: float, derivative: th.Tensor, dim: int, dx: float) -> th.Tensor:
+
+    sizes = derivative.size()
+    n = derivative.size()[dim]
+
+    evens = th.arange(0, n, 2)
+    odds = th.arange(1, n, 2)
+
+    even_derivative = derivative[evens]
+    odd_derivative = derivative[odds]
+
+    shift_odd_derivative = th.cat((th.zeros(*[s if i != dim else 1 for i, s in enumerate(sizes)]), odd_derivative), dim=dim)
+
+    even_primitive = (first_primitive + dx / 3 * (
+                (2 * even_derivative + 4 * shift_odd_derivative[:even_derivative.size()[dim]]).cumsum(dim) -
+                even_derivative[0] - even_derivative))
+
+    odd_primitive = (dx / 3 * (
+                (2 * odd_derivative + 4 * even_derivative[:odd_derivative.size()[dim]]).cumsum(dim) - 4 *
+                even_derivative[0] - odd_derivative[0] - odd_derivative))
+
+    odd_primitive += first_primitive + dx / 12 * (5 * derivative[0] + 8 * derivative[1] - derivative[2])
+
+    primitive = th.zeros_like(derivative)
+    primitive[evens] = even_primitive
+    primitive[odds] = odd_primitive
+
+    return primitive
+
+
 def bark_magn_scale(magn: th.Tensor, unscale: bool = False) -> th.Tensor:
     assert len(magn.size()) == 2, f"(STFT, TIME), actual = {magn.size()}"
 
