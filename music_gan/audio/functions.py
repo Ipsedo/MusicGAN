@@ -22,49 +22,6 @@ def unwrap(phi: th.Tensor) -> th.Tensor:
     return phi + phi_adj.cumsum(1)
 
 
-"""def simpson(
-    first_primitive: float, derivative: th.Tensor, dim: int, dx: float,
-) -> th.Tensor:
-
-    sizes = derivative.size()
-    n = derivative.size()[dim]
-
-    evens = th.arange(0, n, 2)
-    odds = th.arange(1, n, 2)
-
-    even_derivative = th.index_select(derivative, dim, evens)
-    odd_derivative = th.index_select(derivative, dim, odds)
-
-    even_primitive = first_primitive + dx / 3 * (
-        (
-            2 * even_derivative
-            + 4 * th.index_select(odd_derivative, dim=dim, index=th.arange(0, even_derivative.size()[dim]))
-        ).cumsum(dim)
-        - th.select(even_derivative, dim, 0).unsqueeze(dim)
-        - th.select(even_derivative, dim, 0).unsqueeze(dim)
-    )
-
-    odd_primitive = (dx / 3) * (
-        (
-            2 * odd_derivative
-            + 4 * th.index_select(even_derivative, dim=dim, index=th.arange(0, odd_derivative.size()[dim]))
-        ).cumsum(dim)
-        - 4 * th.select(even_derivative, dim, 0).unsqueeze(dim)
-        - th.select(odd_derivative, dim, 0).unsqueeze(dim)
-        - odd_derivative
-    )
-
-    odd_primitive += first_primitive + dx / 12 * (
-        5 * th.select(derivative, dim, 0) + 8 * th.select(derivative, dim, 1) - th.select(derivative, dim, 2)
-    )
-
-    primitive = th.zeros_like(derivative)
-    primitive[evens] = even_primitive
-    primitive[odds] = odd_primitive
-
-    return primitive"""
-
-
 def bark_magn_scale(magn: th.Tensor, unscale: bool = False) -> th.Tensor:
     assert len(magn.size()) == 2, f"(STFT, TIME), actual = {magn.size()}"
 
@@ -94,12 +51,15 @@ def simpson(
     even_derivative = th.index_select(derivative, dim, evens)
     odd_derivative = th.index_select(derivative, dim, odds)
 
-    shift_odd_derivative = th.cat(
-        (
-            th.zeros(*[1 if i == dim else s for i, s in enumerate(sizes)]),
-            odd_derivative,
-        ),
-        dim=dim,
+    shift_odd_derivative = th_f.pad(
+        odd_derivative,
+        [
+            p
+            for d in reversed(range(len(sizes)))
+            for p in [1 if d == dim else 0, 0]
+        ],
+        "constant",
+        0,
     )
 
     even_primitive = first_primitive + dx / 3 * (
