@@ -63,7 +63,7 @@ def test_trapezoid(start: float, end: float, dx: float) -> None:
 
 
 @pytest.mark.parametrize("nperseg", [256, 512, 1024])
-def tmp_test_wav_to_stft(wav_path: str, nperseg: int) -> None:
+def test_wav_to_stft(wav_path: str, nperseg: int) -> None:
     stft = wav_to_stft(wav_path, nperseg, nperseg // 2)
 
     assert len(stft.size()) == 2
