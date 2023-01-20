@@ -16,19 +16,19 @@ from music_gan.audio import (
 
 @pytest.mark.parametrize("start", [0.0, 2.0, 4.0])
 @pytest.mark.parametrize("end", [6.0, 8.0, 10.0])
-@pytest.mark.parametrize("dx", [0.01, 0.1, 0.2])
+@pytest.mark.parametrize("dx", [0.01, 0.02, 0.03])
 def test_simpson(start: float, end: float, dx: float) -> None:
 
     steps = int((end - start) / dx)
 
-    delta = 1e-1
+    delta = 1e-2
     dim = 1
 
     derivative = th.cos(th.linspace(start, end, steps))[None, :, None].repeat(
-        10, 1, 10
+        20, 1, 10
     )
     primitive = th.sin(th.linspace(start, end, steps))[None, :, None].repeat(
-        10, 1, 10
+        20, 1, 10
     )
 
     res_simpson = simpson(
@@ -40,19 +40,19 @@ def test_simpson(start: float, end: float, dx: float) -> None:
 
 @pytest.mark.parametrize("start", [0.0, 2.0, 4.0])
 @pytest.mark.parametrize("end", [6.0, 8.0, 10.0])
-@pytest.mark.parametrize("dx", [0.01, 0.1, 0.2])
+@pytest.mark.parametrize("dx", [0.01, 0.02, 0.03])
 def test_trapezoid(start: float, end: float, dx: float) -> None:
 
     steps = int((end - start) / dx)
 
-    delta = 1e-1
+    delta = 1e-2
     dim = 1
 
     derivative = th.cos(th.linspace(start, end, steps))[None, :, None].repeat(
-        10, 1, 10
+        20, 1, 10
     )
     primitive = th.sin(th.linspace(start, end, steps))[None, :, None].repeat(
-        10, 1, 10
+        20, 1, 10
     )
 
     res_simpson = trapezoid(

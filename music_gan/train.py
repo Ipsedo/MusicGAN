@@ -39,7 +39,7 @@ def train(
     betas_gen = (0.0, 0.9)
 
     nb_epoch = 1000
-    batch_size = 8
+    batch_size = 4
     train_gen_every = 5
 
     if not exists(output_dir):

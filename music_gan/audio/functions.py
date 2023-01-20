@@ -163,10 +163,10 @@ def stft_to_phase_magn(
     phase = th.angle(complex_values)
 
     magn = bark_magn_scale(magn, unscale=False)
-    magn = th.cat([th.zeros(magn.size()[0], 1), magn], dim=1)
+    magn = th_f.pad(magn, (1, 0, 0, 0), "constant", 0.0)
 
     phase = unwrap(phase)
-    phase = th.cat([th.zeros(phase.size()[0], 1), phase], dim=1)
+    phase = th_f.pad(phase, (1, 0, 0, 0), "constant", 0.0)
     phase = th.gradient(phase, dim=1, spacing=1.0, edge_order=1)[0]
 
     max_magn = magn.max()
@@ -223,8 +223,8 @@ def magn_phase_to_wav(
     real = magn * th.cos(phase)
     imag = magn * th.sin(phase)
 
-    real_res = th.cat([real, th.zeros(1, real.size()[1])], dim=0)
-    imag_res = th.cat([imag, th.zeros(1, imag.size()[1])], dim=0)
+    real_res = th_f.pad(real, (0, 0, 0, 1), "constant", 0)
+    imag_res = th_f.pad(imag, (0, 0, 0, 1), "constant", 0)
 
     z = real_res + imag_res * 1j
 
