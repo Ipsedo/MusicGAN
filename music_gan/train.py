@@ -55,9 +55,9 @@ def train(
             64000,
             128000,
             256000,
-            512000,
-            512000,
-            512000,
+            256000,
+            256000,
+            256000,
             # 1,1,1,1,1,1,1,1
         ],
         train_lengths=[
@@ -66,15 +66,15 @@ def train(
             128000,
             256000,
             512000,
-            1024000,
-            1024000,
+            512000,
+            512000,
             # 1,1,1,1,1,1,1
         ],
     )
 
     saver = Saver(
         output_dir,
-        save_every=2000,
+        save_every=4000,
         rand_channels=rand_channels,
         rand_height=height,
         rand_width=width,

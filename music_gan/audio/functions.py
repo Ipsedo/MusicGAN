@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Literal, Tuple
 
 import numpy as np
 import torch as th
@@ -22,7 +22,9 @@ def unwrap(phi: th.Tensor) -> th.Tensor:
     return phi + phi_adj.cumsum(1)
 
 
-def bark_magn_scale(magn: th.Tensor, unscale: bool = False) -> th.Tensor:
+def bark_scale(
+    magn: th.Tensor, mode: Literal["scale", "unscale"]
+) -> th.Tensor:
     assert len(magn.size()) == 2, f"(STFT, TIME), actual = {magn.size()}"
 
     min_hz = 20.0
@@ -30,9 +32,9 @@ def bark_magn_scale(magn: th.Tensor, unscale: bool = False) -> th.Tensor:
 
     linspace: th.Tensor = th.linspace(min_hz, max_hz, magn.size()[0]) / 600.0
     scale = 6.0 * th.arcsinh(linspace)[:, None]
-    scale_norm = scale / scale.norm()
+    scale = scale / scale[-1, :]
 
-    res: th.Tensor = magn / scale_norm if unscale else magn * scale_norm
+    res: th.Tensor = magn / scale if mode == "unscale" else magn * scale
     return res
 
 
@@ -137,6 +139,9 @@ def wav_to_stft(
 
     raw_audio_mono = raw_audio.mean(0)
 
+    assert -1.0 <= raw_audio_mono.min() <= 1.0
+    assert -1.0 <= raw_audio_mono.max() <= 1.0
+
     hann_window = th.hann_window(nperseg)
 
     complex_values: th.Tensor = th_audio_f.spectrogram(
@@ -162,7 +167,7 @@ def stft_to_phase_magn(
     magn = th.abs(complex_values)
     phase = th.angle(complex_values)
 
-    magn = bark_magn_scale(magn, unscale=False)
+    magn = bark_scale(magn, "scale")
     magn = th_f.pad(magn, (1, 0, 0, 0), "constant", 0.0)
 
     phase = unwrap(phase)
@@ -171,13 +176,11 @@ def stft_to_phase_magn(
 
     max_magn = magn.max()
     min_magn = magn.min()
+    magn = 2 * (magn - min_magn) / (max_magn - min_magn + epsilon) - 1
+
     max_phase = phase.max()
     min_phase = phase.min()
-
-    magn = (magn - min_magn) / (max_magn - min_magn + epsilon)
-    phase = (phase - min_phase) / (max_phase - min_phase + epsilon)
-
-    magn, phase = magn * 2.0 - 1.0, phase * 2.0 - 1.0
+    phase = 2 * (phase - min_phase) / (max_phase - min_phase + epsilon) - 1
 
     magn = magn[:, magn.size()[1] % nb_vec :]
     phase = phase[:, phase.size()[1] % nb_vec :]
@@ -193,7 +196,6 @@ def magn_phase_to_wav(
     sample_rate: int,
     n_fft: int = constants.N_FFT,
     stft_stride: int = constants.STFT_STRIDE,
-    epsilon: float = 1e-8,
 ) -> None:
     assert (
         len(magn_phase.size()) == 4
@@ -213,8 +215,7 @@ def magn_phase_to_wav(
     phase = magn_phase_flattened[1, :, :]
 
     magn = (magn + 1.0) / 2.0
-    magn = bark_magn_scale(magn, unscale=True)
-    magn = magn / (magn.max() - magn.min() + epsilon)
+    magn = bark_scale(magn, "unscale")
 
     phase = (phase + 1.0) / 2.0 * 2.0 * np.pi - np.pi
     phase = simpson(th.zeros(phase.size()[0], 1), phase, 1, 1.0)

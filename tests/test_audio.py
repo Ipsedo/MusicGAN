@@ -5,7 +5,7 @@ import pytest
 import torch as th
 
 from music_gan.audio import (
-    bark_magn_scale,
+    bark_scale,
     magn_phase_to_wav,
     simpson,
     stft_to_phase_magn,
@@ -75,13 +75,13 @@ def test_wav_to_stft(wav_path: str, nperseg: int) -> None:
 def test_bark_magn_scale(nfft: int, nb_vec: int) -> None:
     magn = th.randn(nfft, nb_vec)
 
-    magn_scaled = bark_magn_scale(magn, unscale=False)
+    magn_scaled = bark_scale(magn, "scale")
 
     assert len(magn_scaled.size()) == 2
     assert magn_scaled.size()[0] == nfft
     assert magn_scaled.size()[1] == nb_vec
 
-    magn = bark_magn_scale(magn_scaled, unscale=True)
+    magn = bark_scale(magn_scaled, "unscale")
 
     assert len(magn.size()) == 2
     assert magn.size()[0] == nfft
@@ -117,9 +117,7 @@ def test_magn_phase_to_wav(
     try:
         magn_phase = th.randn(batch_size, 2, nfft // 2, nb_vec)
 
-        magn_phase_to_wav(
-            magn_phase, wav_path, sample_rate, nfft, nfft // 2, 1e-8
-        )
+        magn_phase_to_wav(magn_phase, wav_path, sample_rate, nfft, nfft // 2)
 
         assert exists(wav_path)
         assert isfile(wav_path)
