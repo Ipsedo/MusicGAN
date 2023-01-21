@@ -138,6 +138,12 @@ def wav_to_stft(
     )
 
     raw_audio_mono = raw_audio.mean(0)
+    raw_audio_mono = (
+        2
+        * (raw_audio_mono - raw_audio_mono.min())
+        / (raw_audio_mono.max() - raw_audio_mono.min())
+        - 1.0
+    )
 
     assert -1.0 <= raw_audio_mono.min() <= 1.0
     assert -1.0 <= raw_audio_mono.max() <= 1.0
