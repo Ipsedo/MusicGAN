@@ -5,17 +5,19 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from .constants import LEAKY_RELU_SLOPE, MAX_GROW
+from .equal_lr import EqualLrConv2d, EqualLrConvTr2d
 
 
 class ToMagnPhase(nn.Sequential):
     def __init__(self, in_channels: int):
         super(ToMagnPhase, self).__init__(
-            nn.Conv2d(
+            EqualLrConv2d(
                 in_channels,
                 2,
                 kernel_size=(1, 1),
                 stride=(1, 1),
                 padding=(0, 0),
+                alpha=1.0,
             ),
             nn.Tanh(),
         )
@@ -24,12 +26,13 @@ class ToMagnPhase(nn.Sequential):
 class FromRandom(nn.Sequential):
     def __init__(self, random_channels: int, out_channels: int):
         super(FromRandom, self).__init__(
-            nn.Conv2d(
+            EqualLrConv2d(
                 random_channels,
                 out_channels,
                 kernel_size=(1, 1),
                 stride=(1, 1),
                 padding=(0, 0),
+                alpha=1.0,
             ),
             nn.LeakyReLU(LEAKY_RELU_SLOPE),
             nn.BatchNorm2d(out_channels),
@@ -39,13 +42,14 @@ class FromRandom(nn.Sequential):
 class GenBlock(nn.Sequential):
     def __init__(self, in_channels: int, out_channels: int):
         super(GenBlock, self).__init__(
-            nn.ConvTranspose2d(
+            EqualLrConvTr2d(
                 in_channels,
                 out_channels,
                 kernel_size=(4, 4),
                 stride=(2, 2),
                 padding=(1, 1),
                 output_padding=(0, 0),
+                alpha=1.0,
             ),
             nn.LeakyReLU(LEAKY_RELU_SLOPE),
             nn.BatchNorm2d(out_channels),

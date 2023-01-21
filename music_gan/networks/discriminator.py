@@ -6,35 +6,34 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from .constants import LEAKY_RELU_SLOPE, MAX_GROW
-from .layers import MiniBatchStdDev
+from .equal_lr import EqualLrConv2d, EqualLrLinear
 
 
 class FromMagnPhase(nn.Sequential):
     def __init__(self, out_channels: int):
         super(FromMagnPhase, self).__init__(
-            nn.Conv2d(
+            EqualLrConv2d(
                 2,
                 out_channels,
                 kernel_size=(1, 1),
                 stride=(1, 1),
                 padding=(0, 0),
+                alpha=1.0,
             ),
             nn.LeakyReLU(LEAKY_RELU_SLOPE),
         )
 
 
 class DiscBlock(nn.Sequential):
-    def __init__(
-        self, in_channels: int, out_channels: int, mini_batch_std_dev: bool
-    ):
+    def __init__(self, in_channels: int, out_channels: int):
         super(DiscBlock, self).__init__(
-            MiniBatchStdDev() if mini_batch_std_dev else nn.Identity(),
-            nn.Conv2d(
-                in_channels + (1 if mini_batch_std_dev else 0),
+            EqualLrConv2d(
+                in_channels,
                 out_channels,
                 kernel_size=(4, 4),
                 stride=(2, 2),
                 padding=(1, 1),
+                alpha=1.0,
             ),
             nn.LeakyReLU(LEAKY_RELU_SLOPE),
         )
@@ -67,8 +66,7 @@ class Discriminator(nn.Module):
         assert 0 <= start_layer <= len(conv_channels)
 
         self.__conv_blocks = nn.ModuleList(
-            DiscBlock(c[0], c[1], i == len(conv_channels) - 1)
-            for i, c in enumerate(conv_channels)
+            DiscBlock(c[0], c[1]) for c in conv_channels
         )
 
         self.__start_blocks = nn.ModuleList(
@@ -90,7 +88,7 @@ class Discriminator(nn.Module):
         )
 
         self.__clf = nn.Sequential(
-            nn.Linear(out_size, 1),
+            EqualLrLinear(out_size, 1),
         )
 
     def forward(self, x: th.Tensor, alpha: float) -> th.Tensor:
