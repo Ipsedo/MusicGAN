@@ -72,7 +72,7 @@ def test_wav_to_stft(wav_path: str, nperseg: int) -> None:
 
 @pytest.mark.parametrize("nfft", [128, 256, 512])
 @pytest.mark.parametrize("nb_vec", [128, 256, 512])
-def test_bark_magn_scale(nfft: int, nb_vec: int) -> None:
+def test_bark_scale(nfft: int, nb_vec: int) -> None:
     magn = th.randn(nfft, nb_vec)
 
     magn_scaled = bark_scale(magn, "scale")
