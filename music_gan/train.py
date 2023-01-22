@@ -33,8 +33,8 @@ def train(
     height = networks.INPUT_SIZES[0]
     width = networks.INPUT_SIZES[1]
 
-    disc_lr = 1e-4
-    gen_lr = 1e-4
+    disc_lr = 1e-3
+    gen_lr = 1e-3
     betas_disc = (0.0, 0.9)
     betas_gen = (0.0, 0.9)
 
@@ -51,24 +51,22 @@ def train(
         n_grow=7,
         fadein_lengths=[
             1,
-            256000,
-            256000,
-            256000,
-            256000,
-            256000,
-            256000,
-            256000,
-            # 1,1,1,1,1,1,1,1256000,
+            32000,
+            32000,
+            32000,
+            32000,
+            32000,
+            32000,
+            32000,
         ],
         train_lengths=[
-            256000,
-            512000,
-            512000,
-            512000,
-            512000,
-            512000,
-            512000,
-            # 1,1,1,1,1,1,1
+            32000,
+            64000,
+            64000,
+            64000,
+            64000,
+            64000,
+            64000,
         ],
     )
 
@@ -80,16 +78,27 @@ def train(
         rand_width=width,
     )
 
-    gen = networks.Generator(rand_channels, end_layer=0)
-
-    disc = networks.Discriminator(start_layer=7)
+    gen = networks.Generator(
+        rand_channels,
+        end_layer=0,
+    )
+    disc = networks.Discriminator(
+        start_layer=7,
+    )
 
     gen.cuda()
     disc.cuda()
 
-    optim_gen = th.optim.Adam(gen.parameters(), lr=gen_lr, betas=betas_gen)
-
-    optim_disc = th.optim.Adam(disc.parameters(), lr=disc_lr, betas=betas_disc)
+    optim_gen = th.optim.Adam(
+        gen.parameters(),
+        lr=gen_lr,
+        betas=betas_gen,
+    )
+    optim_disc = th.optim.Adam(
+        disc.parameters(),
+        lr=disc_lr,
+        betas=betas_disc,
+    )
 
     # create DataSet
     audio_dataset = audio.AudioDataset(input_dataset_path)
@@ -169,7 +178,11 @@ def train(
                 )
 
                 # compute gradient penalty
-                disc_gp = disc.gradient_penalty(x_real, x_fake, grower.alpha)
+                disc_gp = disc.gradient_penalty(
+                    x_real,
+                    x_fake,
+                    grower.alpha,
+                )
 
                 disc_loss = disc_error + disc_gp
 
