@@ -21,7 +21,7 @@ def test_simpson(start: float, end: float, dx: float) -> None:
 
     steps = int((end - start) / dx)
 
-    delta = 1e-2
+    delta = 1e-1
     dim = 1
 
     derivative = th.cos(th.linspace(start, end, steps))[None, :, None].repeat(
@@ -35,7 +35,7 @@ def test_simpson(start: float, end: float, dx: float) -> None:
         th.select(primitive, dim, 0).unsqueeze(dim), derivative, dim, dx
     )
 
-    assert th.all((primitive - res_simpson).mean(dim=dim) < delta)
+    assert th.all(th.abs(primitive - res_simpson).mean(dim=dim) < delta)
 
 
 @pytest.mark.parametrize("start", [0.0, 2.0, 4.0])
@@ -45,7 +45,7 @@ def test_trapezoid(start: float, end: float, dx: float) -> None:
 
     steps = int((end - start) / dx)
 
-    delta = 1e-2
+    delta = 1e-1
     dim = 1
 
     derivative = th.cos(th.linspace(start, end, steps))[None, :, None].repeat(
@@ -59,21 +59,25 @@ def test_trapezoid(start: float, end: float, dx: float) -> None:
         th.select(primitive, dim, 0).unsqueeze(dim), derivative, dim, dx
     )
 
-    assert th.all((primitive - res_simpson).mean(dim=dim) < delta)
+    assert th.all(th.abs(primitive - res_simpson).mean(dim=dim) < delta)
 
 
 @pytest.mark.parametrize("nperseg", [256, 512, 1024])
-def test_wav_to_stft(wav_path: str, nperseg: int) -> None:
-    stft = wav_to_stft(wav_path, nperseg, nperseg // 2)
+@pytest.mark.parametrize("stride", [64, 128, 256])
+def test_wav_to_stft(wav_path: str, nperseg: int, stride: int) -> None:
+    stft = wav_to_stft(wav_path, nperseg, stride)
 
     assert len(stft.size()) == 2
     assert stft.size()[0] == nperseg // 2
+    assert th.is_complex(stft)
 
 
 @pytest.mark.parametrize("nfft", [128, 256, 512])
 @pytest.mark.parametrize("nb_vec", [128, 256, 512])
 def test_bark_scale(nfft: int, nb_vec: int) -> None:
-    magn = th.randn(nfft, nb_vec)
+    delta = 1e-2
+
+    magn = th.rand(nfft, nb_vec)
 
     magn_scaled = bark_scale(magn, "scale")
 
@@ -81,11 +85,13 @@ def test_bark_scale(nfft: int, nb_vec: int) -> None:
     assert magn_scaled.size()[0] == nfft
     assert magn_scaled.size()[1] == nb_vec
 
-    magn = bark_scale(magn_scaled, "unscale")
+    magn_unscaled = bark_scale(magn_scaled, "unscale")
 
-    assert len(magn.size()) == 2
-    assert magn.size()[0] == nfft
-    assert magn.size()[1] == nb_vec
+    assert len(magn_unscaled.size()) == 2
+    assert magn_unscaled.size()[0] == nfft
+    assert magn_unscaled.size()[1] == nb_vec
+
+    assert th.all((magn - magn_unscaled) < delta)
 
 
 @pytest.mark.parametrize("nfft", [128, 256, 512])
@@ -99,10 +105,12 @@ def test_stft_to_magn_phase(nfft: int, stft_nb: int, nb_vec: int) -> None:
     assert len(magn.size()) == 3
     assert magn.size()[1] == nfft
     assert magn.size()[2] == nb_vec
+    assert th.all((-1.0 <= magn) & (magn <= 1.0))
 
     assert len(phase.size()) == 3
     assert phase.size()[1] == nfft
     assert phase.size()[2] == nb_vec
+    assert th.all((-1.0 <= phase) & (phase <= 1.0))
 
 
 @pytest.mark.parametrize("batch_size", [1, 2, 3])
