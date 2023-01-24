@@ -99,10 +99,13 @@ class Generator(nn.Module):
         out_mp: th.Tensor = self.__end_blocks[self.curr_layer](out_block)
 
         if self.__grew_up:
-            out_old = F.interpolate(
-                self.__end_blocks[self.curr_layer - 1](out),
-                scale_factor=2.0,
-                mode="nearest",
+            out_old = self.__end_blocks[self.curr_layer - 1](
+                F.interpolate(
+                    out,
+                    scale_factor=2.0,
+                    mode="bilinear",
+                    align_corners=True,
+                )
             )
 
             out_mp = out_old * (1.0 - alpha) + out_mp * alpha

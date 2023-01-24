@@ -1,6 +1,6 @@
 import argparse
 
-from . import create_dataset, generate, train, view_audio
+from . import TrainOptions, create_dataset, generate, train, view_audio
 
 
 def main() -> None:
@@ -38,7 +38,6 @@ def main() -> None:
     train_parser.add_argument(
         "-o",
         "--out-path",
-        dest="out_path",
         type=str,
         required=True,
     )
@@ -46,10 +45,96 @@ def main() -> None:
     train_parser.add_argument(
         "-i",
         "--input-dataset",
-        dest="input_dataset",
         required=True,
         type=str,
     )
+
+    train_parser.add_argument(
+        "--rand-channels",
+        type=int,
+        default=32,
+    )
+
+    train_parser.add_argument(
+        "--disc-lr",
+        type=float,
+        default=1e-4,
+    )
+
+    train_parser.add_argument(
+        "--gen-lr",
+        type=float,
+        default=1e-4,
+    )
+
+    train_parser.add_argument(
+        "--disc-betas",
+        type=float,
+        nargs=2,
+        action="append",
+        default=[0.0, 0.9],
+    )
+
+    train_parser.add_argument(
+        "--gen-betas",
+        type=float,
+        nargs=2,
+        action="append",
+        default=[0.0, 0.9],
+    )
+
+    train_parser.add_argument(
+        "-e",
+        "--epochs",
+        type=int,
+        default=1000,
+    )
+
+    train_parser.add_argument(
+        "-b",
+        "--batch-size",
+        type=int,
+        default=4,
+    )
+
+    train_parser.add_argument(
+        "--train-gen-every",
+        type=int,
+        default=5,
+    )
+
+    train_parser.add_argument(
+        "--fadein-lengths",
+        type=int,
+        nargs="+",
+        default=[
+            1,
+            32000,
+            32000,
+            32000,
+            32000,
+            32000,
+            32000,
+            32000,
+        ],
+    )
+
+    train_parser.add_argument(
+        "--train-lengths",
+        type=int,
+        nargs="+",
+        default=[
+            32000,
+            64000,
+            64000,
+            64000,
+            64000,
+            64000,
+            64000,
+        ],
+    )
+
+    train_parser.add_argument("--save-every", type=int, default=4000)
 
     # Generate args
     generate_parser = sub_parser.add_parser("generate")
@@ -111,20 +196,40 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    if args.mode == "create_dataset":
-        create_dataset(args.audio_path, args.output_dir)
-    elif args.mode == "train":
-        train(args.run, args.input_dataset, args.out_path)
-    elif args.mode == "generate":
-        generate(
-            args.output_dir,
-            args.rand_channels,
-            args.gen_dict_state,
-            args.nb_vec,
-            args.nb_music,
-        )
-    elif args.mode == "view_audio":
-        view_audio(args.input_audio, args.frame_idx, args.output_path)
+    match args.mode:
+        case "create_dataset":
+            create_dataset(args.audio_path, args.output_dir)
+        case "train":
+            train(
+                TrainOptions(
+                    run_name=args.run,
+                    dataset_path=args.input_dataset,
+                    output_dir=args.out_path,
+                    rand_channels=args.rand_channels,
+                    disc_lr=args.disc_lr,
+                    gen_lr=args.gen_lr,
+                    disc_betas=args.disc_betas,
+                    gen_betas=args.gen_betas,
+                    nb_epoch=args.epochs,
+                    batch_size=args.batch_size,
+                    train_gen_every=args.train_gen_every,
+                    fadein_lengths=args.fadein_lengths,
+                    train_lengths=args.train_lengths,
+                    save_every=args.save_every,
+                )
+            )
+        case "generate":
+            generate(
+                args.output_dir,
+                args.rand_channels,
+                args.gen_dict_state,
+                args.nb_vec,
+                args.nb_music,
+            )
+        case "view_audio":
+            view_audio(args.input_audio, args.frame_idx, args.output_path)
+        case _:
+            parser.error(f"Unrecognized mode : '{args.mode}'")
 
 
 if __name__ == "__main__":

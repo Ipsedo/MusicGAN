@@ -1,6 +1,7 @@
 from os import mkdir
 from os.path import exists, isdir
 from statistics import mean
+from typing import List, NamedTuple, Tuple
 
 import mlflow
 import torch as th
@@ -10,76 +11,53 @@ from tqdm import tqdm
 from . import audio, networks
 from .utils import Grower, Saver
 
+TrainOptions = NamedTuple(
+    "TrainOptions",
+    [
+        ("run_name", str),
+        ("dataset_path", str),
+        ("output_dir", str),
+        ("rand_channels", int),
+        ("disc_lr", float),
+        ("gen_lr", float),
+        ("disc_betas", Tuple[float, float]),
+        ("gen_betas", Tuple[float, float]),
+        ("nb_epoch", int),
+        ("batch_size", int),
+        ("train_gen_every", int),
+        ("fadein_lengths", List[int]),
+        ("train_lengths", List[int]),
+        ("save_every", int),
+    ],
+)
 
-def train(
-    run_name: str,
-    input_dataset_path: str,
-    output_dir: str,
-) -> None:
+
+def train(train_options: TrainOptions) -> None:
     th.backends.cudnn.benchmark = True
 
     exp_name = "music_gan"
     mlflow.set_experiment(exp_name)
 
     assert isdir(
-        input_dataset_path
-    ), f'"{input_dataset_path}" doesn\'t exist or is not a directory'
+        train_options.dataset_path
+    ), f'"{train_options.dataset_path}" doesn\'t exist or is not a directory'
 
-    mlflow.start_run(run_name=run_name)
+    mlflow.start_run(run_name=train_options.run_name)
 
     sample_rate = audio.SAMPLE_RATE
 
-    rand_channels = 32
     height = networks.INPUT_SIZES[0]
     width = networks.INPUT_SIZES[1]
 
-    disc_lr = 1e-3
-    gen_lr = 1e-3
-    betas_disc = (0.0, 0.9)
-    betas_gen = (0.0, 0.9)
-
-    nb_epoch = 1000
-    batch_size = 4
-    train_gen_every = 5
-
-    if not exists(output_dir):
-        mkdir(output_dir)
-    elif exists(output_dir) and not isdir(output_dir):
-        raise NotADirectoryError(f'"{output_dir}" is not a directory !')
-
-    grower = Grower(
-        n_grow=7,
-        fadein_lengths=[
-            1,
-            32000,
-            32000,
-            32000,
-            32000,
-            32000,
-            32000,
-            32000,
-        ],
-        train_lengths=[
-            32000,
-            64000,
-            64000,
-            64000,
-            64000,
-            64000,
-            64000,
-        ],
-    )
-
-    saver = Saver(
-        output_dir,
-        save_every=4000,
-        rand_channels=rand_channels,
-        rand_height=height,
-        rand_width=width,
-    )
+    if not exists(train_options.output_dir):
+        mkdir(train_options.output_dir)
+    elif not isdir(train_options.output_dir):
+        raise NotADirectoryError(
+            f'"{train_options.output_dir}" is not a directory !'
+        )
 
     gen = networks.Generator(
-        rand_channels,
+        train_options.rand_channels,
         end_layer=0,
     )
     disc = networks.Discriminator(
@@ -91,40 +69,54 @@ def train(
 
     optim_gen = th.optim.Adam(
         gen.parameters(),
-        lr=gen_lr,
-        betas=betas_gen,
+        lr=train_options.gen_lr,
+        betas=train_options.gen_betas,
     )
     optim_disc = th.optim.Adam(
         disc.parameters(),
-        lr=disc_lr,
-        betas=betas_disc,
+        lr=train_options.disc_lr,
+        betas=train_options.disc_betas,
     )
 
     # create DataSet
-    audio_dataset = audio.AudioDataset(input_dataset_path)
+    audio_dataset = audio.AudioDataset(train_options.dataset_path)
 
     data_loader = DataLoader(
         audio_dataset,
-        batch_size=batch_size,
+        batch_size=train_options.batch_size,
         shuffle=True,
         num_workers=6,
         drop_last=True,
         pin_memory=True,
     )
 
+    grower = Grower(
+        n_grow=gen.layer_nb,
+        fadein_lengths=train_options.fadein_lengths,
+        train_lengths=train_options.train_lengths,
+    )
+
+    saver = Saver(
+        train_options.output_dir,
+        save_every=train_options.save_every,
+        rand_channels=train_options.rand_channels,
+        rand_height=height,
+        rand_width=width,
+    )
+
     mlflow.log_params(
         {
-            "input_dataset": input_dataset_path,
+            "input_dataset": train_options.dataset_path,
             "nb_sample": len(audio_dataset),
-            "output_dir": output_dir,
-            "rand_channels": rand_channels,
-            "nb_epoch": nb_epoch,
-            "batch_size": batch_size,
-            "train_gen_every": train_gen_every,
-            "disc_lr": disc_lr,
-            "gen_lr": gen_lr,
-            "betas_disc": betas_disc,
-            "betas_gen": betas_gen,
+            "output_dir": train_options.output_dir,
+            "rand_channels": train_options.rand_channels,
+            "nb_epoch": train_options.nb_epoch,
+            "batch_size": train_options.batch_size,
+            "train_gen_every": train_options.train_gen_every,
+            "disc_lr": train_options.disc_lr,
+            "gen_lr": train_options.gen_lr,
+            "disc_betas": train_options.disc_betas,
+            "gen_betas": train_options.gen_betas,
             "sample_rate": sample_rate,
             "width": width,
             "height": height,
@@ -144,7 +136,7 @@ def train(
 
     iter_idx = 0
 
-    for e in range(nb_epoch):
+    for e in range(train_options.nb_epoch):
 
         tqdm_bar = tqdm(data_loader)
 
@@ -157,8 +149,8 @@ def train(
 
             # sample random latent data
             z = th.randn(
-                batch_size,
-                rand_channels,
+                train_options.batch_size,
+                train_options.rand_channels,
                 height,
                 width,
                 device="cuda",
@@ -204,11 +196,11 @@ def train(
             disc_gp_list.append(disc_gp.item())
 
             # [2] train generator
-            if iter_idx % train_gen_every == 0:
+            if iter_idx % train_options.train_gen_every == 0:
                 # sample random latent data
                 z = th.randn(
-                    batch_size,
-                    rand_channels,
+                    train_options.batch_size,
+                    train_options.rand_channels,
                     height,
                     width,
                     device="cuda",
