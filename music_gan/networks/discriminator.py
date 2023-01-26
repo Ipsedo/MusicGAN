@@ -5,7 +5,7 @@ import torch.autograd as th_autograd
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .constants import LEAKY_RELU_SLOPE, MAX_GROW
+from .constants import LEAKY_RELU_SLOPE, MAX_GROW, OUTPUT_SIZES
 
 
 class FromMagnPhase(nn.Sequential):
@@ -70,8 +70,7 @@ class Discriminator(nn.Module):
             FromMagnPhase(c[0]) for c in conv_channels
         )
 
-        nb_time = 512
-        nb_freq = 512
+        nb_time, nb_freq = OUTPUT_SIZES
 
         # for recurrent we won't keep the last block
         self.__end_layer_channels = conv_channels[-2][1]
@@ -85,6 +84,7 @@ class Discriminator(nn.Module):
         )
 
         self.__clf = nn.Sequential(
+            nn.Flatten(1, -1),
             nn.Linear(out_size, 1),
         )
 
@@ -94,15 +94,13 @@ class Discriminator(nn.Module):
 
         if self.__grew_up:
             out_old = self.__start_blocks[self.curr_layer + 1](
-                F.avg_pool2d(x, (2, 2))
+                F.interpolate(x, scale_factor=0.5, mode="area")
             )
 
             out = out_old * (1.0 - alpha) + out * alpha
 
         for i in range(self.curr_layer + 1, len(self.__conv_blocks)):
             out = self.__conv_blocks[i](out)
-
-        out = out.flatten(1, -1)
 
         out_clf: th.Tensor = self.__clf(out)
 

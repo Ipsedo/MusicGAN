@@ -52,7 +52,7 @@ def main() -> None:
     train_parser.add_argument(
         "--rand-channels",
         type=int,
-        default=32,
+        default=64,
     )
 
     train_parser.add_argument(
@@ -109,13 +109,13 @@ def main() -> None:
         nargs="+",
         default=[
             1,
-            32000,
-            32000,
-            32000,
-            32000,
-            32000,
-            32000,
-            32000,
+            64000,
+            64000,
+            64000,
+            64000,
+            64000,
+            64000,
+            64000,
         ],
     )
 
@@ -124,17 +124,27 @@ def main() -> None:
         type=int,
         nargs="+",
         default=[
-            32000,
             64000,
-            64000,
-            64000,
-            64000,
-            64000,
-            64000,
+            128000,
+            128000,
+            128000,
+            128000,
+            128000,
+            128000,
         ],
     )
 
-    train_parser.add_argument("--save-every", type=int, default=4000)
+    train_parser.add_argument(
+        "--save-every",
+        type=int,
+        default=4000,
+    )
+
+    train_parser.add_argument(
+        "--log-metrics-every",
+        type=int,
+        default=500,
+    )
 
     # Generate args
     generate_parser = sub_parser.add_parser("generate")
@@ -216,6 +226,7 @@ def main() -> None:
                     fadein_lengths=args.fadein_lengths,
                     train_lengths=args.train_lengths,
                     save_every=args.save_every,
+                    log_metrics_every=args.log_metrics_every,
                 )
             )
         case "generate":

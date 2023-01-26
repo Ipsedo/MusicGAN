@@ -28,6 +28,7 @@ TrainOptions = NamedTuple(
         ("fadein_lengths", List[int]),
         ("train_lengths", List[int]),
         ("save_every", int),
+        ("log_metrics_every", int),
     ],
 )
 
@@ -248,7 +249,7 @@ def train(train_options: TrainOptions) -> None:
             )
 
             # log metrics
-            if iter_idx % 500 == 0:
+            if iter_idx % train_options.log_metrics_every == 0:
                 mlflow.log_metrics(
                     step=gen.curr_layer,
                     metrics={

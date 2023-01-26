@@ -4,7 +4,7 @@ import torch as th
 import torch.nn as nn
 import torch.nn.functional as F
 
-from .constants import LEAKY_RELU_SLOPE, MAX_GROW
+from .constants import MAX_GROW
 
 
 class ToMagnPhase(nn.Sequential):
@@ -31,7 +31,7 @@ class FromRandom(nn.Sequential):
                 stride=(1, 1),
                 padding=(0, 0),
             ),
-            nn.LeakyReLU(LEAKY_RELU_SLOPE),
+            nn.ReLU(),
             nn.BatchNorm2d(out_channels),
         )
 
@@ -47,7 +47,7 @@ class GenBlock(nn.Sequential):
                 padding=(1, 1),
                 output_padding=(0, 0),
             ),
-            nn.LeakyReLU(LEAKY_RELU_SLOPE),
+            nn.ReLU(),
             nn.BatchNorm2d(out_channels),
         )
 
@@ -90,34 +90,32 @@ class Generator(nn.Module):
         self.__end_blocks = nn.ModuleList(ToMagnPhase(c[1]) for c in channels)
 
     def forward(self, z: th.Tensor, alpha: float) -> th.Tensor:
-        out = self.__from_random(z)
+        out: th.Tensor = self.__from_random(z)
 
         for i in range(self.curr_layer):
             out = self.__gen_blocks[i](out)
 
         out_block = self.__gen_blocks[self.curr_layer](out)
-        out_mp: th.Tensor = self.__end_blocks[self.curr_layer](out_block)
+        out_new = self.__end_blocks[self.curr_layer](out_block)
 
         if self.__grew_up:
             out_old = self.__end_blocks[self.curr_layer - 1](
                 F.interpolate(
                     out,
                     scale_factor=2.0,
-                    mode="bilinear",
-                    align_corners=True,
+                    mode="area",
                 )
             )
 
-            out_mp = out_old * (1.0 - alpha) + out_mp * alpha
+            out = out_old * (1.0 - alpha) + out_new * alpha
+        else:
+            out = out_new
 
-        return out_mp
+        return out
 
     def next_layer(self) -> bool:
         if self.growing:
-            # self.__end_blocks[self.__curr_layer].requires_grad_(False)
-
             self.__curr_layer += 1
-
             self.__grew_up = True
 
             return True
